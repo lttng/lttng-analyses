@@ -75,23 +75,13 @@ class CPUAnalyzes():
         self.per_cpu(cpu_id, event.timestamp, next_tid)
         self.per_tid(event.timestamp, prev_tid, next_tid, next_comm)
 
-    def run(self):
-        """Process the trace"""
-        for event in self.traces.events:
-            if self.start_ts == 0:
-                self.start_ts = event.timestamp
-            self.end_ts = event.timestamp
+    def text_per_pid_report(self, total_ns):
+        print("\n### Per-TID Usage ###")
+        for tid in self.tids.keys():
+            print("%s (%d) : %0.02f%%" % (self.tids[tid].comm, tid,
+                    ((self.tids[tid].cpu_ns * 100)/ total_ns)))
 
-            if event.name == "sched_switch":
-                self.sched_switch(event)
-
-    def text_report(self):
-        total_ns = self.end_ts - self.start_ts
-        print("### Trace info ###")
-        print("Start : %lu\nEnd: %lu" % (self.start_ts, self.end_ts))
-        print("Total ns : %lu" % (total_ns))
-        print("Total : %lu.%0.09lus\n" % (total_ns / NSEC_PER_SEC,
-            total_ns % NSEC_PER_SEC))
+    def text_per_cpu_report(self, total_ns):
         print("### Per-CPU Usage ###")
         total_cpu_pc = 0
         for cpu in self.cpus.keys():
@@ -102,10 +92,51 @@ class CPUAnalyzes():
             print("CPU %d : %d ns (%0.02f%%)" % (cpu, cpu_total_ns, cpu_pc))
         print("Total CPU Usage : %0.02f%%" % (total_cpu_pc / nb_cpu))
 
-        print("\n### Per-TID Usage ###")
+    def text_trace_info(self, total_ns):
+        print("### Trace info ###")
+        print("Start : %lu\nEnd: %lu" % (self.start_ts, self.end_ts))
+        print("Total ns : %lu" % (total_ns))
+        print("Total : %lu.%0.09lus\n" % (total_ns / NSEC_PER_SEC,
+            total_ns % NSEC_PER_SEC))
+
+    def text_report(self, info = 1, cpu = 1, tid = 1):
+        total_ns = self.end_ts - self.start_ts
+
+        if info:
+            self.text_trace_info(total_ns)
+        if cpu:
+            self.text_per_cpu_report(total_ns)
+        if tid:
+            self.text_per_pid_report(total_ns)
+
+    def reset(self):
+        for cpu in self.cpus.keys():
+            self.cpus[cpu].cpu_ns = 0
         for tid in self.tids.keys():
-            print("%s (%d) : %0.02f%%" % (self.tids[tid].comm, tid,
-                    ((self.tids[tid].cpu_ns * 100)/ total_ns)))
+            self.tids[tid].cpu_ns = 0
+
+    def run(self, refresh_sec = 0):
+        """Process the trace"""
+        current_sec = 0
+        for event in self.traces.events:
+            if self.start_ts == 0:
+                self.start_ts = event.timestamp
+            if refresh_sec != 0:
+                event_sec = event.timestamp/NSEC_PER_SEC
+                if current_sec == 0:
+                    current_sec = event_sec
+                elif current_sec != event_sec and \
+                        (current_sec + refresh_sec) >= event_sec:
+                    current_sec = event_sec
+                    self.text_report(cpu = 1, info = 0, tid = 0)
+                    self.reset()
+            self.end_ts = event.timestamp
+
+            if event.name == "sched_switch":
+                self.sched_switch(event)
+        # stats for the whole trace
+        if refresh_sec == 0:
+            self.text_report()
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -118,5 +149,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     c = CPUAnalyzes(traces)
-    c.run()
-    c.text_report()
+    c.run(1)
