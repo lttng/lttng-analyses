@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,7 @@ class CPUAnalyzes():
 
     def per_cpu(self, cpu_id, ts, next_tid):
         """Compute per-cpu usage"""
-        if self.cpus.has_key(cpu_id):
+        if cpu_id in self.cpus:
             c = self.cpus[cpu_id]
             if c.start_ns != 0:
                 c.cpu_ns += ts - c.start_ns
@@ -51,11 +51,11 @@ class CPUAnalyzes():
     def per_tid(self, ts, prev_tid, next_tid, next_comm):
         """Compute per-tid usage"""
         # per-tid usage
-        if self.tids.has_key(prev_tid):
+        if prev_tid in self.tids:
             p = self.tids[prev_tid]
             p.cpu_ns += (ts - p.last_sched)
 
-        if not self.tids.has_key(next_tid):
+        if not next_tid in self.tids:
             p = Process()
             p.tid = next_tid
             p.comm = next_comm
