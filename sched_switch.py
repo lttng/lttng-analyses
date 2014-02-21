@@ -99,7 +99,8 @@ class CPUAnalyzes():
         print("Total : %lu.%0.09lus\n" % (total_ns / NSEC_PER_SEC,
             total_ns % NSEC_PER_SEC))
 
-    def text_report(self, info = 1, cpu = 1, tid = 1):
+    def text_report(self, begin_sec, end_sec, info = 1, cpu = 1, tid = 1):
+        print("[%lu:%lu]" % (begin_sec, end_sec))
         total_ns = self.end_ts - self.start_ts
 
         if info:
@@ -109,7 +110,7 @@ class CPUAnalyzes():
         if tid:
             self.text_per_pid_report(total_ns)
 
-    def reset(self):
+    def reset_total(self):
         for cpu in self.cpus.keys():
             self.cpus[cpu].cpu_ns = 0
         for tid in self.tids.keys():
@@ -126,22 +127,29 @@ class CPUAnalyzes():
                 if current_sec == 0:
                     current_sec = event_sec
                 elif current_sec != event_sec and \
-                        (current_sec + refresh_sec) >= event_sec:
+                        (current_sec + refresh_sec) <= event_sec:
+                    self.text_report(current_sec, event_sec, info = 0, tid = 0)
+                    self.reset_total()
                     current_sec = event_sec
-                    self.text_report(cpu = 1, info = 0, tid = 0)
-                    self.reset()
             self.end_ts = event.timestamp
 
             if event.name == "sched_switch":
                 self.sched_switch(event)
         # stats for the whole trace
         if refresh_sec == 0:
-            self.text_report()
+            self.text_report(self.start_ts / NSEC_PER_SEC,
+                self.end_ts / NSEC_PER_SEC, tid = 0)
+        else:
+            self.text_report(current_sec, self.end_ts / NSEC_PER_SEC,
+                info = 0, tid = 0)
 
 if __name__ == "__main__":
+    refresh_sec = 0
     if len(sys.argv) < 2:
-        print("Usage: %s path/to/trace" % sys.argv[0])
+        print("Usage: %s [refresh-sec] path/to/trace" % sys.argv[0])
         sys.exit(1)
+    elif len(sys.argv) == 3:
+        refresh_sec = int(sys.argv[1])
 
     traces = TraceCollection()
     ret = traces.add_trace(sys.argv[len(sys.argv)-1], "ctf")
@@ -149,4 +157,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     c = CPUAnalyzes(traces)
-    c.run(1)
+    c.run(refresh_sec)
