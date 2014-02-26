@@ -12,6 +12,7 @@
 
 import sys
 import json
+import argparse
 from babeltrace import *
 
 NSEC_PER_SEC = 1000000000
@@ -34,12 +35,11 @@ class CPUComplexEncoder(json.JSONEncoder):
 
 class CPUAnalyzes():
     def __init__(self, traces):
-        self.start_ts = 0
-        self.end_ts = 0
+        self.trace_start_ts = 0
+        self.trace_end_ts = 0
         self.traces = traces
         self.tids = {}
         self.cpus = {}
-        self.global_per_cpu = []
 
     def per_cpu(self, cpu_id, ts, next_tid):
         """Compute per-cpu usage"""
@@ -59,7 +59,7 @@ class CPUAnalyzes():
             c.start_task_ns = ts
             # first activity on the CPU
             self.cpus[cpu_id] = c
-            self.cpus[cpu_id].global_list = []
+            self.cpus[cpu_id].total_per_cpu_pc_list = []
 
     def per_tid(self, ts, prev_tid, next_tid, next_comm):
         """Compute per-tid usage"""
@@ -88,7 +88,7 @@ class CPUAnalyzes():
         self.per_cpu(cpu_id, event.timestamp, next_tid)
         self.per_tid(event.timestamp, prev_tid, next_tid, next_comm)
 
-    def text_per_pid_report(self, total_ns):
+    def text_per_tid_report(self, total_ns):
         print("\n### Per-TID Usage ###")
         for tid in self.tids.keys():
             print("%s (%d) : %0.02f%%" % (self.tids[tid].comm, tid,
@@ -97,11 +97,11 @@ class CPUAnalyzes():
     def text_per_cpu_report(self, total_ns):
         print("### Per-CPU Usage ###")
         total_cpu_pc = 0
+        nb_cpu = len(self.cpus.keys())
         for cpu in self.cpus.keys():
             cpu_total_ns = self.cpus[cpu].cpu_ns
             cpu_pc = self.cpus[cpu].cpu_pc
             total_cpu_pc += cpu_pc
-            nb_cpu = len(self.cpus.keys())
             print("CPU %d : %d ns (%0.02f%%)" % (cpu, cpu_total_ns, cpu_pc))
         print("Total CPU Usage : %0.02f%%" % (total_cpu_pc / nb_cpu))
 #        print(json.dumps(self.cpus, cls=CPUComplexEncoder))
@@ -113,10 +113,24 @@ class CPUAnalyzes():
         total_pc = 0
         for cpu in self.cpus.keys():
             out_per_cpu[cpu] = int(self.cpus[cpu].cpu_pc)
-            total_pc += int(self.cpus[cpu].cpu_pc)
+            total_pc += out_per_cpu[cpu]
         out["per-cpu"] = out_per_cpu
         out["timestamp"] = out_ts
-        out["total-cpu"] = int(total_pc / 4)
+        out["total-cpu"] = int(total_pc / len(self.cpus.keys()))
+        print(json.dumps(out, indent=4))
+
+    def json_per_tid_report(self, start, end):
+        out = {}
+        out_per_tid = {}
+        out_ts = {"start" : int(start), "end" : int(end)}
+        total_ns = (end - start) * NSEC_PER_SEC
+        for tid in self.tids.keys():
+            proc = {}
+            proc["procname"] = self.tids[tid].comm
+            proc["percent"] = int((self.tids[tid].cpu_ns * 100)/ total_ns)
+            out_per_tid[tid] = proc
+        out["per-tid"] = out_per_tid
+        out["timestamp"] = out_ts
         print(json.dumps(out, indent=4))
 
     def json_global_per_cpu_report(self):
@@ -124,27 +138,75 @@ class CPUAnalyzes():
         for cpu in self.cpus.keys():
             b = {}
             b["key"] = "CPU %d" % cpu
-            b["values"] = self.cpus[cpu].global_list
+            b["values"] = self.cpus[cpu].total_per_cpu_pc_list
             a.append(b)
         print(json.dumps(a))
 
-    def text_trace_info(self, total_ns):
+    def json_trace_info(self):
+        out = {}
+        total_ns = self.trace_end_ts - self.trace_start_ts
+        out["start"] = self.trace_start_ts
+        out["end"] = self.trace_end_ts
+        out["total_ns"] = total_ns
+        out["total_sec"] = "%lu.%0.09lus" % ((total_ns / NSEC_PER_SEC,
+                        total_ns % NSEC_PER_SEC))
+        print(json.dumps(out, indent=4))
+
+    def text_trace_info(self):
+        total_ns = self.trace_end_ts - self.trace_start_ts
         print("### Trace info ###")
-        print("Start : %lu\nEnd: %lu" % (self.start_ts, self.end_ts))
+        print("Start : %lu\nEnd: %lu" % (self.trace_start_ts, self.trace_end_ts))
         print("Total ns : %lu" % (total_ns))
         print("Total : %lu.%0.09lus\n" % (total_ns / NSEC_PER_SEC,
             total_ns % NSEC_PER_SEC))
 
-    def text_report(self, begin_sec, end_sec, info = 1, cpu = 1, tid = 1):
+    def text_report(self, begin_sec, end_sec, final, info, cpu, tid, overall):
+        if not (info or cpu or tid):
+            return
         print("[%lu:%lu]" % (begin_sec, end_sec))
-        total_ns = self.end_ts - self.start_ts
+        total_ns = (end_sec - begin_sec) * NSEC_PER_SEC
 
-        if info:
-            self.text_trace_info(total_ns)
+        if info and final:
+            self.text_trace_info()
         if cpu:
             self.text_per_cpu_report(total_ns)
         if tid:
-            self.text_per_pid_report(total_ns)
+            self.text_per_tid_report(total_ns)
+
+    def json_report(self, begin_sec, end_sec, final, info, cpu, tid, overall):
+        if not (info or cpu or tid or overall):
+            return
+        if info and final:
+            self.json_trace_info()
+        if cpu:
+            self.json_per_cpu_report(begin_sec, end_sec)
+        if tid:
+            self.json_per_tid_report(begin_sec, end_sec)
+        if overall and final:
+            self.json_global_per_cpu_report()
+
+    def output(self, args, begin, end, final=0):
+        if args.text:
+            self.text_report(begin, end, final, args.info, args.cpu,
+                    args.tid, args.overall)
+        if args.json:
+            self.json_report(begin, end, final, args.info, args.cpu,
+                    args.tid, args.overall)
+
+    def check_refresh(self, args, event):
+        """Check if we need to output something"""
+        if args.refresh == 0:
+            return
+        event_sec = event.timestamp / NSEC_PER_SEC
+        if self.current_sec == 0:
+            self.current_sec = event_sec
+        elif self.current_sec != event_sec and \
+                (self.current_sec + args.refresh) <= event_sec:
+            self.compute_stats()
+            self.output(args, self.current_sec, event_sec)
+            self.reset_total(event.timestamp)
+            self.current_sec = event_sec
+            self.start_ns = event.timestamp
 
     def reset_total(self, start_ts):
         for cpu in self.cpus.keys():
@@ -155,65 +217,69 @@ class CPUAnalyzes():
         for tid in self.tids.keys():
             self.tids[tid].cpu_ns = 0
 
-    def compute_stats(self, start_ns, end_ns):
+    def compute_stats(self):
         for cpu in self.cpus.keys():
-            total_ns = end_ns - start_ns
+            total_ns = self.end_ns - self.start_ns
             cpu_total_ns = self.cpus[cpu].cpu_ns
             self.cpus[cpu].cpu_pc = (cpu_total_ns * 100)/total_ns
-            self.cpus[cpu].global_list.append((int(end_ns/MSEC_PER_NSEC),
-                int(self.cpus[cpu].cpu_pc)))
+            self.cpus[cpu].total_per_cpu_pc_list.append(
+                    (int(self.end_ns/MSEC_PER_NSEC),
+                        int(self.cpus[cpu].cpu_pc)))
 
-    def run(self, refresh_sec = 0):
+    def run(self, args):
         """Process the trace"""
-        current_sec = 0
-        start_ns = 0
-        end_ns = 0
+        self.current_sec = 0
+        self.start_ns = 0
+        self.end_ns = 0
         for event in self.traces.events:
-            if self.start_ts == 0:
-                self.start_ts = event.timestamp
-            if start_ns == 0:
-                start_ns = event.timestamp
-            end_ns = event.timestamp
-            if refresh_sec != 0:
-                event_sec = event.timestamp / NSEC_PER_SEC
-                if current_sec == 0:
-                    current_sec = event_sec
-                elif current_sec != event_sec and \
-                        (current_sec + refresh_sec) <= event_sec:
-                    self.compute_stats(start_ns, end_ns)
-                    #self.text_report(current_sec, event_sec, info = 0, tid = 0)
-                    #self.json_per_cpu_report(current_sec, event_sec)
-                    self.reset_total(event.timestamp)
-                    current_sec = event_sec
-                    start_ns = event.timestamp
-            self.end_ts = event.timestamp
+            if self.start_ns == 0:
+                self.start_ns = event.timestamp
+            if self.trace_start_ts == 0:
+                self.trace_start_ts = event.timestamp
+            self.end_ns = event.timestamp
+
+            self.check_refresh(args, event)
+
+            self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
                 self.sched_switch(event)
         # stats for the whole trace
-        if refresh_sec == 0:
-            self.compute_stats(start_ns, end_ns)
-            self.text_report(self.start_ts / NSEC_PER_SEC,
-                self.end_ts / NSEC_PER_SEC, tid = 1)
+        if args.refresh == 0:
+            self.compute_stats()
+            self.output(args, self.trace_start_ts / NSEC_PER_SEC,
+                    self.trace_end_ts / NSEC_PER_SEC, final=1)
         else:
-            self.compute_stats(start_ns, end_ns)
-#            self.text_report(current_sec, self.end_ts / NSEC_PER_SEC,
-#                info = 0, tid = 0)
-            #self.json_per_cpu_report(current_sec, event_sec)
-        self.json_global_per_cpu_report()
+            self.compute_stats()
+            self.output(args, self.current_sec, self.trace_end_ts / NSEC_PER_SEC,
+                    final=1)
 
 if __name__ == "__main__":
-    refresh_sec = 0
-    if len(sys.argv) < 2:
-        print("Usage: %s [refresh-sec] path/to/trace" % sys.argv[0])
-        sys.exit(1)
-    elif len(sys.argv) == 3:
-        refresh_sec = int(sys.argv[1])
+    parser = argparse.ArgumentParser(description='CPU usage analysis')
+    parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
+    parser.add_argument('-r', '--refresh', type=int,
+            help='Refresh period in seconds', default=0)
+    parser.add_argument('--text', action="store_true", help='Output in text (default)')
+    parser.add_argument('--json', action="store_true", help='Output in JSON')
+    parser.add_argument('--cpu', action="store_true", help='Per-CPU stats (default)')
+    parser.add_argument('--tid', action="store_true", help='Per-TID stats (default)')
+    parser.add_argument('--overall', action="store_true", help='Overall CPU Usage (default)')
+    parser.add_argument('--info', action="store_true", help='Trace info (default)')
+    args = parser.parse_args()
+
+    if not args.json:
+        args.text = True
+
+    if not (args.cpu or args.tid or args.overall or args.info):
+        args.cpu = True
+        args.tid = True
+        args.overall = True
+        args.info = True
 
     traces = TraceCollection()
-    ret = traces.add_trace(sys.argv[len(sys.argv)-1], "ctf")
+    ret = traces.add_trace(args.path, "ctf")
     if ret is None:
         sys.exit(1)
 
     c = CPUAnalyzes(traces)
-    c.run(refresh_sec)
+    c.run(args)
