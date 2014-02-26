@@ -193,8 +193,8 @@ class CPUAnalyzes():
         # stats for the whole trace
         if refresh_sec == 0:
             self.compute_stats(start_ns, end_ns)
-#            self.text_report(self.start_ts / NSEC_PER_SEC,
-#                self.end_ts / NSEC_PER_SEC, tid = 0)
+            self.text_report(self.start_ts / NSEC_PER_SEC,
+                self.end_ts / NSEC_PER_SEC, tid = 1)
         else:
             self.compute_stats(start_ns, end_ns)
 #            self.text_report(current_sec, self.end_ts / NSEC_PER_SEC,

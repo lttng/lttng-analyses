@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-# ctf_writer.py
-#
-# Babeltrace CTF Writer example script.
-#
-# Copyright 2013 EfficiOS Inc.
-#
-# Author: Jeremie Galarneau <jeremie.galarneau@efficios.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
 
 import sys
 import tempfile
@@ -44,6 +27,10 @@ int32_type = CTFWriter.IntegerFieldDeclaration(32)
 int32_type.signed = True
 int32_type.alignment = 8
 
+uint32_type = CTFWriter.IntegerFieldDeclaration(32)
+uint32_type.signed = False
+uint32_type.alignment = 8
+
 int64_type = CTFWriter.IntegerFieldDeclaration(64)
 int64_type.signed = True
 int64_type.alignment = 8
@@ -59,6 +46,7 @@ sched_switch.add_field(int64_type, "_prev_state")
 sched_switch.add_field(array_type, "_next_comm")
 sched_switch.add_field(int32_type, "_next_tid")
 sched_switch.add_field(int32_type, "_next_prio")
+sched_switch.add_field(uint32_type, "_cpu_id")
 
 stream_class.add_event_class(sched_switch)
 stream = writer.create_stream(stream_class)
@@ -76,17 +64,29 @@ def set_char_array(event, string):
 def set_int(event, value):
     event.value = value
 
-event = CTFWriter.Event(sched_switch)
-clock.time = 1000
+def write_sched_switch(time_ms, cpu_id, prev_comm, prev_tid, next_comm, \
+        next_tid, prev_prio = 20, prev_state = 1, next_prio = 20):
+    event = CTFWriter.Event(sched_switch)
+    clock.time = time_ms * 1000000
+    set_char_array(event.payload("_prev_comm"), prev_comm)
+    set_int(event.payload("_prev_tid"), prev_tid)
+    set_int(event.payload("_prev_prio"), prev_prio)
+    set_int(event.payload("_prev_state"), prev_state)
+    set_char_array(event.payload("_next_comm"), next_comm)
+    set_int(event.payload("_next_tid"), next_tid)
+    set_int(event.payload("_next_prio"), next_prio)
+    set_int(event.payload("_cpu_id"), cpu_id)
+    stream.append_event(event)
+    stream.flush()
 
-set_char_array(event.payload("_prev_comm"), "lttng-consumerd")
-set_int(event.payload("_prev_tid"), 30664)
-set_int(event.payload("_prev_prio"), 20)
-set_int(event.payload("_prev_state"), 1)
-set_char_array(event.payload("_next_comm"), "swapper/3")
-set_int(event.payload("_next_tid"), 0)
-set_int(event.payload("_next_prio"), 20)
+def sched_switch_50pc(start_time_ms, end_time_ms, cpu_id, period, \
+        comm1, tid1, comm2, tid2):
+    current = start_time_ms
+    while current < end_time_ms:
+        write_sched_switch(current, cpu_id, comm1, tid1, comm2, tid2)
+        current += period
+        write_sched_switch(current, cpu_id, comm2, tid2, comm1, tid1)
+        current += period
 
-stream.append_event(event)
-
-stream.flush()
+sched_switch_50pc(1393345614000, 1393345615000, 0, 100, \
+        "swapper/0", 0, "prog50pc-cpu0", 30664)
