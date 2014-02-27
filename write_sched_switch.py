@@ -98,7 +98,7 @@ def sched_switch_rr(start_time_ms, end_time_ms, cpu_id, period, task_list):
             current_task = i
             current += period
 
-write_sched_switch(1393345613900, 5, "swapper/5", 0, "prog100pc-cpu5", 30665)
+write_sched_switch(1393345613900, 5, "swapper/5", 0, "prog100pc-cpu5", 42)
 sched_switch_50pc(1393345614000, 1393345615000, 0, 100, \
         "swapper/0", 0, "prog50pc-cpu0", 30664)
 sched_switch_50pc(1393345615000, 1393345616000, 1, 100, \
@@ -112,4 +112,4 @@ sched_switch_50pc(1393345618000, 1393345619000, 0, 100, \
 
 proc_list = [ ("prog1", 10), ("prog2", 11), ("prog3", 12), ("prog4", 13) ]
 sched_switch_rr(1393345619000, 1393345622000, 4, 100, proc_list)
-write_sched_switch(1393345622300, 5, "prog100pc-cpu5", 30665, "swapper/5", 0)
+write_sched_switch(1393345622300, 5, "prog100pc-cpu5", 42, "swapper/5", 0)

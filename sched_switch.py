@@ -13,6 +13,7 @@
 import sys
 import json
 import argparse
+import operator
 from babeltrace import *
 
 NSEC_PER_SEC = 1000000000
@@ -50,11 +51,14 @@ class CPUAnalyzes():
             # exclude swapper process
             if next_tid != 0:
                 c.start_task_ns = ts
+                c.current_tid = next_tid
             else:
                 c.start_task_ns = 0
+                c.current_tid = -1
         else:
             c = CPU()
             c.cpu_ns = 0
+            c.current_tid = next_tid
             # when we schedule a real task (not swapper)
             c.start_task_ns = ts
             # first activity on the CPU
@@ -88,11 +92,17 @@ class CPUAnalyzes():
         self.per_cpu(cpu_id, event.timestamp, next_tid)
         self.per_tid(event.timestamp, prev_tid, next_tid, next_comm)
 
-    def text_per_tid_report(self, total_ns):
-        print("\n### Per-TID Usage ###")
-        for tid in self.tids.keys():
-            print("%s (%d) : %0.02f%%" % (self.tids[tid].comm, tid,
-                    ((self.tids[tid].cpu_ns * 100)/ total_ns)))
+    def text_per_tid_report(self, total_ns, limit=0):
+        print("### Per-TID Usage ###")
+        count = 0
+        for tid in sorted(self.tids.values(),
+                key=operator.attrgetter('cpu_ns'), reverse=True):
+            print("%s (%d) : %0.02f%%" % (tid.comm, tid.tid,
+                ((tid.cpu_ns * 100) / total_ns)))
+            count = count + 1
+            if limit > 0 and count >= limit:
+                break
+
 
     def text_per_cpu_report(self, total_ns):
         print("### Per-CPU Usage ###")
@@ -123,7 +133,7 @@ class CPUAnalyzes():
         out = {}
         out_per_tid = {}
         out_ts = {"start" : int(start), "end" : int(end)}
-        total_ns = (end - start) * NSEC_PER_SEC
+        total_ns = end - start
         for tid in self.tids.keys():
             proc = {}
             proc["procname"] = self.tids[tid].comm
@@ -157,41 +167,43 @@ class CPUAnalyzes():
         print("### Trace info ###")
         print("Start : %lu\nEnd: %lu" % (self.trace_start_ts, self.trace_end_ts))
         print("Total ns : %lu" % (total_ns))
-        print("Total : %lu.%0.09lus\n" % (total_ns / NSEC_PER_SEC,
+        print("Total : %lu.%0.09lus" % (total_ns / NSEC_PER_SEC,
             total_ns % NSEC_PER_SEC))
 
-    def text_report(self, begin_sec, end_sec, final, info, cpu, tid, overall):
-        if not (info or cpu or tid):
+    def text_report(self, begin_ns, end_ns, final, args):
+        if not (args.info or args.cpu or args.tid):
             return
-        print("[%lu:%lu]" % (begin_sec, end_sec))
-        total_ns = (end_sec - begin_sec) * NSEC_PER_SEC
+        if args.cpu or args.tid:
+            print("[%lu:%lu]" % (begin_ns/NSEC_PER_SEC, end_ns/NSEC_PER_SEC))
 
-        if info and final:
+        total_ns = end_ns - begin_ns
+
+        if args.info and final:
             self.text_trace_info()
-        if cpu:
+        if args.cpu:
             self.text_per_cpu_report(total_ns)
-        if tid:
-            self.text_per_tid_report(total_ns)
+        if args.tid:
+            self.text_per_tid_report(total_ns, args.top)
 
-    def json_report(self, begin_sec, end_sec, final, info, cpu, tid, overall):
-        if not (info or cpu or tid or overall):
+    def json_report(self, begin_ns, end_ns, final, args):
+        if not (args.info or args.cpu or args.tid or args.overall):
             return
-        if info and final:
+        if args.info and final:
             self.json_trace_info()
-        if cpu:
-            self.json_per_cpu_report(begin_sec, end_sec)
-        if tid:
-            self.json_per_tid_report(begin_sec, end_sec)
-        if overall and final:
+        if args.cpu:
+            self.json_per_cpu_report(begin_ns, end_ns)
+        if args.tid:
+            self.json_per_tid_report(begin_ns, end_ns)
+        if args.overall and final:
             self.json_global_per_cpu_report()
 
-    def output(self, args, begin, end, final=0):
+    def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
-            self.text_report(begin, end, final, args.info, args.cpu,
-                    args.tid, args.overall)
+            self.text_report(begin_ns, end_ns, final, args)
+            if not final and (args.cpu or args.tid):
+                print("")
         if args.json:
-            self.json_report(begin, end, final, args.info, args.cpu,
-                    args.tid, args.overall)
+            self.json_report(begin_ns, end_ns, final, args)
 
     def check_refresh(self, args, event):
         """Check if we need to output something"""
@@ -203,28 +215,34 @@ class CPUAnalyzes():
         elif self.current_sec != event_sec and \
                 (self.current_sec + args.refresh) <= event_sec:
             self.compute_stats()
-            self.output(args, self.current_sec, event_sec)
+            self.output(args, self.start_ns, event.timestamp)
             self.reset_total(event.timestamp)
             self.current_sec = event_sec
             self.start_ns = event.timestamp
 
     def reset_total(self, start_ts):
         for cpu in self.cpus.keys():
-            self.cpus[cpu].cpu_ns = 0
-            if self.cpus[cpu].start_task_ns != 0:
-                self.cpus[cpu].start_task_ns = start_ts
+            current_cpu = self.cpus[cpu]
+            current_cpu.cpu_ns = 0
+            if current_cpu.start_task_ns != 0:
+                current_cpu.start_task_ns = start_ts
+            if current_cpu.current_tid >= 0:
+                self.tids[current_cpu.current_tid].last_sched = start_ts
 
         for tid in self.tids.keys():
             self.tids[tid].cpu_ns = 0
 
     def compute_stats(self):
         for cpu in self.cpus.keys():
+            current_cpu = self.cpus[cpu]
             total_ns = self.end_ns - self.start_ns
-            cpu_total_ns = self.cpus[cpu].cpu_ns
-            self.cpus[cpu].cpu_pc = (cpu_total_ns * 100)/total_ns
-            self.cpus[cpu].total_per_cpu_pc_list.append(
-                    (int(self.end_ns/MSEC_PER_NSEC),
-                        int(self.cpus[cpu].cpu_pc)))
+            if current_cpu.start_task_ns != 0:
+                current_cpu.cpu_ns += self.end_ns - current_cpu.start_task_ns
+            cpu_total_ns = current_cpu.cpu_ns
+            current_cpu.cpu_pc = (cpu_total_ns * 100)/total_ns
+            if current_cpu.current_tid >= 0:
+                self.tids[current_cpu.current_tid].cpu_ns += \
+                    self.end_ns - current_cpu.start_task_ns
 
     def run(self, args):
         """Process the trace"""
@@ -236,22 +254,21 @@ class CPUAnalyzes():
                 self.start_ns = event.timestamp
             if self.trace_start_ts == 0:
                 self.trace_start_ts = event.timestamp
+            #print("TS :", event.timestamp)
             self.end_ns = event.timestamp
-
             self.check_refresh(args, event)
-
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
                 self.sched_switch(event)
-        # stats for the whole trace
         if args.refresh == 0:
+            # stats for the whole trace
             self.compute_stats()
-            self.output(args, self.trace_start_ts / NSEC_PER_SEC,
-                    self.trace_end_ts / NSEC_PER_SEC, final=1)
+            self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
         else:
+            # stats only for the last segment
             self.compute_stats()
-            self.output(args, self.current_sec, self.trace_end_ts / NSEC_PER_SEC,
+            self.output(args, self.start_ns, self.trace_end_ts,
                     final=1)
 
 if __name__ == "__main__":
@@ -265,6 +282,7 @@ if __name__ == "__main__":
     parser.add_argument('--tid', action="store_true", help='Per-TID stats (default)')
     parser.add_argument('--overall', action="store_true", help='Overall CPU Usage (default)')
     parser.add_argument('--info', action="store_true", help='Trace info (default)')
+    parser.add_argument('--top', type=int, default=0, help='Limit to top X TIDs')
     args = parser.parse_args()
 
     if not args.json:
