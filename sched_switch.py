@@ -11,13 +11,11 @@
 # all copies or substantial portions of the Software.
 
 import sys
-import json
 import argparse
-import operator
 from babeltrace import *
-
-NSEC_PER_SEC = 1000000000
-MSEC_PER_NSEC = 1000000
+from LTTngAnalyzes.common import *
+from LTTngAnalyzes.jsonreport import *
+from LTTngAnalyzes.textreport import *
 
 class Process():
     def __init__(self):
@@ -27,12 +25,9 @@ class CPU():
     def __init__(self):
         pass
 
-class CPUComplexEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, CPU):
-            return obj.cpu_pc
-        # Let the base class default method raise the TypeError
-        return json.JSONEncoder.default(self, obj)
+class Syscall():
+    def __init__(self):
+        pass
 
 class CPUAnalyzes():
     def __init__(self, traces):
@@ -41,6 +36,7 @@ class CPUAnalyzes():
         self.traces = traces
         self.tids = {}
         self.cpus = {}
+        self.syscalls = {}
 
     def sched_switch_per_cpu(self, cpu_id, ts, next_tid):
         """Compute per-cpu usage"""
@@ -105,128 +101,33 @@ class CPUAnalyzes():
         else:
             p = self.tids[tid]
         p.migrate_count += 1
+
+    def syscall_entry(self, event):
+        name = event.name
+        cpu_id = event["cpu_id"]
+        if not name in self.syscalls:
+            s = Syscall()
+            s.name = name
+            s.count = 0
+        else:
+            s = self.syscalls[name]
+        s.count += 1
+
+    def syscall_exit(self, event):
+        cpu_id = event["cpu_id"]
         pass
-
-    def text_per_tid_report(self, total_ns, proc_list, limit=0):
-        print("### Per-TID Usage ###")
-        count = 0
-        for tid in sorted(self.tids.values(),
-                key=operator.attrgetter('cpu_ns'), reverse=True):
-            if len(proc_list) > 0 and tid.comm not in proc_list:
-                continue
-            print("%s (%d) : %0.02f%%" % (tid.comm, tid.tid,
-                ((tid.cpu_ns * 100) / total_ns)), end="")
-            if tid.migrate_count > 0:
-                print(""" (%d migration(s))""" % tid.migrate_count)
-            else:
-                print("")
-            count = count + 1
-            if limit > 0 and count >= limit:
-                break
-
-
-    def text_per_cpu_report(self, total_ns):
-        print("### Per-CPU Usage ###")
-        total_cpu_pc = 0
-        nb_cpu = len(self.cpus.keys())
-        for cpu in self.cpus.keys():
-            cpu_total_ns = self.cpus[cpu].cpu_ns
-            cpu_pc = self.cpus[cpu].cpu_pc
-            total_cpu_pc += cpu_pc
-            print("CPU %d : %d ns (%0.02f%%)" % (cpu, cpu_total_ns, cpu_pc))
-        print("Total CPU Usage : %0.02f%%" % (total_cpu_pc / nb_cpu))
-#        print(json.dumps(self.cpus, cls=CPUComplexEncoder))
-
-    def json_per_cpu_report(self, start, end):
-        out = {}
-        out_per_cpu = {}
-        out_ts = {"start" : int(start), "end" : int(end)}
-        total_pc = 0
-        for cpu in self.cpus.keys():
-            out_per_cpu[cpu] = int(self.cpus[cpu].cpu_pc)
-            total_pc += out_per_cpu[cpu]
-        out["per-cpu"] = out_per_cpu
-        out["timestamp"] = out_ts
-        out["total-cpu"] = int(total_pc / len(self.cpus.keys()))
-        print(json.dumps(out, indent=4))
-
-    def json_per_tid_report(self, start, end, proc_list):
-        out = {}
-        out_per_tid = {}
-        out_ts = {"start" : int(start), "end" : int(end)}
-        total_ns = end - start
-        for tid in self.tids.keys():
-            if len(proc_list) > 0 and not self.tids[tid].comm in proc_list:
-                continue
-            proc = {}
-            proc["procname"] = self.tids[tid].comm
-            proc["percent"] = int((self.tids[tid].cpu_ns * 100)/ total_ns)
-            out_per_tid[tid] = proc
-        out["per-tid"] = out_per_tid
-        out["timestamp"] = out_ts
-        print(json.dumps(out, indent=4))
-
-    def json_global_per_cpu_report(self):
-        a = []
-        for cpu in self.cpus.keys():
-            b = {}
-            b["key"] = "CPU %d" % cpu
-            b["values"] = self.cpus[cpu].total_per_cpu_pc_list
-            a.append(b)
-        print(json.dumps(a))
-
-    def json_trace_info(self):
-        out = {}
-        total_ns = self.trace_end_ts - self.trace_start_ts
-        out["start"] = self.trace_start_ts
-        out["end"] = self.trace_end_ts
-        out["total_ns"] = total_ns
-        out["total_sec"] = "%lu.%0.09lus" % ((total_ns / NSEC_PER_SEC,
-                        total_ns % NSEC_PER_SEC))
-        print(json.dumps(out, indent=4))
-
-    def text_trace_info(self):
-        total_ns = self.trace_end_ts - self.trace_start_ts
-        print("### Trace info ###")
-        print("Start : %lu\nEnd: %lu" % (self.trace_start_ts, self.trace_end_ts))
-        print("Total ns : %lu" % (total_ns))
-        print("Total : %lu.%0.09lus" % (total_ns / NSEC_PER_SEC,
-            total_ns % NSEC_PER_SEC))
-
-    def text_report(self, begin_ns, end_ns, final, args):
-        if not (args.info or args.cpu or args.tid):
-            return
-        if args.cpu or args.tid:
-            print("[%lu:%lu]" % (begin_ns/NSEC_PER_SEC, end_ns/NSEC_PER_SEC))
-
-        total_ns = end_ns - begin_ns
-
-        if args.info and final:
-            self.text_trace_info()
-        if args.cpu:
-            self.text_per_cpu_report(total_ns)
-        if args.tid:
-            self.text_per_tid_report(total_ns, args.display_proc_list, limit=args.top)
-
-    def json_report(self, begin_ns, end_ns, final, args):
-        if not (args.info or args.cpu or args.tid or args.overall):
-            return
-        if args.info and final:
-            self.json_trace_info()
-        if args.cpu:
-            self.json_per_cpu_report(begin_ns, end_ns)
-        if args.tid:
-            self.json_per_tid_report(begin_ns, end_ns, args.display_proc_list)
-        if args.overall and final:
-            self.json_global_per_cpu_report()
 
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
-            self.text_report(begin_ns, end_ns, final, args)
+            t = TextReport(self.trace_start_ts, self.trace_end_ts,
+                    self.cpus, self.tids)
+            t.report(begin_ns, end_ns, final, args)
             if not final and (args.cpu or args.tid):
                 print("")
         if args.json:
-            self.json_report(begin_ns, end_ns, final, args)
+            j = JsonReport(self.trace_start_ts, self.trace_end_ts,
+                self.cpus, self.tids)
+            j.report(begin_ns, end_ns, final, args)
 
     def check_refresh(self, args, event):
         """Check if we need to output something"""
@@ -287,6 +188,10 @@ class CPUAnalyzes():
                 self.sched_switch(event)
             elif event.name == "sched_migrate_task":
                 self.sched_migrate_task(event)
+            elif event.name[0:4] == "sys_":
+                self.syscall_entry(event)
+            elif event.name == "exit_syscall":
+                self.syscall_exit(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()
