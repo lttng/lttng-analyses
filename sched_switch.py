@@ -16,18 +16,9 @@ from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.jsonreport import *
 from LTTngAnalyzes.textreport import *
-
-class Process():
-    def __init__(self):
-        pass
-
-class CPU():
-    def __init__(self):
-        pass
-
-class Syscall():
-    def __init__(self):
-        pass
+from LTTngAnalyzes.sched_switch import *
+from LTTngAnalyzes.sched_migrate_task import *
+from LTTngAnalyzes.syscall import *
 
 class CPUAnalyzes():
     def __init__(self, traces):
@@ -37,85 +28,6 @@ class CPUAnalyzes():
         self.tids = {}
         self.cpus = {}
         self.syscalls = {}
-
-    def sched_switch_per_cpu(self, cpu_id, ts, next_tid):
-        """Compute per-cpu usage"""
-        if cpu_id in self.cpus:
-            c = self.cpus[cpu_id]
-            if c.start_task_ns != 0:
-                c.cpu_ns += ts - c.start_task_ns
-            # exclude swapper process
-            if next_tid != 0:
-                c.start_task_ns = ts
-                c.current_tid = next_tid
-            else:
-                c.start_task_ns = 0
-                c.current_tid = -1
-        else:
-            c = CPU()
-            c.cpu_ns = 0
-            c.current_tid = next_tid
-            # when we schedule a real task (not swapper)
-            c.start_task_ns = ts
-            # first activity on the CPU
-            self.cpus[cpu_id] = c
-            self.cpus[cpu_id].total_per_cpu_pc_list = []
-
-    def sched_switch_per_tid(self, ts, prev_tid, next_tid, next_comm, cpu_id):
-        """Compute per-tid usage"""
-        # per-tid usage
-        if prev_tid in self.tids:
-            p = self.tids[prev_tid]
-            p.cpu_ns += (ts - p.last_sched)
-
-        if not next_tid in self.tids:
-            p = Process()
-            p.tid = next_tid
-            p.comm = next_comm
-            p.cpu_ns = 0
-            p.migrate_count = 0
-            self.tids[next_tid] = p
-        else:
-            p = self.tids[next_tid]
-        p.last_sched = ts
-
-    def sched_switch(self, event):
-        """Handle sched_switch event"""
-        prev_tid = event["prev_tid"]
-        next_comm = event["next_comm"]
-        next_tid = event["next_tid"]
-        cpu_id = event["cpu_id"]
-
-        self.sched_switch_per_cpu(cpu_id, event.timestamp, next_tid)
-        self.sched_switch_per_tid(event.timestamp, prev_tid, next_tid, next_comm, cpu_id)
-
-    def sched_migrate_task(self, event):
-        tid = event["tid"]
-        if not tid in self.tids:
-            p = Process()
-            p.tid = tid
-            p.comm = event["comm"]
-            p.cpu_ns = 0
-            p.migrate_count = 0
-            self.tids[tid] = p
-        else:
-            p = self.tids[tid]
-        p.migrate_count += 1
-
-    def syscall_entry(self, event):
-        name = event.name
-        cpu_id = event["cpu_id"]
-        if not name in self.syscalls:
-            s = Syscall()
-            s.name = name
-            s.count = 0
-        else:
-            s = self.syscalls[name]
-        s.count += 1
-
-    def syscall_exit(self, event):
-        cpu_id = event["cpu_id"]
-        pass
 
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
@@ -174,6 +86,10 @@ class CPUAnalyzes():
         self.current_sec = 0
         self.start_ns = 0
         self.end_ns = 0
+        sched_switch = SchedSwitch(self.cpus, self.tids)
+        migrate_task = SchedMigrateTask(self.cpus, self.tids)
+        syscall = Syscall(self.cpus, self.tids)
+
         for event in self.traces.events:
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
@@ -185,13 +101,13 @@ class CPUAnalyzes():
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
-                self.sched_switch(event)
+                sched_switch.add(event)
             elif event.name == "sched_migrate_task":
-                self.sched_migrate_task(event)
+                migrate_task.add(event)
             elif event.name[0:4] == "sys_":
-                self.syscall_entry(event)
+                syscall.entry(event)
             elif event.name == "exit_syscall":
-                self.syscall_exit(event)
+                syscall.exit(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()
