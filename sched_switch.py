@@ -42,7 +42,7 @@ class CPUAnalyzes():
         self.tids = {}
         self.cpus = {}
 
-    def per_cpu(self, cpu_id, ts, next_tid):
+    def sched_switch_per_cpu(self, cpu_id, ts, next_tid):
         """Compute per-cpu usage"""
         if cpu_id in self.cpus:
             c = self.cpus[cpu_id]
@@ -65,7 +65,7 @@ class CPUAnalyzes():
             self.cpus[cpu_id] = c
             self.cpus[cpu_id].total_per_cpu_pc_list = []
 
-    def per_tid(self, ts, prev_tid, next_tid, next_comm):
+    def sched_switch_per_tid(self, ts, prev_tid, next_tid, next_comm, cpu_id):
         """Compute per-tid usage"""
         # per-tid usage
         if prev_tid in self.tids:
@@ -77,6 +77,7 @@ class CPUAnalyzes():
             p.tid = next_tid
             p.comm = next_comm
             p.cpu_ns = 0
+            p.migrate_count = 0
             self.tids[next_tid] = p
         else:
             p = self.tids[next_tid]
@@ -89,8 +90,22 @@ class CPUAnalyzes():
         next_tid = event["next_tid"]
         cpu_id = event["cpu_id"]
 
-        self.per_cpu(cpu_id, event.timestamp, next_tid)
-        self.per_tid(event.timestamp, prev_tid, next_tid, next_comm)
+        self.sched_switch_per_cpu(cpu_id, event.timestamp, next_tid)
+        self.sched_switch_per_tid(event.timestamp, prev_tid, next_tid, next_comm, cpu_id)
+
+    def sched_migrate_task(self, event):
+        tid = event["tid"]
+        if not tid in self.tids:
+            p = Process()
+            p.tid = tid
+            p.comm = event["comm"]
+            p.cpu_ns = 0
+            p.migrate_count = 0
+            self.tids[tid] = p
+        else:
+            p = self.tids[tid]
+        p.migrate_count += 1
+        pass
 
     def text_per_tid_report(self, total_ns, limit=0):
         print("### Per-TID Usage ###")
@@ -98,7 +113,11 @@ class CPUAnalyzes():
         for tid in sorted(self.tids.values(),
                 key=operator.attrgetter('cpu_ns'), reverse=True):
             print("%s (%d) : %0.02f%%" % (tid.comm, tid.tid,
-                ((tid.cpu_ns * 100) / total_ns)))
+                ((tid.cpu_ns * 100) / total_ns)), end="")
+            if tid.migrate_count > 0:
+                print(""" (%d migration(s))""" % tid.migrate_count)
+            else:
+                print("")
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -231,6 +250,7 @@ class CPUAnalyzes():
 
         for tid in self.tids.keys():
             self.tids[tid].cpu_ns = 0
+            self.tids[tid].migrate_count = 0
 
     def compute_stats(self):
         for cpu in self.cpus.keys():
@@ -261,6 +281,8 @@ class CPUAnalyzes():
 
             if event.name == "sched_switch":
                 self.sched_switch(event)
+            elif event.name == "sched_migrate_task":
+                self.sched_migrate_task(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()
