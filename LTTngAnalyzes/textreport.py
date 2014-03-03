@@ -40,7 +40,8 @@ class TextReport():
             self.text_per_cpu_report(total_ns)
             print("")
         if args.tid:
-            self.text_per_tid_report(total_ns, args.display_proc_list, limit=args.top)
+            self.text_per_tid_report(total_ns, args.display_proc_list,
+                    limit=args.top, syscalls=args.tid_syscalls)
             print("")
         if args.global_syscalls:
             self.text_global_syscall_report()
@@ -52,9 +53,9 @@ class TextReport():
                 key=operator.attrgetter("count"), reverse=True):
             if syscall.count == 0:
                 continue
-            print("%s (%d)" % (syscall.name[4:], syscall.count))
+            print("%s : %d" % (syscall.name[4:], syscall.count))
 
-    def text_per_tid_report(self, total_ns, proc_list, limit=0):
+    def text_per_tid_report(self, total_ns, proc_list, limit=0, syscalls=0):
         print("### Per-TID Usage ###")
         count = 0
         for tid in sorted(self.tids.values(),
@@ -68,6 +69,12 @@ class TextReport():
             else:
                 print("")
             count = count + 1
+            if syscalls:
+                for syscall in sorted(tid.syscalls.values(),
+                        key=operator.attrgetter('count'), reverse=True):
+                    if syscall.count == 0:
+                        continue
+                    print(" - %s : %d" % (syscall.name[4:], syscall.count))
             if limit > 0 and count >= limit:
                 break
 

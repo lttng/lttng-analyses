@@ -41,6 +41,7 @@ class SchedSwitch():
             p.comm = next_comm
             p.cpu_ns = 0
             p.migrate_count = 0
+            p.syscalls = {}
             self.tids[next_tid] = p
         else:
             p = self.tids[next_tid]

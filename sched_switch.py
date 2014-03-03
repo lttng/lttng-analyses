@@ -68,6 +68,8 @@ class CPUAnalyzes():
         for tid in self.tids.keys():
             self.tids[tid].cpu_ns = 0
             self.tids[tid].migrate_count = 0
+            for syscall in self.tids[tid].syscalls.keys():
+                self.tids[tid].syscalls[syscall].count = 0
 
         for syscall in self.syscalls.keys():
             self.syscalls[syscall].count = 0
@@ -107,9 +109,11 @@ class CPUAnalyzes():
                 sched_switch.add(event)
             elif event.name == "sched_migrate_task":
                 migrate_task.add(event)
-            elif event.name[0:4] == "sys_":
+            elif event.name[0:4] == "sys_" and \
+                    (args.global_syscalls or args.tid_syscalls):
                 syscall.entry(event)
-            elif event.name == "exit_syscall":
+            elif event.name == "exit_syscall" and \
+                    (args.global_syscalls or args.tid_syscalls):
                 syscall.exit(event)
         if args.refresh == 0:
             # stats for the whole trace
@@ -151,6 +155,8 @@ if __name__ == "__main__":
     if not args.json:
         args.text = True
 
+    if args.tid_syscalls:
+        args.tid = True
     if not (args.cpu or args.tid or args.overall or args.info or \
             args.global_syscalls or args.tid_syscalls):
         args.cpu = True
@@ -159,6 +165,8 @@ if __name__ == "__main__":
         args.info = True
         args.global_syscalls = True
         args.tid_syscalls = True
+    if args.name:
+        args.global_syscalls = False
     args.display_proc_list = []
     if args.name:
         args.display_proc_list = args.name.split(",")
