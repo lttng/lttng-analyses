@@ -107,11 +107,13 @@ class CPUAnalyzes():
         p.migrate_count += 1
         pass
 
-    def text_per_tid_report(self, total_ns, limit=0):
+    def text_per_tid_report(self, total_ns, proc_list, limit=0):
         print("### Per-TID Usage ###")
         count = 0
         for tid in sorted(self.tids.values(),
                 key=operator.attrgetter('cpu_ns'), reverse=True):
+            if len(proc_list) > 0 and tid.comm not in proc_list:
+                continue
             print("%s (%d) : %0.02f%%" % (tid.comm, tid.tid,
                 ((tid.cpu_ns * 100) / total_ns)), end="")
             if tid.migrate_count > 0:
@@ -148,12 +150,14 @@ class CPUAnalyzes():
         out["total-cpu"] = int(total_pc / len(self.cpus.keys()))
         print(json.dumps(out, indent=4))
 
-    def json_per_tid_report(self, start, end):
+    def json_per_tid_report(self, start, end, proc_list):
         out = {}
         out_per_tid = {}
         out_ts = {"start" : int(start), "end" : int(end)}
         total_ns = end - start
         for tid in self.tids.keys():
+            if len(proc_list) > 0 and not self.tids[tid].comm in proc_list:
+                continue
             proc = {}
             proc["procname"] = self.tids[tid].comm
             proc["percent"] = int((self.tids[tid].cpu_ns * 100)/ total_ns)
@@ -202,7 +206,7 @@ class CPUAnalyzes():
         if args.cpu:
             self.text_per_cpu_report(total_ns)
         if args.tid:
-            self.text_per_tid_report(total_ns, args.top)
+            self.text_per_tid_report(total_ns, args.display_proc_list, limit=args.top)
 
     def json_report(self, begin_ns, end_ns, final, args):
         if not (args.info or args.cpu or args.tid or args.overall):
@@ -212,7 +216,7 @@ class CPUAnalyzes():
         if args.cpu:
             self.json_per_cpu_report(begin_ns, end_ns)
         if args.tid:
-            self.json_per_tid_report(begin_ns, end_ns)
+            self.json_per_tid_report(begin_ns, end_ns, args.display_proc_list)
         if args.overall and final:
             self.json_global_per_cpu_report()
 
@@ -305,6 +309,8 @@ if __name__ == "__main__":
     parser.add_argument('--overall', action="store_true", help='Overall CPU Usage (default)')
     parser.add_argument('--info', action="store_true", help='Trace info (default)')
     parser.add_argument('--top', type=int, default=0, help='Limit to top X TIDs')
+    parser.add_argument('--name', type=str, default=0, help='Show results " \
+            "only for the list of processes')
     args = parser.parse_args()
 
     if not args.json:
@@ -315,6 +321,9 @@ if __name__ == "__main__":
         args.tid = True
         args.overall = True
         args.info = True
+    args.display_proc_list = []
+    if args.name:
+        args.display_proc_list = args.name.split(",")
 
     traces = TraceCollection()
     ret = traces.add_trace(args.path, "ctf")
