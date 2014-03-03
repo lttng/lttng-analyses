@@ -18,7 +18,7 @@ from LTTngAnalyzes.jsonreport import *
 from LTTngAnalyzes.textreport import *
 from LTTngAnalyzes.sched_switch import *
 from LTTngAnalyzes.sched_migrate_task import *
-from LTTngAnalyzes.syscall import *
+from LTTngAnalyzes.syscalls import *
 
 class CPUAnalyzes():
     def __init__(self, traces):
@@ -32,7 +32,7 @@ class CPUAnalyzes():
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
             t = TextReport(self.trace_start_ts, self.trace_end_ts,
-                    self.cpus, self.tids)
+                    self.cpus, self.tids, self.syscalls)
             t.report(begin_ns, end_ns, final, args)
             if not final and (args.cpu or args.tid):
                 print("")
@@ -69,6 +69,9 @@ class CPUAnalyzes():
             self.tids[tid].cpu_ns = 0
             self.tids[tid].migrate_count = 0
 
+        for syscall in self.syscalls.keys():
+            self.syscalls[syscall].count = 0
+
     def compute_stats(self):
         for cpu in self.cpus.keys():
             current_cpu = self.cpus[cpu]
@@ -86,16 +89,16 @@ class CPUAnalyzes():
         self.current_sec = 0
         self.start_ns = 0
         self.end_ns = 0
+
         sched_switch = SchedSwitch(self.cpus, self.tids)
         migrate_task = SchedMigrateTask(self.cpus, self.tids)
-        syscall = Syscall(self.cpus, self.tids)
+        syscall = Syscalls(self.cpus, self.tids, self.syscalls)
 
         for event in self.traces.events:
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
             if self.trace_start_ts == 0:
                 self.trace_start_ts = event.timestamp
-            #print("TS :", event.timestamp)
             self.end_ns = event.timestamp
             self.check_refresh(args, event)
             self.trace_end_ts = event.timestamp
@@ -123,25 +126,39 @@ if __name__ == "__main__":
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('-r', '--refresh', type=int,
             help='Refresh period in seconds', default=0)
-    parser.add_argument('--text', action="store_true", help='Output in text (default)')
-    parser.add_argument('--json', action="store_true", help='Output in JSON')
-    parser.add_argument('--cpu', action="store_true", help='Per-CPU stats (default)')
-    parser.add_argument('--tid', action="store_true", help='Per-TID stats (default)')
-    parser.add_argument('--overall', action="store_true", help='Overall CPU Usage (default)')
-    parser.add_argument('--info', action="store_true", help='Trace info (default)')
-    parser.add_argument('--top', type=int, default=0, help='Limit to top X TIDs')
-    parser.add_argument('--name', type=str, default=0, help='Show results " \
-            "only for the list of processes')
+    parser.add_argument('--text', action="store_true",
+            help='Output in text (default)')
+    parser.add_argument('--json', action="store_true",
+            help='Output in JSON')
+    parser.add_argument('--cpu', action="store_true",
+            help='Per-CPU stats (default)')
+    parser.add_argument('--tid', action="store_true",
+            help='Per-TID stats (default)')
+    parser.add_argument('--global-syscalls', action="store_true",
+            help='Global syscalls (default)')
+    parser.add_argument('--tid-syscalls', action="store_true",
+            help='Per-TID syscalls (default)')
+    parser.add_argument('--overall', action="store_true",
+            help='Overall CPU Usage (default)')
+    parser.add_argument('--info', action="store_true",
+            help='Trace info (default)')
+    parser.add_argument('--top', type=int, default=0,
+            help='Limit to top X TIDs')
+    parser.add_argument('--name', type=str, default=0,
+            help='Show results only for the list of processes')
     args = parser.parse_args()
 
     if not args.json:
         args.text = True
 
-    if not (args.cpu or args.tid or args.overall or args.info):
+    if not (args.cpu or args.tid or args.overall or args.info or \
+            args.global_syscalls or args.tid_syscalls):
         args.cpu = True
         args.tid = True
         args.overall = True
         args.info = True
+        args.global_syscalls = True
+        args.tid_syscalls = True
     args.display_proc_list = []
     if args.name:
         args.display_proc_list = args.name.split(",")

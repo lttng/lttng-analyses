@@ -1,9 +1,10 @@
 from LTTngAnalyzes.common import *
 
-class Syscall():
-    def __init__(self, cpus, tids):
+class Syscalls():
+    def __init__(self, cpus, tids, syscalls):
         self.cpus = cpus
         self.tids = tids
+        self.syscalls = syscalls
 
     def entry(self, event):
         name = event.name
@@ -12,6 +13,7 @@ class Syscall():
             s = Syscall()
             s.name = name
             s.count = 0
+            self.syscalls[name] = s
         else:
             s = self.syscalls[name]
         s.count += 1

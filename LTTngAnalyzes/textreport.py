@@ -9,11 +9,12 @@ import operator
 #        return json.JSONEncoder.default(self, obj)
 
 class TextReport():
-    def __init__(self, trace_start_ts, trace_end_ts, cpus, tids):
+    def __init__(self, trace_start_ts, trace_end_ts, cpus, tids, syscalls):
         self.trace_start_ts = trace_start_ts
         self.trace_end_ts = trace_end_ts
         self.cpus = cpus
         self.tids = tids
+        self.syscalls = syscalls
 
     def text_trace_info(self):
         total_ns = self.trace_end_ts - self.trace_start_ts
@@ -24,19 +25,34 @@ class TextReport():
             total_ns % NSEC_PER_SEC))
 
     def report(self, begin_ns, end_ns, final, args):
-        if not (args.info or args.cpu or args.tid):
+        if not (args.info or args.cpu or args.tid or args.global_syscalls \
+                or args.tid_syscalls):
             return
-        if args.cpu or args.tid:
+        if args.cpu or args.tid or args.global_syscalls or args.tid_syscalls:
             print("[%lu:%lu]" % (begin_ns/NSEC_PER_SEC, end_ns/NSEC_PER_SEC))
 
         total_ns = end_ns - begin_ns
 
         if args.info and final:
             self.text_trace_info()
+            print("")
         if args.cpu:
             self.text_per_cpu_report(total_ns)
+            print("")
         if args.tid:
             self.text_per_tid_report(total_ns, args.display_proc_list, limit=args.top)
+            print("")
+        if args.global_syscalls:
+            self.text_global_syscall_report()
+            print("")
+
+    def text_global_syscall_report(self):
+        print("### Global syscall ###")
+        for syscall in sorted(self.syscalls.values(),
+                key=operator.attrgetter("count"), reverse=True):
+            if syscall.count == 0:
+                continue
+            print("%s (%d)" % (syscall.name[4:], syscall.count))
 
     def text_per_tid_report(self, total_ns, proc_list, limit=0):
         print("### Per-TID Usage ###")
