@@ -12,10 +12,13 @@
 
 import sys
 import argparse
+import shutil
+import time
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.jsonreport import *
 from LTTngAnalyzes.textreport import *
+from LTTngAnalyzes.graphitereport import *
 from LTTngAnalyzes.sched_switch import *
 from LTTngAnalyzes.sched_migrate_task import *
 from LTTngAnalyzes.syscalls import *
@@ -31,15 +34,19 @@ class CPUAnalyzes():
 
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
-            t = TextReport(self.trace_start_ts, self.trace_end_ts,
+            r = TextReport(self.trace_start_ts, self.trace_end_ts,
                     self.cpus, self.tids, self.syscalls)
-            t.report(begin_ns, end_ns, final, args)
+            r.report(begin_ns, end_ns, final, args)
             if not final and (args.cpu or args.tid):
                 print("")
         if args.json:
-            j = JsonReport(self.trace_start_ts, self.trace_end_ts,
+            r = JsonReport(self.trace_start_ts, self.trace_end_ts,
                 self.cpus, self.tids)
-            j.report(begin_ns, end_ns, final, args)
+            r.report(begin_ns, end_ns, final, args)
+        if args.graphite:
+            r = GraphiteReport(self.trace_start_ts, self.trace_end_ts,
+                    self.cpus, self.tids, self.syscalls)
+            r.report(begin_ns, end_ns, final, args)
 
     def check_refresh(self, args, event):
         """Check if we need to output something"""
@@ -134,6 +141,8 @@ if __name__ == "__main__":
             help='Output in text (default)')
     parser.add_argument('--json', action="store_true",
             help='Output in JSON')
+    parser.add_argument('--graphite', action="store_true",
+            help='Output to graphite')
     parser.add_argument('--cpu', action="store_true",
             help='Per-CPU stats (default)')
     parser.add_argument('--tid', action="store_true",
@@ -152,7 +161,7 @@ if __name__ == "__main__":
             help='Show results only for the list of processes')
     args = parser.parse_args()
 
-    if not args.json:
+    if not args.json and not args.graphite:
         args.text = True
 
     if args.tid_syscalls:
@@ -171,10 +180,23 @@ if __name__ == "__main__":
     if args.name:
         args.display_proc_list = args.name.split(",")
 
-    traces = TraceCollection()
-    ret = traces.add_trace(args.path, "ctf")
-    if ret is None:
-        sys.exit(1)
+    while True:
+        if args.graphite:
+            os.system("lttng create graphite -o graphite-live >/dev/null")
+            os.system("lttng enable-event -k sched_switch -s graphite >/dev/null")
+            os.system("lttng start graphite >/dev/null")
+            time.sleep(2)
+            os.system("lttng stop graphite >/dev/null")
+            os.system("lttng destroy graphite >/dev/null")
+        traces = TraceCollection()
+        handle = traces.add_trace(args.path, "ctf")
+        if handle is None:
+            sys.exit(1)
 
-    c = CPUAnalyzes(traces)
-    c.run(args)
+        c = CPUAnalyzes(traces)
+        c.run(args)
+
+        traces.remove_trace(handle)
+
+        if not args.graphite:
+            break
