@@ -12,3 +12,7 @@ class CPU():
 class Syscall():
     def __init__(self):
         pass
+
+class Disk():
+    def __init__(self):
+        pass

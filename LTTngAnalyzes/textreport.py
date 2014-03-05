@@ -9,12 +9,13 @@ import operator
 #        return json.JSONEncoder.default(self, obj)
 
 class TextReport():
-    def __init__(self, trace_start_ts, trace_end_ts, cpus, tids, syscalls):
+    def __init__(self, trace_start_ts, trace_end_ts, cpus, tids, syscalls, disks):
         self.trace_start_ts = trace_start_ts
         self.trace_end_ts = trace_end_ts
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
+        self.disks = disks
 
     def text_trace_info(self):
         total_ns = self.trace_end_ts - self.trace_start_ts
@@ -26,9 +27,9 @@ class TextReport():
 
     def report(self, begin_ns, end_ns, final, args):
         if not (args.info or args.cpu or args.tid or args.global_syscalls \
-                or args.tid_syscalls):
+                or args.tid_syscalls or args.disk):
             return
-        if args.cpu or args.tid or args.global_syscalls or args.tid_syscalls:
+        if args.cpu or args.tid or args.global_syscalls or args.tid_syscalls or args.disk:
             print("[%lu:%lu]" % (begin_ns/NSEC_PER_SEC, end_ns/NSEC_PER_SEC))
 
         total_ns = end_ns - begin_ns
@@ -46,6 +47,21 @@ class TextReport():
         if args.global_syscalls:
             self.text_global_syscall_report()
             print("")
+        if args.disk:
+            self.text_disks_report(total_ns)
+            print("")
+
+    def text_disks_report(self, total_ns):
+        print("### Disks stats ###")
+        for dev in self.disks:
+            if self.disks[dev].completed_requests == 0:
+                totalstr = "0 completed requests"
+            else:
+                total = (self.disks[dev].request_time / self.disks[dev].completed_requests) / MSEC_PER_NSEC
+                totalstr = ("%d completed requests (%0.04fms/sector)" % (self.disks[dev].completed_requests, total))
+            print("Dev %d, %d requests, %d sectors, %s" %
+                    (dev, self.disks[dev].nr_requests,
+                        self.disks[dev].nr_sector, totalstr))
 
     def text_global_syscall_report(self):
         print("### Global syscall ###")
@@ -87,5 +103,7 @@ class TextReport():
             cpu_pc = self.cpus[cpu].cpu_pc
             total_cpu_pc += cpu_pc
             print("CPU %d : %d ns (%0.02f%%)" % (cpu, cpu_total_ns, cpu_pc))
+        if nb_cpu == 0:
+            return
         print("Total CPU Usage : %0.02f%%" % (total_cpu_pc / nb_cpu))
 #        print(json.dumps(self.cpus, cls=CPUComplexEncoder))

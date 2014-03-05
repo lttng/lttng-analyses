@@ -22,8 +22,9 @@ from LTTngAnalyzes.graphitereport import *
 from LTTngAnalyzes.sched_switch import *
 from LTTngAnalyzes.sched_migrate_task import *
 from LTTngAnalyzes.syscalls import *
+from LTTngAnalyzes.block_bio import *
 
-class CPUAnalyzes():
+class Analyzes():
     def __init__(self, traces):
         self.trace_start_ts = 0
         self.trace_end_ts = 0
@@ -31,13 +32,14 @@ class CPUAnalyzes():
         self.tids = {}
         self.cpus = {}
         self.syscalls = {}
+        self.disks = {}
 
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
             r = TextReport(self.trace_start_ts, self.trace_end_ts,
-                    self.cpus, self.tids, self.syscalls)
+                    self.cpus, self.tids, self.syscalls, self.disks)
             r.report(begin_ns, end_ns, final, args)
-            if not final and (args.cpu or args.tid):
+            if not final and (args.cpu or args.tid or args.disk):
                 print("")
         if args.json:
             r = JsonReport(self.trace_start_ts, self.trace_end_ts,
@@ -45,7 +47,7 @@ class CPUAnalyzes():
             r.report(begin_ns, end_ns, final, args)
         if args.graphite:
             r = GraphiteReport(self.trace_start_ts, self.trace_end_ts,
-                    self.cpus, self.tids, self.syscalls)
+                    self.cpus, self.tids, self.syscalls, self.disks)
             r.report(begin_ns, end_ns, final, args)
 
     def check_refresh(self, args, event):
@@ -81,6 +83,12 @@ class CPUAnalyzes():
         for syscall in self.syscalls.keys():
             self.syscalls[syscall].count = 0
 
+        for dev in self.disks.keys():
+            self.disks[dev].nr_sector = 0
+            self.disks[dev].nr_requests = 0
+            self.disks[dev].completed_requests = 0
+            self.disks[dev].request_time = 0
+
     def compute_stats(self):
         for cpu in self.cpus.keys():
             current_cpu = self.cpus[cpu]
@@ -102,6 +110,7 @@ class CPUAnalyzes():
         sched_switch = SchedSwitch(self.cpus, self.tids)
         migrate_task = SchedMigrateTask(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
+        block_bio = BlockBio(self.cpus, self.disks)
 
         for event in self.traces.events:
             if self.start_ns == 0:
@@ -122,6 +131,10 @@ class CPUAnalyzes():
             elif event.name == "exit_syscall" and \
                     (args.global_syscalls or args.tid_syscalls):
                 syscall.exit(event)
+            elif event.name == "block_bio_complete":
+                block_bio.complete(event)
+            elif event.name == "block_bio_queue":
+                block_bio.queue(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()
@@ -145,6 +158,8 @@ if __name__ == "__main__":
             help='Output to graphite')
     parser.add_argument('--cpu', action="store_true",
             help='Per-CPU stats (default)')
+    parser.add_argument('--disk', action="store_true",
+            help='Per-Disk stats (default)')
     parser.add_argument('--tid', action="store_true",
             help='Per-TID stats (default)')
     parser.add_argument('--global-syscalls', action="store_true",
@@ -167,10 +182,11 @@ if __name__ == "__main__":
     if args.tid_syscalls:
         args.tid = True
     if not (args.cpu or args.tid or args.overall or args.info or \
-            args.global_syscalls or args.tid_syscalls):
+            args.global_syscalls or args.tid_syscalls or args.disk):
         args.cpu = True
         args.tid = True
         args.overall = True
+        args.disk = True
         args.info = True
         args.global_syscalls = True
         args.tid_syscalls = True
@@ -182,8 +198,9 @@ if __name__ == "__main__":
 
     while True:
         if args.graphite:
+            events="sched_switch,block_bio_complete,block_bio_queue"
             os.system("lttng create graphite -o graphite-live >/dev/null")
-            os.system("lttng enable-event -k sched_switch -s graphite >/dev/null")
+            os.system("lttng enable-event -k %s -s graphite >/dev/null" % events)
             os.system("lttng start graphite >/dev/null")
             time.sleep(2)
             os.system("lttng stop graphite >/dev/null")
@@ -193,7 +210,7 @@ if __name__ == "__main__":
         if handle is None:
             sys.exit(1)
 
-        c = CPUAnalyzes(traces)
+        c = Analyzes(traces)
         c.run(args)
 
         traces.remove_trace(handle)
