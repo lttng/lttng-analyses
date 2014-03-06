@@ -11,13 +11,14 @@ CARBON_SERVER = '10.0.3.185'
 CARBON_PORT = 2003
 
 class GraphiteReport():
-    def __init__(self, trace_start_ts, trace_end_ts, cpus, tids, syscalls, disks):
+    def __init__(self, trace_start_ts, trace_end_ts, cpus, tids, syscalls, disks, ifaces):
         self.trace_start_ts = trace_start_ts
         self.trace_end_ts = trace_end_ts
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
         self.disks = disks
+        self.ifaces = ifaces
         self.hostname = os.uname()[1]
 
     def report(self, begin_ns, end_ns, final, args):
@@ -40,6 +41,10 @@ class GraphiteReport():
             self.per_cpu_report(total_ns, end_ns, sock)
         if args.disk:
             self.per_disk_report(end_ns, sock)
+        if args.net:
+            self.per_iface_report(end_ns, sock)
+        #if args.tid:
+        #    self.per_tid_report(end_ns, total_ns, sock)
 
     def per_cpu_report(self, total_ns, end_ns, sock):
         total_cpu_pc = 0
@@ -72,3 +77,31 @@ class GraphiteReport():
         message = '\n'.join(lines) + '\n' #all lines must end in a newline
         sock.sendall(message.encode())
         print("Sent block at", end_ns/NSEC_PER_SEC)
+
+    def per_iface_report(self, end_ns, sock):
+        lines = []
+        ts = end_ns/NSEC_PER_SEC
+        for iface in self.ifaces:
+            lines.append("hosts.%s.net.%s.recv_bytes %d %lu" % (self.hostname,
+                iface, self.ifaces[iface].recv_bytes, ts))
+            lines.append("hosts.%s.net.%s.recv_packets %d %lu" % (self.hostname,
+                iface, self.ifaces[iface].recv_packets, ts))
+            lines.append("hosts.%s.net.%s.send_bytes %d %lu" % (self.hostname,
+                iface, self.ifaces[iface].send_bytes, ts))
+            lines.append("hosts.%s.net.%s.send_packets %d %lu" % (self.hostname,
+                iface, self.ifaces[iface].send_packets, ts))
+        message = '\n'.join(lines) + '\n' #all lines must end in a newline
+        sock.sendall(message.encode())
+        print("Sent net at", end_ns/NSEC_PER_SEC)
+
+    def per_tid_report(self, end_ns, total_ns, sock):
+        lines = []
+        ts = end_ns/NSEC_PER_SEC
+        for tid in self.tids.values():
+            if tid.tid == 0:
+                continue
+            lines.append("hosts.%s.tid.%s-%d %d %lu" % (self.hostname,
+                tid.comm.replace("/","|"), tid.tid, ((tid.cpu_ns * 100) / total_ns), ts))
+        message = '\n'.join(lines) + '\n' #all lines must end in a newline
+        sock.sendall(message.encode())
+        print("Sent TIDs at", end_ns/NSEC_PER_SEC)

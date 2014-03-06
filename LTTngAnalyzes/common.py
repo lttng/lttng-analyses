@@ -16,3 +16,7 @@ class Syscall():
 class Disk():
     def __init__(self):
         pass
+
+class Iface():
+    def __init__(self):
+        pass

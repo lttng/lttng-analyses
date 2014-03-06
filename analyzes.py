@@ -23,6 +23,7 @@ from LTTngAnalyzes.sched_switch import *
 from LTTngAnalyzes.sched_migrate_task import *
 from LTTngAnalyzes.syscalls import *
 from LTTngAnalyzes.block_bio import *
+from LTTngAnalyzes.net import *
 
 class Analyzes():
     def __init__(self, traces):
@@ -33,13 +34,14 @@ class Analyzes():
         self.cpus = {}
         self.syscalls = {}
         self.disks = {}
+        self.ifaces = {}
 
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
             r = TextReport(self.trace_start_ts, self.trace_end_ts,
                     self.cpus, self.tids, self.syscalls, self.disks)
             r.report(begin_ns, end_ns, final, args)
-            if not final and (args.cpu or args.tid or args.disk):
+            if not final and (args.cpu or args.tid or args.disk or args.net):
                 print("")
         if args.json:
             r = JsonReport(self.trace_start_ts, self.trace_end_ts,
@@ -47,7 +49,7 @@ class Analyzes():
             r.report(begin_ns, end_ns, final, args)
         if args.graphite:
             r = GraphiteReport(self.trace_start_ts, self.trace_end_ts,
-                    self.cpus, self.tids, self.syscalls, self.disks)
+                    self.cpus, self.tids, self.syscalls, self.disks, self.ifaces)
             r.report(begin_ns, end_ns, final, args)
 
     def check_refresh(self, args, event):
@@ -89,6 +91,22 @@ class Analyzes():
             self.disks[dev].completed_requests = 0
             self.disks[dev].request_time = 0
 
+        for iface in self.ifaces.keys():
+            self.ifaces[iface].recv_bytes = 0
+            self.ifaces[iface].recv_packets = 0
+            self.ifaces[iface].send_bytes = 0
+            self.ifaces[iface].send_packets = 0
+
+    def clear(self):
+        self.trace_start_ts = 0
+        self.trace_end_ts = 0
+        self.traces = traces
+        self.tids = {}
+        self.cpus = {}
+        self.syscalls = {}
+        self.disks = {}
+        self.ifaces = {}
+
     def compute_stats(self):
         for cpu in self.cpus.keys():
             current_cpu = self.cpus[cpu]
@@ -111,6 +129,7 @@ class Analyzes():
         migrate_task = SchedMigrateTask(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         block_bio = BlockBio(self.cpus, self.disks)
+        net = Net(self.ifaces)
 
         for event in self.traces.events:
             if self.start_ns == 0:
@@ -135,6 +154,10 @@ class Analyzes():
                 block_bio.complete(event)
             elif event.name == "block_bio_queue":
                 block_bio.queue(event)
+            elif event.name == "netif_receive_skb":
+                net.recv(event)
+            elif event.name == "net_dev_xmit":
+                net.send(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()
@@ -162,6 +185,8 @@ if __name__ == "__main__":
             help='Per-Disk stats (default)')
     parser.add_argument('--tid', action="store_true",
             help='Per-TID stats (default)')
+    parser.add_argument('--net', action="store_true",
+            help='Per-interface network stats (default)')
     parser.add_argument('--global-syscalls', action="store_true",
             help='Global syscalls (default)')
     parser.add_argument('--tid-syscalls', action="store_true",
@@ -182,7 +207,8 @@ if __name__ == "__main__":
     if args.tid_syscalls:
         args.tid = True
     if not (args.cpu or args.tid or args.overall or args.info or \
-            args.global_syscalls or args.tid_syscalls or args.disk):
+            args.global_syscalls or args.tid_syscalls or args.disk \
+            or args.net):
         args.cpu = True
         args.tid = True
         args.overall = True
@@ -190,6 +216,7 @@ if __name__ == "__main__":
         args.info = True
         args.global_syscalls = True
         args.tid_syscalls = True
+        args.net = True
     if args.name:
         args.global_syscalls = False
     args.display_proc_list = []
@@ -198,7 +225,8 @@ if __name__ == "__main__":
 
     while True:
         if args.graphite:
-            events="sched_switch,block_bio_complete,block_bio_queue"
+            events="sched_switch,block_bio_complete,block_bio_queue," \
+                    "netif_receive_skb,net_dev_xmit"
             os.system("lttng create graphite -o graphite-live >/dev/null")
             os.system("lttng enable-event -k %s -s graphite >/dev/null" % events)
             os.system("lttng start graphite >/dev/null")
@@ -212,6 +240,7 @@ if __name__ == "__main__":
 
         c = Analyzes(traces)
         c.run(args)
+        c.clear()
 
         traces.remove_trace(handle)
 
