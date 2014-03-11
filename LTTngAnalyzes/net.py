@@ -7,10 +7,6 @@ class Net():
     def get_dev(self, dev):
         if not dev in self.ifaces:
             d = Iface()
-            d.recv_bytes = 0
-            d.recv_packets = 0
-            d.send_bytes = 0
-            d.send_packets = 0
             self.ifaces[dev] = d
         else:
             d = self.ifaces[dev]

@@ -8,11 +8,6 @@ class BlockBio():
     def get_dev(self, dev):
         if not dev in self.disks:
             d = Disk()
-            d.nr_sector = 0
-            d.nr_requests = 0
-            d.completed_requests = 0
-            d.request_time = 0
-            d.pending_requests = {}
             self.disks[dev] = d
         else:
             d = self.disks[dev]

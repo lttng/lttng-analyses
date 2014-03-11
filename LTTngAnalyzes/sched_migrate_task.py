@@ -11,9 +11,6 @@ class SchedMigrateTask():
             p = Process()
             p.tid = tid
             p.comm = event["comm"]
-            p.cpu_ns = 0
-            p.migrate_count = 0
-            p.syscalls = {}
             self.tids[tid] = p
         else:
             p = self.tids[tid]

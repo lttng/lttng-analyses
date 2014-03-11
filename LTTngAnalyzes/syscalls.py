@@ -27,7 +27,6 @@ class Syscalls():
         if not name in t.syscalls:
             s = Syscall()
             s.name = name
-            s.count = 0
             t.syscalls[name] = s
         else:
             s = t.syscalls[name]

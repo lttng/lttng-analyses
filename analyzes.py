@@ -150,7 +150,8 @@ class Analyzes():
             elif event.name == "exit_syscall" and \
                     (args.global_syscalls or args.tid_syscalls):
                 syscall.exit(event)
-            elif event.name == "block_bio_complete":
+            elif event.name == "block_bio_complete" or \
+                   event.name == "block_rq_complete":
                 block_bio.complete(event)
             elif event.name == "block_bio_queue":
                 block_bio.queue(event)

@@ -20,7 +20,6 @@ class SchedSwitch():
                 c.current_tid = -1
         else:
             c = CPU()
-            c.cpu_ns = 0
             c.current_tid = next_tid
             # when we schedule a real task (not swapper)
             c.start_task_ns = ts
@@ -39,9 +38,6 @@ class SchedSwitch():
             p = Process()
             p.tid = next_tid
             p.comm = next_comm
-            p.cpu_ns = 0
-            p.migrate_count = 0
-            p.syscalls = {}
             self.tids[next_tid] = p
         else:
             p = self.tids[next_tid]
