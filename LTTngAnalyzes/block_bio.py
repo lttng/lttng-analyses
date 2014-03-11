@@ -5,14 +5,6 @@ class BlockBio():
         self.cpus = cpus
         self.disks = disks
 
-    def get_dev(self, dev):
-        if not dev in self.disks:
-            d = Disk()
-            self.disks[dev] = d
-        else:
-            d = self.disks[dev]
-        return d
-
     def queue(self, event):
         dev = event["dev"]
         sector = event["sector"]
@@ -21,7 +13,7 @@ class BlockBio():
         rq["nr_sector"] = nr_sector
         rq["rq_time"] = event.timestamp
 
-        d = self.get_dev(dev)
+        d = get_disk(dev, self.disks)
         d.nr_requests += 1
         d.nr_sector += nr_sector
         d.pending_requests[sector] = rq
@@ -30,7 +22,7 @@ class BlockBio():
         dev = event["dev"]
         sector = event["sector"]
         nr_sector = event["nr_sector"]
-        d = self.get_dev(dev)
+        d = get_disk(dev, self.disks)
 
         if not sector in d.pending_requests.keys():
             return
