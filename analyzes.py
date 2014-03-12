@@ -149,10 +149,12 @@ class Analyzes():
             elif event.name == "sched_process_exec":
                 sched.process_exec(event)
             elif event.name[0:4] == "sys_" and \
-                    (args.global_syscalls or args.tid_syscalls):
+                    (args.global_syscalls or args.tid_syscalls or
+                            args.fds):
                 syscall.entry(event)
             elif event.name == "exit_syscall" and \
-                    (args.global_syscalls or args.tid_syscalls):
+                    (args.global_syscalls or args.tid_syscalls or
+                            args.fds):
                 syscall.exit(event)
             elif event.name == "block_bio_complete" or \
                    event.name == "block_rq_complete":
@@ -200,6 +202,8 @@ if __name__ == "__main__":
             help='Global syscalls (default)')
     parser.add_argument('--tid-syscalls', action="store_true",
             help='Per-TID syscalls (default)')
+    parser.add_argument('--fds', action="store_true",
+            help='Per-PID FD stats (default)')
     parser.add_argument('--overall', action="store_true",
             help='Overall CPU Usage (default)')
     parser.add_argument('--info', action="store_true",
@@ -213,11 +217,11 @@ if __name__ == "__main__":
     if not args.json and not args.graphite:
         args.text = True
 
-    if args.tid_syscalls:
+    if args.tid_syscalls or args.fds:
         args.tid = True
     if not (args.cpu or args.tid or args.overall or args.info or \
             args.global_syscalls or args.tid_syscalls or args.disk \
-            or args.net):
+            or args.net or args.fds):
         args.cpu = True
         args.tid = True
         args.overall = True
@@ -226,6 +230,7 @@ if __name__ == "__main__":
         args.global_syscalls = True
         args.tid_syscalls = True
         args.net = True
+        args.fds = True
     if args.name:
         args.global_syscalls = False
     args.display_proc_list = []

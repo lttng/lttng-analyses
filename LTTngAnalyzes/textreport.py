@@ -27,9 +27,10 @@ class TextReport():
 
     def report(self, begin_ns, end_ns, final, args):
         if not (args.info or args.cpu or args.tid or args.global_syscalls \
-                or args.tid_syscalls or args.disk):
+                or args.tid_syscalls or args.disk or args.fds):
             return
-        if args.cpu or args.tid or args.global_syscalls or args.tid_syscalls or args.disk:
+        if args.cpu or args.tid or args.global_syscalls or args.tid_syscalls or \
+                args.disk or args.fds:
             print("[%lu:%lu]" % (begin_ns/NSEC_PER_SEC, end_ns/NSEC_PER_SEC))
 
         total_ns = end_ns - begin_ns
@@ -42,7 +43,7 @@ class TextReport():
             print("")
         if args.tid:
             self.text_per_tid_report(total_ns, args.display_proc_list,
-                    limit=args.top, syscalls=args.tid_syscalls)
+                    limit=args.top, syscalls=args.tid_syscalls, fds=args.fds)
             print("")
         if args.global_syscalls:
             self.text_global_syscall_report()
@@ -71,7 +72,8 @@ class TextReport():
                 continue
             print("%s : %d" % (syscall.name[4:], syscall.count))
 
-    def text_per_tid_report(self, total_ns, proc_list, limit=0, syscalls=0):
+    def text_per_tid_report(self, total_ns, proc_list, limit=0, syscalls=0,
+            fds=0):
         print("### Per-TID Usage ###")
         count = 0
         for tid in sorted(self.tids.values(),
@@ -85,29 +87,32 @@ class TextReport():
             else:
                 print("")
             count = count + 1
-            if tid.tid == tid.pid:
-                if len(tid.fds.keys()) > 0:
-                    print("- Still opened files :")
-                for fd in tid.fds.values():
-                    if fd.parent != -1 and fd.parent != tid.tid:
-                        inherit = " (inherited by %s (%d))" % \
-                                (self.tids[fd.parent].comm, fd.parent)
-                    else:
-                        inherit = ""
-                    print("   - %s (%d), read = %d, write = %d, open = %d, close = %d%s" % \
-                            (fd.filename, fd.fd, fd.read, fd.write, fd.open, fd.close,
-                                inherit))
-                if len(tid.closed_fds.keys()) > 0:
-                    print("- Closed files :")
-                for fd in tid.closed_fds.values():
-                    if fd.parent != -1 and fd.parent != tid.tid:
-                        inherit = " (inherited by %s (%d))" % \
-                                (self.tids[fd.parent].comm, fd.parent)
-                    else:
-                        inherit = ""
-                    print("   - %s (%d), read = %d, write = %d, open = %d, close = %d%s" % \
-                            (fd.filename, fd.fd, fd.read, fd.write, fd.open, fd.close,
-                                inherit))
+            if fds:
+                if tid.tid == tid.pid:
+                    if len(tid.fds.keys()) > 0:
+                        print("- Still opened files :")
+                    for fd in tid.fds.values():
+                        if fd.parent != -1 and fd.parent != tid.tid:
+                            inherit = " (inherited by %s (%d))" % \
+                                    (self.tids[fd.parent].comm, fd.parent)
+                        else:
+                            inherit = ""
+                        print("   - %s (%d), read = %d, write = %d, " \
+                                "open = %d, close = %d%s" % \
+                                (fd.filename, fd.fd, fd.read, fd.write, fd.open,
+                                    fd.close, inherit))
+                    if len(tid.closed_fds.keys()) > 0:
+                        print("- Closed files :")
+                    for fd in tid.closed_fds.values():
+                        if fd.parent != -1 and fd.parent != tid.tid:
+                            inherit = " (inherited by %s (%d))" % \
+                                    (self.tids[fd.parent].comm, fd.parent)
+                        else:
+                            inherit = ""
+                        print("   - %s (%d), read = %d, write = %d, " \
+                                "open = %d, close = %d%s" % \
+                                (fd.filename, fd.fd, fd.read, fd.write, fd.open,
+                                    fd.close, inherit))
             if syscalls:
                 if len(tid.syscalls.keys()) > 0:
                     print("- Syscalls")
