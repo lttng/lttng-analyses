@@ -85,7 +85,20 @@ class TextReport():
             else:
                 print("")
             count = count + 1
+            if tid.tid == tid.pid:
+                if len(tid.fds.keys()) > 0:
+                    print("- Still opened files :")
+                for fd in tid.fds.values():
+                    print("   - %s (%d), read = %d, write = %d, open = %d, close = %d" % \
+                            (fd.filename, fd.fd, fd.read, fd.write, fd.open, fd.close))
+                if len(tid.closed_fds.keys()) > 0:
+                    print("- Closed files :")
+                for fd in tid.closed_fds.values():
+                    print("   - %s (%d), read = %d, write = %d, open = %d, close = %d" % \
+                            (fd.filename, fd.fd, fd.read, fd.write, fd.open, fd.close))
             if syscalls:
+                if len(tid.syscalls.keys()) > 0:
+                    print("- Syscalls")
                 for syscall in sorted(tid.syscalls.values(),
                         key=operator.attrgetter('count'), reverse=True):
                     if syscall.count == 0:
