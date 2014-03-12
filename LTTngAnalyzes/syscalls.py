@@ -157,9 +157,9 @@ class Syscalls():
             fd.fd = ret
         else:
             return
-        if fd.fd in t.fds.keys():
-            print("%lu : FD %d in tid %d was already there, untracked close" %
-                    (event.timestamp, fd.fd, t.tid))
+#        if fd.fd in t.fds.keys():
+#            print("%lu : FD %d in tid %d was already there, untracked close" %
+#                    (event.timestamp, fd.fd, t.tid))
         if "cloexec" in cpu.current_syscall.keys():
             fd.cloexec = 1
         t.fds[fd.fd] = fd
