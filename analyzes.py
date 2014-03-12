@@ -24,6 +24,7 @@ from LTTngAnalyzes.sched_migrate_task import *
 from LTTngAnalyzes.syscalls import *
 from LTTngAnalyzes.block_bio import *
 from LTTngAnalyzes.net import *
+from LTTngAnalyzes.statedump import *
 
 class Analyzes():
     def __init__(self, traces):
@@ -130,6 +131,7 @@ class Analyzes():
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         block_bio = BlockBio(self.cpus, self.disks)
         net = Net(self.ifaces)
+        statedump = Statedump(self.tids)
 
         for event in self.traces.events:
             if self.start_ns == 0:
@@ -159,6 +161,10 @@ class Analyzes():
                 net.recv(event)
             elif event.name == "net_dev_xmit":
                 net.send(event)
+            elif event.name == "lttng_statedump_process_state":
+                statedump.process_state(event)
+            elif event.name == "lttng_statedump_file_descriptor":
+                statedump.file_descriptor(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()

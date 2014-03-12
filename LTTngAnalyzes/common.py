@@ -4,6 +4,7 @@ MSEC_PER_NSEC = 1000000
 class Process():
     def __init__(self):
         self.tid = -1
+        self.pid = -1
         self.comm = ""
         self.cpu_ns = 0
         self.migrate_count = 0
