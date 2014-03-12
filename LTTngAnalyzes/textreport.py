@@ -9,13 +9,15 @@ import operator
 #        return json.JSONEncoder.default(self, obj)
 
 class TextReport():
-    def __init__(self, trace_start_ts, trace_end_ts, cpus, tids, syscalls, disks):
+    def __init__(self, trace_start_ts, trace_end_ts, cpus, tids, syscalls,
+            disks, ifaces):
         self.trace_start_ts = trace_start_ts
         self.trace_end_ts = trace_end_ts
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
         self.disks = disks
+        self.ifaces = ifaces
 
     def text_trace_info(self):
         total_ns = self.trace_end_ts - self.trace_start_ts
@@ -27,10 +29,10 @@ class TextReport():
 
     def report(self, begin_ns, end_ns, final, args):
         if not (args.info or args.cpu or args.tid or args.global_syscalls \
-                or args.tid_syscalls or args.disk or args.fds):
+                or args.tid_syscalls or args.disk or args.fds or args.net):
             return
         if args.cpu or args.tid or args.global_syscalls or args.tid_syscalls or \
-                args.disk or args.fds:
+                args.disk or args.fds or args.net:
             print("[%lu:%lu]" % (begin_ns/NSEC_PER_SEC, end_ns/NSEC_PER_SEC))
 
         total_ns = end_ns - begin_ns
@@ -51,6 +53,9 @@ class TextReport():
         if args.disk:
             self.text_disks_report(total_ns)
             print("")
+        if args.net:
+            self.text_net_report(total_ns)
+            print("")
 
     def text_disks_report(self, total_ns):
         print("### Disks stats ###")
@@ -63,6 +68,14 @@ class TextReport():
             print("Dev %d, %d requests, %d sectors, %s" %
                     (dev, self.disks[dev].nr_requests,
                         self.disks[dev].nr_sector, totalstr))
+
+    def text_net_report(self, total_ns):
+        print("### Network stats ###")
+        for iface in self.ifaces.keys():
+            dev = self.ifaces[iface]
+            print("%s : %d bytes received (%d packets), %d bytes sent (%d packets)" %
+                    (iface, dev.recv_bytes, dev.recv_packets, dev.send_bytes,
+                        dev.send_packets))
 
     def text_global_syscall_report(self):
         print("### Global syscall ###")

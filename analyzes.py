@@ -39,7 +39,8 @@ class Analyzes():
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
             r = TextReport(self.trace_start_ts, self.trace_end_ts,
-                    self.cpus, self.tids, self.syscalls, self.disks)
+                    self.cpus, self.tids, self.syscalls, self.disks,
+                    self.ifaces)
             r.report(begin_ns, end_ns, final, args)
             if not final and (args.cpu or args.tid or args.disk or args.net):
                 print("")
