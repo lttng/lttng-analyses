@@ -19,8 +19,7 @@ from LTTngAnalyzes.common import *
 from LTTngAnalyzes.jsonreport import *
 from LTTngAnalyzes.textreport import *
 from LTTngAnalyzes.graphitereport import *
-from LTTngAnalyzes.sched_switch import *
-from LTTngAnalyzes.sched_migrate_task import *
+from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
 from LTTngAnalyzes.block_bio import *
 from LTTngAnalyzes.net import *
@@ -126,8 +125,7 @@ class Analyzes():
         self.start_ns = 0
         self.end_ns = 0
 
-        sched_switch = SchedSwitch(self.cpus, self.tids)
-        migrate_task = SchedMigrateTask(self.cpus, self.tids)
+        sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         block_bio = BlockBio(self.cpus, self.disks)
         net = Net(self.ifaces)
@@ -143,9 +141,9 @@ class Analyzes():
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
-                sched_switch.add(event)
+                sched.switch(event)
             elif event.name == "sched_migrate_task":
-                migrate_task.add(event)
+                sched.migrate_task(event)
             elif event.name[0:4] == "sys_" and \
                     (args.global_syscalls or args.tid_syscalls):
                 syscall.entry(event)

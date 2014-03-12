@@ -1,6 +1,6 @@
 from LTTngAnalyzes.common import *
 
-class SchedSwitch():
+class Sched():
     def __init__(self, cpus, tids):
         self.cpus = cpus
         self.tids = tids
@@ -43,7 +43,7 @@ class SchedSwitch():
             p = self.tids[next_tid]
         p.last_sched = ts
 
-    def add(self, event):
+    def switch(self, event):
         """Handle sched_switch event"""
         prev_tid = event["prev_tid"]
         next_comm = event["next_comm"]
@@ -52,3 +52,14 @@ class SchedSwitch():
 
         self.sched_switch_per_cpu(cpu_id, event.timestamp, next_tid)
         self.sched_switch_per_tid(event.timestamp, prev_tid, next_tid, next_comm, cpu_id)
+
+    def migrate_task(self, event):
+        tid = event["tid"]
+        if not tid in self.tids:
+            p = Process()
+            p.tid = tid
+            p.comm = event["comm"]
+            self.tids[tid] = p
+        else:
+            p = self.tids[tid]
+        p.migrate_count += 1
