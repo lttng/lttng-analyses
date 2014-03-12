@@ -10,6 +10,11 @@ class Syscalls():
                 "sys_fcntl", "sys_socket", "sys_dup2"]
         # list of syscalls that close a FD (in the "fd =" field)
         self.close_syscalls = ["sys_close"]
+        # list of syscall that read on a FD, value in the exit_syscall following
+        self.read_syscalls = ["sys_read", "sys_recvmsg", "sys_recvfrom",
+                "sys_splice", "sys_readv"]
+        # list of syscall that write on a FD, value in the exit_syscall following
+        self.write_syscalls = ["sys_write", "sys_sendmsg" "sys_sendto", "sys_writev"]
 
     def global_syscall_entry(self, name):
         if not name in self.syscalls:
@@ -104,6 +109,36 @@ class Syscalls():
         elif name in self.close_syscalls:
             self.track_close(name, t, event, c)
 
+    def get_fd(self, proc, fd):
+        if fd not in proc.fds.keys():
+            f = FD()
+            f.fd = fd
+            f.name = "unknown (origin not found)"
+            proc.fds[fd] = f
+        else:
+            f = proc.fds[fd]
+        return f
+
+    def track_read_write(self, name, event, cpu_id):
+        # we don't know which process is currently on this CPU
+        if not cpu_id in self.cpus:
+            return
+        c = self.cpus[cpu_id]
+        if c.current_tid == -1:
+            return
+        t = self.tids[c.current_tid]
+        # if it's a thread, we want the parent
+        if t.pid != -1 and t.tid != t.pid:
+            t = self.tids[t.pid]
+        c.current_syscall["name"] = name
+        if name == "sys_splice":
+            c.current_syscall["fd_in"] = self.get_fd(t, event["fd_in"])
+            c.current_syscall["fd_out"] = self.get_fd(t, event["fd_out"])
+            return
+        fd = event["fd"]
+        f = self.get_fd(t, fd)
+        c.current_syscall["fd"] = f
+
     def add_tid_fd(self, event, cpu):
         ret = event["ret"]
         t = self.tids[cpu.current_tid]
@@ -131,12 +166,28 @@ class Syscalls():
         #print("%lu : %s opened %s (%d times)" % (event.timestamp, t.comm,
         #    fd.filename, fd.open))
 
+    def track_read_write_return(self, name, ret, cpu):
+        if ret < 0:
+            # TODO: track errors
+            return
+        if name == "sys_splice":
+            cpu.current_syscall["fd_in"].read += ret
+            cpu.current_syscall["fd_out"].write += ret
+        elif name in self.read_syscalls:
+            if ret > 0:
+                cpu.current_syscall["fd"].read += ret
+        elif name in self.write_syscalls:
+            if ret > 0:
+                cpu.current_syscall["fd"].write += ret
+
     def entry(self, event):
         name = event.name
         cpu_id = event["cpu_id"]
         self.global_syscall_entry(name)
         self.per_tid_syscall_entry(name, cpu_id)
         self.track_fds(name, event, cpu_id)
+        if name in self.read_syscalls or name in self.write_syscalls:
+            self.track_read_write(name, event, cpu_id)
 
     def exit(self, event):
         cpu_id = event["cpu_id"]
@@ -147,6 +198,10 @@ class Syscalls():
             return
         if len(c.current_syscall.keys()) == 0:
             return
-        if c.current_syscall["name"] in self.open_syscalls:
+        name = c.current_syscall["name"]
+        ret = event["ret"]
+        if name in self.open_syscalls:
             self.add_tid_fd(event, c)
+        elif name in self.read_syscalls or name in self.write_syscalls:
+            self.track_read_write_return(name, ret, c)
         c.current_syscall = {}

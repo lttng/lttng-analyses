@@ -89,13 +89,25 @@ class TextReport():
                 if len(tid.fds.keys()) > 0:
                     print("- Still opened files :")
                 for fd in tid.fds.values():
-                    print("   - %s (%d), read = %d, write = %d, open = %d, close = %d" % \
-                            (fd.filename, fd.fd, fd.read, fd.write, fd.open, fd.close))
+                    if fd.parent != -1 and fd.parent != tid.tid:
+                        inherit = " (inherited by %s (%d))" % \
+                                (self.tids[fd.parent].comm, fd.parent)
+                    else:
+                        inherit = ""
+                    print("   - %s (%d), read = %d, write = %d, open = %d, close = %d%s" % \
+                            (fd.filename, fd.fd, fd.read, fd.write, fd.open, fd.close,
+                                inherit))
                 if len(tid.closed_fds.keys()) > 0:
                     print("- Closed files :")
                 for fd in tid.closed_fds.values():
-                    print("   - %s (%d), read = %d, write = %d, open = %d, close = %d" % \
-                            (fd.filename, fd.fd, fd.read, fd.write, fd.open, fd.close))
+                    if fd.parent != -1 and fd.parent != tid.tid:
+                        inherit = " (inherited by %s (%d))" % \
+                                (self.tids[fd.parent].comm, fd.parent)
+                    else:
+                        inherit = ""
+                    print("   - %s (%d), read = %d, write = %d, open = %d, close = %d%s" % \
+                            (fd.filename, fd.fd, fd.read, fd.write, fd.open, fd.close,
+                                inherit))
             if syscalls:
                 if len(tid.syscalls.keys()) > 0:
                     print("- Syscalls")

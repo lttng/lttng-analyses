@@ -6,6 +6,7 @@ class Statedump():
 
     def merge_fd_dict(self, p, parent):
         if len(p.fds.keys()) != 0:
+            toremove = []
             for fd in p.fds.keys():
                 if fd not in parent.fds.keys():
                     parent.fds[fd] = p.fds[fd]
@@ -18,6 +19,8 @@ class Statedump():
                     parent.fds[fd].write += p.fds[fd].write
                     parent.fds[fd].open += p.fds[fd].open
                     parent.fds[fd].close += p.fds[fd].close
+                toremove.append(fd)
+            for fd in toremove:
                 p.fds.pop(fd, None)
         if len(p.closed_fds.keys()) != 0:
             for fd in p.closed_fds.keys():

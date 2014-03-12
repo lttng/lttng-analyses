@@ -83,6 +83,12 @@ class Sched():
         p.pid = pid
         p.comm = name
 
+    def dup_fd(self, fd):
+        f = FD()
+        f.filename = fd.filename
+        f.fd = fd.fd
+        return f
+
     def process_fork(self, event):
         child_tid = event["child_tid"]
         child_pid = event["child_pid"]
@@ -99,7 +105,7 @@ class Sched():
         self.fix_process(parent_comm, parent_tid, parent_pid)
         p = self.tids[parent_pid]
         for fd in p.fds.keys():
-            f.fds[fd] = p.fds[fd]
+            f.fds[fd] = self.dup_fd(p.fds[fd])
             f.fds[fd].parent = parent_pid
 
         self.tids[child_tid] = f
