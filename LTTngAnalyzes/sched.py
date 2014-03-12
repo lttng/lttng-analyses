@@ -63,3 +63,58 @@ class Sched():
         else:
             p = self.tids[tid]
         p.migrate_count += 1
+
+    def fix_process(self, name, tid, pid):
+        if not tid in self.tids:
+            p = Process()
+            p.tid = tid
+            self.tids[tid] = p
+        else:
+            p = self.tids[tid]
+        p.pid = pid
+        p.comm = name
+
+        if not pid in self.tids:
+            p = Process()
+            p.tid = pid
+            self.tids[pid] = p
+        else:
+            p = self.tids[pid]
+        p.pid = pid
+        p.comm = name
+
+    def process_fork(self, event):
+        child_tid = event["child_tid"]
+        child_pid = event["child_pid"]
+        child_comm = event["child_comm"]
+        parent_pid = event["parent_pid"]
+        parent_tid = event["parent_pid"]
+        parent_comm = event["parent_comm"]
+        f = Process()
+        f.tid = child_tid
+        f.pid = child_pid
+        f.comm = child_comm
+
+        # make sure the parent exists
+        self.fix_process(parent_comm, parent_tid, parent_pid)
+        p = self.tids[parent_pid]
+        for fd in p.fds.keys():
+            f.fds[fd] = p.fds[fd]
+            f.fds[fd].parent = parent_pid
+
+        self.tids[child_tid] = f
+
+    def process_exec(self, event):
+        tid = event["tid"]
+        if not tid in self.tids:
+            p = Process()
+            p.tid = tid
+            self.tids[tid] = p
+        else:
+            p = self.tids[tid]
+        toremove = []
+        for fd in p.fds.keys():
+            if p.fds[fd].cloexec == 1:
+                toremove.append(fd)
+        for fd in toremove:
+            p.fds.pop(fd, None)

@@ -80,6 +80,8 @@ class Statedump():
             newfile = FD()
             newfile.filename = filename
             newfile.fd = fd
+            # FIXME: we don't have the info, just assume for now
+            newfile.cloexec = 1
             p.fds[fd] = newfile
         else:
             # just fix the filename

@@ -41,6 +41,8 @@ class Syscalls():
         cpu.current_syscall = {}
         if name in ["sys_open", "sys_openat"]:
             cpu.current_syscall["filename"] = event["filename"]
+            if event["flags"] & O_CLOEXEC == O_CLOEXEC:
+                cpu.current_syscall["cloexec"] = 1
         elif name in ["sys_accept", "sys_socket"]:
             cpu.current_syscall["filename"] = "socket"
         elif name in ["sys_dup2"]:
@@ -81,8 +83,8 @@ class Syscalls():
     def track_close(self, name, proc, event, cpu):
         fd = event["fd"]
         if not fd in proc.fds.keys():
-            print("%lu : Closing FD %d in %d without open" %
-                    (event.timestamp, fd, proc.tid))
+#            print("%lu : Closing FD %d in %d without open" %
+#                    (event.timestamp, fd, proc.tid))
             return
         self.close_fd(proc, fd)
 
@@ -123,10 +125,11 @@ class Syscalls():
         if fd.fd in t.fds.keys():
             print("%lu : FD %d in tid %d was already there, untracked close" %
                     (event.timestamp, fd.fd, t.tid))
+        if "cloexec" in cpu.current_syscall.keys():
+            fd.cloexec = 1
         t.fds[fd.fd] = fd
-        if t.pid == 21300:
-            print("%lu : %s opened %s (%d times)" % (event.timestamp, t.comm,
-                fd.filename, fd.open))
+        #print("%lu : %s opened %s (%d times)" % (event.timestamp, t.comm,
+        #    fd.filename, fd.open))
 
     def entry(self, event):
         name = event.name

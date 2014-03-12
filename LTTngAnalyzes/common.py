@@ -1,6 +1,8 @@
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
 
+O_CLOEXEC = 0o2000000
+
 class Process():
     def __init__(self):
         self.tid = -1
@@ -50,6 +52,9 @@ class FD():
         self.write = 0
         self.open = 0
         self.close = 0
+        self.cloexec = 0
+        # if FD was inherited, parent PID
+        self.parent = -1
 
 def get_disk(dev, disks):
     if not dev in disks:

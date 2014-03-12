@@ -144,6 +144,10 @@ class Analyzes():
                 sched.switch(event)
             elif event.name == "sched_migrate_task":
                 sched.migrate_task(event)
+            elif event.name == "sched_process_fork":
+                sched.process_fork(event)
+            elif event.name == "sched_process_exec":
+                sched.process_exec(event)
             elif event.name[0:4] == "sys_" and \
                     (args.global_syscalls or args.tid_syscalls):
                 syscall.entry(event)
