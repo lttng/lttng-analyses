@@ -80,6 +80,8 @@ class Analyzes():
         for tid in self.tids.keys():
             self.tids[tid].cpu_ns = 0
             self.tids[tid].migrate_count = 0
+            self.tids[tid].read = 0
+            self.tids[tid].write = 0
             for syscall in self.tids[tid].syscalls.keys():
                 self.tids[tid].syscalls[syscall].count = 0
 

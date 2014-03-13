@@ -93,8 +93,9 @@ class TextReport():
                 key=operator.attrgetter('cpu_ns'), reverse=True):
             if len(proc_list) > 0 and tid.comm not in proc_list:
                 continue
-            print("%s (%d) : %0.02f%%" % (tid.comm, tid.tid,
-                ((tid.cpu_ns * 100) / total_ns)), end="")
+            print("%s (%d) : %0.02f%%, read %s, write %s" % (tid.comm, tid.tid,
+                ((tid.cpu_ns * 100) / total_ns), convert_size(tid.read),
+                convert_size(tid.write)), end="")
             if tid.migrate_count > 0:
                 print(""" (%d migration(s))""" % tid.migrate_count)
             else:
@@ -110,9 +111,10 @@ class TextReport():
                                     (self.tids[fd.parent].comm, fd.parent)
                         else:
                             inherit = ""
-                        print("   - %s (%d), read = %d, write = %d, " \
+                        print("   - %s (%d), read = %s, write = %s, " \
                                 "open = %d, close = %d%s" % \
-                                (fd.filename, fd.fd, fd.read, fd.write, fd.open,
+                                (fd.filename, fd.fd, convert_size(fd.read),
+                                    convert_size(fd.write), fd.open,
                                     fd.close, inherit))
                     if len(tid.closed_fds.keys()) > 0:
                         print("- Closed files :")
@@ -122,9 +124,10 @@ class TextReport():
                                     (self.tids[fd.parent].comm, fd.parent)
                         else:
                             inherit = ""
-                        print("   - %s (%d), read = %d, write = %d, " \
+                        print("   - %s (%d), read = %s, write = %s, " \
                                 "open = %d, close = %d%s" % \
-                                (fd.filename, fd.fd, fd.read, fd.write, fd.open,
+                                (fd.filename, fd.fd, convert_size(fd.read),
+                                    convert_size(fd.write), fd.open,
                                     fd.close, inherit))
             if syscalls:
                 if len(tid.syscalls.keys()) > 0:

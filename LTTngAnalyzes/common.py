@@ -1,3 +1,5 @@
+import math
+
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
 
@@ -10,6 +12,8 @@ class Process():
         self.comm = ""
         self.cpu_ns = 0
         self.migrate_count = 0
+        self.read = 0
+        self.write = 0
         # indexed by syscall_name
         self.syscalls = {}
         # indexed by fd
@@ -63,3 +67,15 @@ def get_disk(dev, disks):
     else:
         d = disks[dev]
     return d
+
+def convert_size(size):
+   if size <= 0:
+       return "0B"
+   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+   i = int(math.floor(math.log(size,1024)))
+   p = math.pow(1024,i)
+   s = round(size/p,2)
+   if (s > 0):
+       return '%s %s' % (s,size_name[i])
+   else:
+       return '0B'

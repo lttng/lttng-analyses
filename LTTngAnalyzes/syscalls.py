@@ -170,15 +170,23 @@ class Syscalls():
         if ret < 0:
             # TODO: track errors
             return
+        proc = self.tids[cpu.current_tid]
+        # if it's a thread, we want the parent
+        if proc.pid != -1 and proc.tid != proc.pid:
+            proc = self.tids[proc.pid]
         if name == "sys_splice":
             cpu.current_syscall["fd_in"].read += ret
+            proc.read += ret
             cpu.current_syscall["fd_out"].write += ret
+            proc.write += ret
         elif name in self.read_syscalls:
             if ret > 0:
                 cpu.current_syscall["fd"].read += ret
+                proc.read += ret
         elif name in self.write_syscalls:
             if ret > 0:
                 cpu.current_syscall["fd"].write += ret
+                proc.write += ret
 
     def entry(self, event):
         name = event.name
