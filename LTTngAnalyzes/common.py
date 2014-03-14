@@ -70,12 +70,17 @@ def get_disk(dev, disks):
 
 def convert_size(size):
    if size <= 0:
-       return "0B"
+       return "0 B"
+   return "%d" % size
    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
-   i = int(math.floor(math.log(size,1024)))
-   p = math.pow(1024,i)
-   s = round(size/p,2)
+   i = int(math.floor(math.log(size, 1024)))
+   p = math.pow(1024, i)
+   s = round(size/p, 2)
    if (s > 0):
-       return '%s %s' % (s,size_name[i])
+       try:
+           return '%s %s' % (s, size_name[i])
+       except:
+           print(i, size_name)
+           raise("Too big to be true")
    else:
-       return '0B'
+       return '0 B'

@@ -15,6 +15,9 @@ class Syscalls():
                 "sys_splice", "sys_readv"]
         # list of syscall that write on a FD, value in the exit_syscall following
         self.write_syscalls = ["sys_write", "sys_sendmsg" "sys_sendto", "sys_writev"]
+        # generic names assigned to special FDs, don't try to match these in the
+        # closed_fds dict
+        self.generic_names = ["unknown", "socket"]
 
     def global_syscall_entry(self, name):
         if not name in self.syscalls:
@@ -72,7 +75,7 @@ class Syscalls():
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
-        if filename in proc.closed_fds.keys():
+        if filename not in self.generic_names and filename in proc.closed_fds.keys():
             f = proc.closed_fds[filename]
             f.close += 1
             f.read += proc.fds[fd].read
@@ -146,7 +149,7 @@ class Syscalls():
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
         name = cpu.current_syscall["filename"]
-        if name in t.closed_fds.keys():
+        if name not in self.generic_names and name in t.closed_fds.keys():
             fd = t.closed_fds[name]
             fd.open += 1
         else:
