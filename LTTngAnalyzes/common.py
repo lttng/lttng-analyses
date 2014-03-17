@@ -14,6 +14,7 @@ class Process():
         self.migrate_count = 0
         self.read = 0
         self.write = 0
+        self.last_sched = 0
         # indexed by syscall_name
         self.syscalls = {}
         # indexed by fd
