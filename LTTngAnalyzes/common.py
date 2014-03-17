@@ -1,4 +1,5 @@
 import math
+import time
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
@@ -85,3 +86,6 @@ def convert_size(size):
            raise("Too big to be true")
    else:
        return '0 B'
+
+def ns_to_asctime(ns):
+    return time.asctime(time.gmtime(ns/NSEC_PER_SEC))

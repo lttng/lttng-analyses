@@ -34,6 +34,10 @@ class Sched():
             p = self.tids[prev_tid]
             p.cpu_ns += (ts - p.last_sched)
 
+        # exclude swapper process
+        if next_tid == 0:
+            return
+
         if not next_tid in self.tids:
             p = Process()
             p.tid = next_tid
