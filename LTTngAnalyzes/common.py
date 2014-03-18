@@ -38,6 +38,7 @@ class Syscall():
 
 class Disk():
     def __init__(self):
+        self.name = ""
         self.nr_sector = 0
         self.nr_requests = 0
         self.completed_requests = 0
@@ -46,6 +47,7 @@ class Disk():
 
 class Iface():
     def __init__(self):
+        self.name = ""
         self.recv_bytes = 0
         self.recv_packets = 0
         self.send_bytes = 0
@@ -66,6 +68,7 @@ class FD():
 def get_disk(dev, disks):
     if not dev in disks:
         d = Disk()
+        d.name = "%d" % dev
         disks[dev] = d
     else:
         d = disks[dev]
@@ -74,7 +77,6 @@ def get_disk(dev, disks):
 def convert_size(size):
    if size <= 0:
        return "0 B"
-   return "%d" % size
    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
    i = int(math.floor(math.log(size, 1024)))
    p = math.pow(1024, i)

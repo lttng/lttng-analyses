@@ -7,6 +7,7 @@ class Net():
     def get_dev(self, dev):
         if not dev in self.ifaces:
             d = Iface()
+            d.name = dev
             self.ifaces[dev] = d
         else:
             d = self.ifaces[dev]
