@@ -25,6 +25,7 @@ class Process():
 
 class CPU():
     def __init__(self):
+        self.cpu_id = -1
         self.cpu_ns = 0
         self.current_tid = -1
         self.start_task_ns = 0

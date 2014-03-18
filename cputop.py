@@ -16,14 +16,7 @@ import shutil
 import time
 from babeltrace import *
 from LTTngAnalyzes.common import *
-from LTTngAnalyzes.jsonreport import *
-from LTTngAnalyzes.textreport import *
-from LTTngAnalyzes.graphitereport import *
 from LTTngAnalyzes.sched import *
-from LTTngAnalyzes.syscalls import *
-from LTTngAnalyzes.block_bio import *
-from LTTngAnalyzes.net import *
-from LTTngAnalyzes.statedump import *
 from analyzes import *
 from ascii_graph import Pyasciigraph
 
@@ -96,6 +89,7 @@ class CPUTop():
         total_ns = end_ns - begin_ns
         graph = Pyasciigraph()
         values = []
+        print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         for tid in sorted(self.tids.values(),
                 key=operator.attrgetter('cpu_ns'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
@@ -105,8 +99,17 @@ class CPUTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in  graph.graph('%s to %s' % (ns_to_asctime(begin_ns), \
-                ns_to_asctime(end_ns)), values):
+        for line in  graph.graph("Per-TID CPU Usage", values):
+            print(line)
+
+        values = []
+        nb_cpu = len(self.cpus.keys())
+        for cpu in sorted(self.cpus.values(),
+                key=operator.attrgetter('cpu_ns'), reverse=True):
+            cpu_total_ns = cpu.cpu_ns
+            cpu_pc = float("%0.02f" % cpu.cpu_pc)
+            values.append(("CPU %d" % cpu.cpu_id, cpu_pc))
+        for line in  graph.graph("Per-CPU Usage", values):
             print(line)
 
     def reset_total(self, start_ts):

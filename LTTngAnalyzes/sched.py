@@ -20,6 +20,7 @@ class Sched():
                 c.current_tid = -1
         else:
             c = CPU()
+            c.cpu_id = cpu_id
             c.current_tid = next_tid
             # when we schedule a real task (not swapper)
             c.start_task_ns = ts
