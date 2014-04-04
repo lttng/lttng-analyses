@@ -53,9 +53,6 @@ class CPUTop():
         self.graph_output(args, self.trace_start_ts, self.trace_end_ts, final=1)
 
     def update_history(self, args, sec):
-        if len(args.proc_list) == 0:
-            return
-
         self.history[sec] = {}
         self.history[sec]["total_ns"] = self.end_ns - self.start_ns
         self.history[sec]["proc"] = {}
@@ -67,6 +64,11 @@ class CPUTop():
                 h[tid.comm] = tid.cpu_ns
             else:
                 h[tid.comm] += tid.cpu_ns
+        total_cpu_pc = 0
+        for cpu in self.cpus.values():
+            total_cpu_pc += cpu.cpu_pc
+        total_cpu_pc = total_cpu_pc / len(self.cpus.keys())
+        self.history[sec]["cpu"] = total_cpu_pc
 
     def check_refresh(self, args, event):
         """Check if we need to output something"""
@@ -113,8 +115,15 @@ class CPUTop():
                     (self.history[sec]["proc"][comm] * 100) /
                         self.history[sec]["total_ns"]))
                 values.append(("%s" % sec_to_hour(sec), pc))
-            for line in  graph.graph("%s CPU Usage" % comm, values):
+            for line in graph.graph("%s CPU Usage" % comm, values):
                 print(line)
+        graph = Pyasciigraph()
+        values = []
+        for sec in sorted(self.history.keys()):
+            pc = float("%0.02f" % (self.history[sec]["cpu"]))
+            values.append(("%s" % sec_to_hour(sec), pc))
+        for line in graph.graph("Total CPU Usage", values):
+            print(line)
 
     def reset_total(self, start_ts):
         for cpu in self.cpus.keys():
