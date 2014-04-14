@@ -20,6 +20,7 @@ from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
 from LTTngAnalyzes.block_bio import *
 from LTTngAnalyzes.net import *
+from LTTngAnalyzes.statedump import *
 from analyzes import *
 from ascii_graph import Pyasciigraph
 
@@ -44,6 +45,7 @@ class IOTop():
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         block_bio = BlockBio(self.cpus, self.disks)
         net = Net(self.ifaces)
+        statedump = Statedump(self.tids)
 
         for event in self.traces.events:
             if self.start_ns == 0:
@@ -69,6 +71,12 @@ class IOTop():
                 net.recv(event)
             elif event.name == "net_dev_xmit":
                 net.send(event)
+            elif event.name == "sched_process_fork":
+                sched.process_fork(event)
+            elif event.name == "lttng_statedump_process_state":
+                statedump.process_state(event)
+            elif event.name == "lttng_statedump_file_descriptor":
+                statedump.file_descriptor(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
@@ -90,6 +98,39 @@ class IOTop():
             self.reset_total(event.timestamp)
             self.current_sec = event_sec
             self.start_ns = event.timestamp
+
+    def output_file_read(self, args):
+        count = 0
+        limit = args.top
+        graph = Pyasciigraph()
+        values = []
+        files = {}
+        for tid in self.tids.values():
+            for fd in tid.fds.values():
+                if not fd.filename in files.keys():
+                    files[fd.filename] = {}
+                    files[fd.filename]["read"] = fd.read
+                    files[fd.filename]["write"] = fd.write
+                    if fd.filename.startswith("pipe") or \
+                            fd.filename.startswith("socket") or \
+                            fd.filename.startswith("anon_inode"):
+                        files[fd.filename]["name"] = "%s (%s)" % (fd.filename, tid.comm)
+                    else:
+                        files[fd.filename]["name"] = fd.filename
+                    files[fd.filename]["other"] = "(%d %d)" % (fd.fd, tid.tid)
+                else:
+                    files[fd.filename]["read"] += fd.read
+                    files[fd.filename]["write"] += fd.write
+        for f in files.values():
+            if f["read"] == 0:
+                continue
+            values.append(("%s %s %s" % (f["name"],
+                convert_size(f["read"]), f["other"]), f["read"]))
+            count = count + 1
+            if limit > 0 and count >= limit:
+                break
+        for line in graph.graph('Files Read', values, sort=2):
+            print(line)
 
     def output_read(self, args):
         count = 0
@@ -183,6 +224,7 @@ class IOTop():
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         self.output_read(args)
+        self.output_file_read(args)
         self.output_write(args)
         self.output_nr_sector(args)
         self.output_nr_requests(args)
