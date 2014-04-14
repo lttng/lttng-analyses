@@ -116,7 +116,7 @@ class Syscalls():
         if fd not in proc.fds.keys():
             f = FD()
             f.fd = fd
-            f.name = "unknown (origin not found)"
+            f.filename = "unknown (origin not found)"
             proc.fds[fd] = f
         else:
             f = proc.fds[fd]
