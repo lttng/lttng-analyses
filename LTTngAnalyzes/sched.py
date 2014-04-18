@@ -46,6 +46,7 @@ class Sched():
             self.tids[next_tid] = p
         else:
             p = self.tids[next_tid]
+            p.comm = next_comm
         p.last_sched = ts
 
     def switch(self, event):

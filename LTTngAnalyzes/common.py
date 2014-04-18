@@ -22,6 +22,7 @@ class Process():
         self.fds = {}
         # indexed by filename
         self.closed_fds = {}
+        self.current_syscall = {}
 
 class CPU():
     def __init__(self):
@@ -29,7 +30,6 @@ class CPU():
         self.cpu_ns = 0
         self.current_tid = -1
         self.start_task_ns = 0
-        self.current_syscall = {}
 
 class Syscall():
     def __init__(self):
@@ -39,6 +39,7 @@ class Syscall():
 class Disk():
     def __init__(self):
         self.name = ""
+        self.prettyname = ""
         self.nr_sector = 0
         self.nr_requests = 0
         self.completed_requests = 0
@@ -69,6 +70,7 @@ def get_disk(dev, disks):
     if not dev in disks:
         d = Disk()
         d.name = "%d" % dev
+        d.prettyname = "%d" % dev
         disks[dev] = d
     else:
         d = disks[dev]
@@ -96,6 +98,13 @@ def ns_to_asctime(ns):
 def ns_to_hour(ns):
     d = time.localtime(ns/NSEC_PER_SEC)
     return "%02d:%02d:%02d" % (d.tm_hour, d.tm_min, d.tm_sec)
+
+def ns_to_hour_nsec(ns):
+    d = time.localtime(ns/NSEC_PER_SEC)
+    return "%02d:%02d:%02d.%09d" % (d.tm_hour, d.tm_min, d.tm_sec, ns % NSEC_PER_SEC)
+
+def ns_to_sec(ns):
+    return "%lu.%09u" % (ns/NSEC_PER_SEC, ns % NSEC_PER_SEC)
 
 def sec_to_hour(ns):
     d = time.localtime(ns)

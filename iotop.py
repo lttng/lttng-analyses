@@ -45,7 +45,7 @@ class IOTop():
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         block_bio = BlockBio(self.cpus, self.disks)
         net = Net(self.ifaces)
-        statedump = Statedump(self.tids)
+        statedump = Statedump(self.tids, self.disks)
 
         for event in self.traces.events:
             if self.start_ns == 0:
@@ -77,6 +77,8 @@ class IOTop():
                 statedump.process_state(event)
             elif event.name == "lttng_statedump_file_descriptor":
                 statedump.file_descriptor(event)
+            elif event.name == "lttng_statedump_block_device":
+                statedump.block_device(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
@@ -172,7 +174,9 @@ class IOTop():
         values = []
         for disk in sorted(self.disks.values(),
                 key=operator.attrgetter('nr_sector'), reverse=True):
-            values.append((disk.name, disk.nr_sector))
+            if disk.nr_sector == 0:
+                continue
+            values.append((disk.prettyname, disk.nr_sector))
         for line in graph.graph('Disk nr_sector', values):
             print(line)
 
@@ -182,7 +186,9 @@ class IOTop():
         values = []
         for disk in sorted(self.disks.values(),
                 key=operator.attrgetter('nr_requests'), reverse=True):
-            values.append((disk.name, disk.nr_requests))
+            if disk.nr_sector == 0:
+                continue
+            values.append((disk.prettyname, disk.nr_requests))
         for line in graph.graph('Disk nr_requests', values):
             print(line)
 
@@ -195,7 +201,7 @@ class IOTop():
                 continue
             total = (disk.request_time / disk.completed_requests) / MSEC_PER_NSEC
             total = float("%0.03f" % total)
-            values.append(("ms %s" % disk.name, total))
+            values.append(("ms %s" % disk.prettyname, total))
         for line in graph.graph('Disk request time/sector', values, sort=2):
             print(line)
 

@@ -1,8 +1,9 @@
 from LTTngAnalyzes.common import *
 
 class Statedump():
-    def __init__(self, tids):
+    def __init__(self, tids, disks):
         self.tids = tids
+        self.disks = disks
 
     def merge_fd_dict(self, p, parent):
         if len(p.fds.keys()) != 0:
@@ -89,3 +90,7 @@ class Statedump():
         else:
             # just fix the filename
             p.fds[fd].filename = filename
+
+    def block_device(self, event):
+        d = get_disk(event["dev"], self.disks)
+        d.prettyname = event["diskname"]

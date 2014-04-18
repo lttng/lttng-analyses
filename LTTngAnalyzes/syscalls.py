@@ -18,6 +18,9 @@ class Syscalls():
         # generic names assigned to special FDs, don't try to match these in the
         # closed_fds dict
         self.generic_names = ["unknown", "socket"]
+        # TS, syscall_name, filename, ms/bytes
+        self.read_timing = []
+        self.write_timing = []
 
     def global_syscall_entry(self, name):
         if not name in self.syscalls:
@@ -46,32 +49,33 @@ class Syscalls():
         s.count += 1
 
     def track_open(self, name, proc, event, cpu):
-        cpu.current_syscall = {}
+        self.tids[cpu.current_tid].current_syscall = {}
+        current_syscall = self.tids[cpu.current_tid].current_syscall
         if name in ["sys_open", "sys_openat"]:
-            cpu.current_syscall["filename"] = event["filename"]
+            current_syscall["filename"] = event["filename"]
             if event["flags"] & O_CLOEXEC == O_CLOEXEC:
-                cpu.current_syscall["cloexec"] = 1
+                current_syscall["cloexec"] = 1
         elif name in ["sys_accept", "sys_socket"]:
-            cpu.current_syscall["filename"] = "socket"
+            current_syscall["filename"] = "socket"
         elif name in ["sys_dup2"]:
             newfd = event["newfd"]
             oldfd = event["oldfd"]
             if newfd in proc.fds.keys():
                 self.close_fd(proc, newfd)
             if oldfd in proc.fds.keys():
-                cpu.current_syscall["filename"] = proc.fds[oldfd].filename
+                current_syscall["filename"] = proc.fds[oldfd].filename
             else:
-                cpu.current_syscall["filename"] = ""
+                current_syscall["filename"] = ""
         elif name in ["sys_fcntl"]:
             # F_DUPFD
             if event["cmd"] != 0:
                 return
             oldfd = event["fd"]
             if oldfd in proc.fds.keys():
-                cpu.current_syscall["filename"] = proc.fds[oldfd].filename
+                current_syscall["filename"] = proc.fds[oldfd].filename
             else:
-                cpu.current_syscall["filename"] = ""
-        cpu.current_syscall["name"] = name
+                current_syscall["filename"] = ""
+        current_syscall["name"] = name
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
@@ -133,14 +137,25 @@ class Syscalls():
         # if it's a thread, we want the parent
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
-        c.current_syscall["name"] = name
+        current_syscall = self.tids[c.current_tid].current_syscall
+        current_syscall["name"] = name
         if name == "sys_splice":
-            c.current_syscall["fd_in"] = self.get_fd(t, event["fd_in"])
-            c.current_syscall["fd_out"] = self.get_fd(t, event["fd_out"])
+            # FIXME : FD() for read and write here
+            current_syscall["fd_in"] = self.get_fd(t, event["fd_in"])
+            current_syscall["fd_out"] = self.get_fd(t, event["fd_out"])
             return
         fd = event["fd"]
         f = self.get_fd(t, fd)
-        c.current_syscall["fd"] = f
+        current_syscall["fd"] = f
+        current_syscall["start"] = event.timestamp
+        if name in ["sys_writev"]:
+            current_syscall["count"] = event["vlen"]
+        elif name in ["sys_recvfrom"]:
+            current_syscall["count"] = event["size"]
+        elif name in ["sys_recvmsg"]:
+            current_syscall["count"] = ""
+        else:
+            current_syscall["count"] = event["count"]
 
     def add_tid_fd(self, event, cpu):
         ret = event["ret"]
@@ -148,7 +163,8 @@ class Syscalls():
         # if it's a thread, we want the parent
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
-        name = cpu.current_syscall["filename"]
+        current_syscall = self.tids[cpu.current_tid].current_syscall
+        name = current_syscall["filename"]
         if name not in self.generic_names and name in t.closed_fds.keys():
             fd = t.closed_fds[name]
             fd.open += 1
@@ -163,7 +179,7 @@ class Syscalls():
 #        if fd.fd in t.fds.keys():
 #            print("%lu : FD %d in tid %d was already there, untracked close" %
 #                    (event.timestamp, fd.fd, t.tid))
-        if "cloexec" in cpu.current_syscall.keys():
+        if "cloexec" in current_syscall.keys():
             fd.cloexec = 1
         t.fds[fd.fd] = fd
         #print("%lu : %s opened %s (%d times)" % (event.timestamp, t.comm,
@@ -177,19 +193,50 @@ class Syscalls():
         # if it's a thread, we want the parent
         if proc.pid != -1 and proc.tid != proc.pid:
             proc = self.tids[proc.pid]
+        current_syscall = self.tids[cpu.current_tid].current_syscall
         if name == "sys_splice":
-            cpu.current_syscall["fd_in"].read += ret
+            current_syscall["fd_in"].read += ret
             proc.read += ret
-            cpu.current_syscall["fd_out"].write += ret
+            current_syscall["fd_out"].write += ret
             proc.write += ret
         elif name in self.read_syscalls:
             if ret > 0:
-                cpu.current_syscall["fd"].read += ret
+                current_syscall["fd"].read += ret
                 proc.read += ret
         elif name in self.write_syscalls:
             if ret > 0:
-                cpu.current_syscall["fd"].write += ret
+                current_syscall["fd"].write += ret
                 proc.write += ret
+
+    def track_rw_latency(self, name, ret, c, ts):
+        current_syscall = self.tids[c.current_tid].current_syscall
+        if not "start" in current_syscall.keys():
+            return
+        if "fd" in current_syscall.keys():
+            filename = current_syscall["fd"].filename
+        else:
+            filename = "unknown"
+        if ret > 0:
+            ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
+            sec = (ts - current_syscall["start"]) / NSEC_PER_SEC
+            thr = ret / sec
+            speed = "%0.03f ms, %s/sec" % (ms, convert_size(thr))
+        else:
+            ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
+            speed = "%0.03f ms" % ms
+
+        ts_start = ns_to_hour_nsec(current_syscall["start"])
+        ts_end = ns_to_hour_nsec(ts)
+        procname = self.tids[c.current_tid].comm
+        if name in ["sys_recvmsg"]:
+            count = ""
+        else:
+            count = ", count = %d" % (current_syscall["count"])
+        if ms > 1.000:
+            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s" % \
+                    (ts_start, ts_end, procname, c.current_tid, name,
+                        current_syscall["fd"].fd, filename, count, ret,
+                        speed))
 
     def entry(self, event):
         name = event.name
@@ -207,12 +254,14 @@ class Syscalls():
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
             return
-        if len(c.current_syscall.keys()) == 0:
+        current_syscall = self.tids[c.current_tid].current_syscall
+        if len(current_syscall.keys()) == 0:
             return
-        name = c.current_syscall["name"]
+        name = current_syscall["name"]
         ret = event["ret"]
         if name in self.open_syscalls:
             self.add_tid_fd(event, c)
         elif name in self.read_syscalls or name in self.write_syscalls:
             self.track_read_write_return(name, ret, c)
-        c.current_syscall = {}
+            self.track_rw_latency(name, ret, c, event.timestamp)
+        self.tids[c.current_tid].current_syscall = {}
