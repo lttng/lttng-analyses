@@ -76,6 +76,7 @@ class Syscalls():
             else:
                 current_syscall["filename"] = ""
         current_syscall["name"] = name
+        current_syscall["start"] = event.timestamp
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
@@ -102,6 +103,7 @@ class Syscalls():
 
     def track_fds(self, name, event, cpu_id):
         # we don't know which process is currently on this CPU
+        ret_string = ""
         if not cpu_id in self.cpus:
             return
         c = self.cpus[cpu_id]
@@ -114,7 +116,10 @@ class Syscalls():
         if name in self.open_syscalls:
             self.track_open(name, t, event, c)
         elif name in self.close_syscalls:
+            ret_string =  "%s %s(%d)" % (ns_to_hour_nsec(event.timestamp),
+                    name, event["fd"])
             self.track_close(name, t, event, c)
+        return ret_string
 
     def get_fd(self, proc, fd):
         if fd not in proc.fds.keys():
@@ -232,23 +237,26 @@ class Syscalls():
             count = ""
         else:
             count = ", count = %d" % (current_syscall["count"])
-        if ms > 1.000:
-            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s" % \
-                    (ts_start, ts_end, procname, c.current_tid, name,
-                        current_syscall["fd"].fd, filename, count, ret,
-                        speed))
+#        if ms > 1.000:
+#            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s" % \
+#                    (ts_start, ts_end, procname, c.current_tid, name,
+#                        current_syscall["fd"].fd, filename, count, ret,
+#                        speed))
 
     def entry(self, event):
         name = event.name
+        ret_string = ""
         cpu_id = event["cpu_id"]
         self.global_syscall_entry(name)
         self.per_tid_syscall_entry(name, cpu_id)
-        self.track_fds(name, event, cpu_id)
+        ret_string = self.track_fds(name, event, cpu_id)
         if name in self.read_syscalls or name in self.write_syscalls:
             self.track_read_write(name, event, cpu_id)
+        return ret_string
 
     def exit(self, event):
         cpu_id = event["cpu_id"]
+        ret_string = ""
         if not cpu_id in self.cpus:
             return
         c = self.cpus[cpu_id]
@@ -261,7 +269,11 @@ class Syscalls():
         ret = event["ret"]
         if name in self.open_syscalls:
             self.add_tid_fd(event, c)
+            ret_string =  "%s %s(%s, fd = %d)" % (
+                    ns_to_hour_nsec(current_syscall["start"]),
+                    name, current_syscall["filename"], ret)
         elif name in self.read_syscalls or name in self.write_syscalls:
             self.track_read_write_return(name, ret, c)
             self.track_rw_latency(name, ret, c, event.timestamp)
         self.tids[c.current_tid].current_syscall = {}
+        return ret_string
