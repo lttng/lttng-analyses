@@ -1,10 +1,14 @@
 import math
 import time
+import os
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
 
 O_CLOEXEC = 0o2000000
+
+# approximation for the progress bar
+BYTES_PER_EVENT = 32
 
 class Process():
     def __init__(self):
@@ -109,3 +113,13 @@ def ns_to_sec(ns):
 def sec_to_hour(ns):
     d = time.localtime(ns)
     return "%02d:%02d:%02d" % (d.tm_hour, d.tm_min, d.tm_sec)
+
+def getFolderSize(folder):
+    total_size = os.path.getsize(folder)
+    for item in os.listdir(folder):
+        itempath = os.path.join(folder, item)
+        if os.path.isfile(itempath):
+            total_size += os.path.getsize(itempath)
+        elif os.path.isdir(itempath):
+            total_size += getFolderSize(itempath)
+    return total_size

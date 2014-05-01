@@ -14,6 +14,7 @@ import sys
 import argparse
 import shutil
 import time
+from progressbar import *
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
@@ -41,13 +42,26 @@ class IOTop():
         self.start_ns = 0
         self.end_ns = 0
 
+        size = getFolderSize(args.path)
+        widgets = ['Processing the trace: ', Percentage(), ' ',
+                Bar(marker='#',left='[',right=']'),
+                ' ', ETA(), ' '] #see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+        pbar.start()
+
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         block_bio = BlockBio(self.cpus, self.disks)
         net = Net(self.ifaces)
         statedump = Statedump(self.tids, self.disks)
 
+        event_count = 0
         for event in self.traces.events:
+            try:
+                pbar.update(event_count)
+            except ValueError:
+                pass
+            event_count += 1
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
             if self.trace_start_ts == 0:
@@ -79,6 +93,8 @@ class IOTop():
                 statedump.file_descriptor(event)
             elif event.name == "lttng_statedump_block_device":
                 statedump.block_device(event)
+        pbar.finish()
+        print
         if args.refresh == 0:
             # stats for the whole trace
             self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
