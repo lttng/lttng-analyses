@@ -90,12 +90,16 @@ class ProcInfo():
                         event["filename"])
             elif event.name == "lttng_statedump_process_state":
                 statedump.process_state(event)
+                if event["pid"] == int(args.pid):
+                    override_tid = 1
+                    payload = "%s existed at statedump" % \
+                            ns_to_hour_nsec(event.timestamp)
             elif event.name == "lttng_statedump_file_descriptor":
                 statedump.file_descriptor(event)
-                payload = "%s statedump file : %s, fd : %d" % (ns_to_hour_nsec(event.timestamp),
-                        event["filename"], event["fd"])
-                if event["pid"] == args.pid:
+                if event["pid"] == int(args.pid):
                     override_tid = 1
+                    payload = "%s statedump file : %s, fd : %d" % (ns_to_hour_nsec(event.timestamp),
+                            event["filename"], event["fd"])
             elif event.name == "lttng_statedump_block_device":
                 statedump.block_device(event)
 
