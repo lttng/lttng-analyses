@@ -255,8 +255,8 @@ class IOTop():
     def output_latencies(self, args):
         count = 0
         graph = Pyasciigraph()
-        values = []
         for proc in self.latency_hist.keys():
+            values = []
             for v in self.latency_hist[proc]:
                 values.append(("%s" % (v[0]), v[1]))
             for line in graph.graph('%s requests latency (ms)' % proc, values):
