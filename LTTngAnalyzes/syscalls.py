@@ -1,10 +1,14 @@
 from LTTngAnalyzes.common import *
 
 class Syscalls():
-    def __init__(self, cpus, tids, syscalls):
+    def __init__(self, cpus, tids, syscalls, names=None, latency=-1,
+            latency_hist=None):
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
+        self.names = names
+        self.latency = latency
+        self.latency_hist = latency_hist
         # list of syscalls that open a FD (in the exit_syscall event)
         self.open_syscalls = ["sys_open", "sys_openat", "sys_accept",
                 "sys_fcntl", "sys_socket", "sys_dup2"]
@@ -214,6 +218,8 @@ class Syscalls():
                 proc.write += ret
 
     def track_rw_latency(self, name, ret, c, ts):
+        if not self.names and self.latency < 0:
+            return
         current_syscall = self.tids[c.current_tid].current_syscall
         if not "start" in current_syscall.keys():
             return
@@ -221,14 +227,8 @@ class Syscalls():
             filename = current_syscall["fd"].filename
         else:
             filename = "unknown"
-        if ret > 0:
-            ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
-            sec = (ts - current_syscall["start"]) / NSEC_PER_SEC
-            thr = ret / sec
-            speed = "%0.03f ms, %s/sec" % (ms, convert_size(thr))
-        else:
-            ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
-            speed = "%0.03f ms" % ms
+        ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
+        latency = "%0.03f ms" % ms
 
         ts_start = ns_to_hour_nsec(current_syscall["start"])
         ts_end = ns_to_hour_nsec(ts)
@@ -237,11 +237,20 @@ class Syscalls():
             count = ""
         else:
             count = ", count = %d" % (current_syscall["count"])
-#        if ms > 1.000:
-#            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s" % \
-#                    (ts_start, ts_end, procname, c.current_tid, name,
-#                        current_syscall["fd"].fd, filename, count, ret,
-#                        speed))
+        if self.names and self.latency < 0:
+            self.latency = 0
+        if self.latency >= 0 and ms > self.latency:
+            if self.names and "all" not in self.names and \
+                    not procname in self.names:
+                return
+            if self.latency_hist != None:
+                if not procname in self.latency_hist.keys():
+                    self.latency_hist[procname] = []
+                self.latency_hist[procname].append((ts_start, ms))
+            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s" % \
+                    (ts_start, ts_end, procname, c.current_tid, name,
+                        current_syscall["fd"].fd, filename, count, ret,
+                        latency))
 
     def entry(self, event):
         name = event.name

@@ -35,6 +35,7 @@ class IOTop():
         self.disks = {}
         self.ifaces = {}
         self.syscalls = {}
+        self.latency_hist = {}
 
     def run(self, args):
         """Process the trace"""
@@ -46,21 +47,25 @@ class IOTop():
         widgets = ['Processing the trace: ', Percentage(), ' ',
                 Bar(marker='#',left='[',right=']'),
                 ' ', ETA(), ' '] #see docs for other options
-        pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
-        pbar.start()
+        if not args.no_progress:
+            pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+            pbar.start()
 
         sched = Sched(self.cpus, self.tids)
-        syscall = Syscalls(self.cpus, self.tids, self.syscalls)
+        syscall = Syscalls(self.cpus, self.tids, self.syscalls,
+                names=args.names, latency=args.latency,
+                latency_hist=self.latency_hist)
         block_bio = BlockBio(self.cpus, self.disks)
         net = Net(self.ifaces)
         statedump = Statedump(self.tids, self.disks)
 
         event_count = 0
         for event in self.traces.events:
-            try:
-                pbar.update(event_count)
-            except ValueError:
-                pass
+            if not args.no_progress:
+                try:
+                    pbar.update(event_count)
+                except ValueError:
+                    pass
             event_count += 1
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
@@ -93,8 +98,9 @@ class IOTop():
                 statedump.file_descriptor(event)
             elif event.name == "lttng_statedump_block_device":
                 statedump.block_device(event)
-        pbar.finish()
-        print
+        if not args.no_progress:
+            pbar.finish()
+            print
         if args.refresh == 0:
             # stats for the whole trace
             self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
@@ -243,6 +249,16 @@ class IOTop():
         for line in graph.graph('Network sent_bytes', values):
             print(line)
 
+    def output_latencies(self, args):
+        count = 0
+        graph = Pyasciigraph()
+        values = []
+        for proc in self.latency_hist.keys():
+            for v in self.latency_hist[proc]:
+                values.append(("%s" % (v[0]), v[1]))
+            for line in graph.graph('%s requests latency (ms)' % proc, values):
+                print(line)
+
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         self.output_read(args)
@@ -253,6 +269,7 @@ class IOTop():
         self.output_dev_latency(args)
         self.output_net_recv_bytes(args)
         self.output_net_sent_bytes(args)
+        self.output_latencies(args)
 
     def reset_total(self, start_ts):
         for dev in self.disks.keys():
@@ -274,8 +291,21 @@ if __name__ == "__main__":
             help='Refresh period in seconds', default=0)
     parser.add_argument('--top', type=int, default=10,
             help='Limit to top X TIDs (default = 10)')
+    parser.add_argument('--name', type=str, default=0,
+            help='Show the I/O latency for this list of processes ' \
+                '("all" accepted)')
+    parser.add_argument('--latency', type=int, default=-1,
+            help='Only show I/O requests with a latency above this ' \
+                'threshold (ms)')
+    parser.add_argument('--no-progress', action="store_true",
+            help='Don\'t display the progress bar')
     args = parser.parse_args()
     args.proc_list = []
+
+    if args.name:
+        args.names = args.name.split(",")
+    else:
+        args.names = None
 
     traces = TraceCollection()
     handle = traces.add_trace(args.path, "ctf")

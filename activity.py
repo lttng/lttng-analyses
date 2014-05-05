@@ -181,6 +181,10 @@ if __name__ == "__main__":
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('--reset', action="store_true",
             help='Destroy and init the database')
+    parser.add_argument('--accept', action="store_true",
+            help='Accept all (non-interactive)')
+    parser.add_argument('--report', action="store_true",
+            help='Report the difference between the DB (non-interactive)')
     args = parser.parse_args()
 
     traces = TraceCollection()
