@@ -37,6 +37,39 @@ class IOTop():
         self.syscalls = {}
         self.latency_hist = {}
 
+    def process_event(self, event, sched, syscall, block_bio, net, statedump):
+        if self.start_ns == 0:
+            self.start_ns = event.timestamp
+        if self.trace_start_ts == 0:
+            self.trace_start_ts = event.timestamp
+        self.end_ns = event.timestamp
+        self.check_refresh(args, event)
+        self.trace_end_ts = event.timestamp
+
+        if event.name == "sched_switch":
+            sched.switch(event)
+        elif event.name[0:4] == "sys_":
+            syscall.entry(event)
+        elif event.name == "exit_syscall":
+            syscall.exit(event)
+        elif event.name == "block_bio_complete" or \
+               event.name == "block_rq_complete":
+            block_bio.complete(event)
+        elif event.name == "block_bio_queue":
+            block_bio.queue(event)
+        elif event.name == "netif_receive_skb":
+            net.recv(event)
+        elif event.name == "net_dev_xmit":
+            net.send(event)
+        elif event.name == "sched_process_fork":
+            sched.process_fork(event)
+        elif event.name == "lttng_statedump_process_state":
+            statedump.process_state(event)
+        elif event.name == "lttng_statedump_file_descriptor":
+            statedump.file_descriptor(event)
+        elif event.name == "lttng_statedump_block_device":
+            statedump.block_device(event)
+
     def run(self, args):
         """Process the trace"""
         self.current_sec = 0
@@ -54,7 +87,7 @@ class IOTop():
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls,
                 names=args.names, latency=args.latency,
-                latency_hist=self.latency_hist)
+                latency_hist=self.latency_hist, seconds=args.seconds)
         block_bio = BlockBio(self.cpus, self.disks)
         net = Net(self.ifaces)
         statedump = Statedump(self.tids, self.disks)
@@ -67,37 +100,7 @@ class IOTop():
                 except ValueError:
                     pass
             event_count += 1
-            if self.start_ns == 0:
-                self.start_ns = event.timestamp
-            if self.trace_start_ts == 0:
-                self.trace_start_ts = event.timestamp
-            self.end_ns = event.timestamp
-            self.check_refresh(args, event)
-            self.trace_end_ts = event.timestamp
-
-            if event.name == "sched_switch":
-                sched.switch(event)
-            elif event.name[0:4] == "sys_":
-                syscall.entry(event)
-            elif event.name == "exit_syscall":
-                syscall.exit(event)
-            elif event.name == "block_bio_complete" or \
-                   event.name == "block_rq_complete":
-                block_bio.complete(event)
-            elif event.name == "block_bio_queue":
-                block_bio.queue(event)
-            elif event.name == "netif_receive_skb":
-                net.recv(event)
-            elif event.name == "net_dev_xmit":
-                net.send(event)
-            elif event.name == "sched_process_fork":
-                sched.process_fork(event)
-            elif event.name == "lttng_statedump_process_state":
-                statedump.process_state(event)
-            elif event.name == "lttng_statedump_file_descriptor":
-                statedump.file_descriptor(event)
-            elif event.name == "lttng_statedump_block_device":
-                statedump.block_device(event)
+            self.process_event(event, sched, syscall, block_bio, net, statedump)
         if not args.no_progress:
             pbar.finish()
             print
@@ -299,6 +302,14 @@ if __name__ == "__main__":
                 'threshold (ms)')
     parser.add_argument('--no-progress', action="store_true",
             help='Don\'t display the progress bar')
+    parser.add_argument('--start', action="store_true",
+            help='start time (ex: 15:03:55.236371854), must specify ' \
+                    'end time also')
+    parser.add_argument('--end', action="store_true",
+            help='end time (ex: 15:03:55.236371854), must specify ' \
+                    'start time also')
+    parser.add_argument('--seconds', action="store_true",
+            help='display time in seconds since epoch')
     args = parser.parse_args()
     args.proc_list = []
 

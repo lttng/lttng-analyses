@@ -2,13 +2,14 @@ from LTTngAnalyzes.common import *
 
 class Syscalls():
     def __init__(self, cpus, tids, syscalls, names=None, latency=-1,
-            latency_hist=None):
+            latency_hist=None, seconds=False):
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
         self.names = names
         self.latency = latency
         self.latency_hist = latency_hist
+        self.seconds = seconds
         # list of syscalls that open a FD (in the exit_syscall event)
         self.open_syscalls = ["sys_open", "sys_openat", "sys_accept",
                 "sys_fcntl", "sys_socket", "sys_dup2"]
@@ -230,8 +231,12 @@ class Syscalls():
         ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
         latency = "%0.03f ms" % ms
 
-        ts_start = ns_to_hour_nsec(current_syscall["start"])
-        ts_end = ns_to_hour_nsec(ts)
+        if self.seconds:
+            ts_start = ns_to_sec(current_syscall["start"])
+            ts_end = ns_to_sec(ts)
+        else:
+            ts_start = ns_to_hour_nsec(current_syscall["start"])
+            ts_end = ns_to_hour_nsec(ts)
         procname = self.tids[c.current_tid].comm
         if name in ["sys_recvmsg"]:
             count = ""
