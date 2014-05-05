@@ -8,7 +8,7 @@ MSEC_PER_NSEC = 1000000
 O_CLOEXEC = 0o2000000
 
 # approximation for the progress bar
-BYTES_PER_EVENT = 32
+BYTES_PER_EVENT = 30
 
 class Process():
     def __init__(self):
