@@ -103,6 +103,7 @@ class IOTop():
             event_count += 1
             if args.begin and started == 0 and event.timestamp >= args.begin:
                 started = 1
+                self.trace_start_ts = event.timestamp
                 self.reset_total(event.timestamp)
             if args.end and event.timestamp > args.end:
                 break
