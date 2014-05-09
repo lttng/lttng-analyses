@@ -114,6 +114,9 @@ def sec_to_hour(ns):
     d = time.localtime(ns)
     return "%02d:%02d:%02d" % (d.tm_hour, d.tm_min, d.tm_sec)
 
+def sec_to_nsec(sec):
+    return sec * NSEC_PER_SEC
+
 def getFolderSize(folder):
     total_size = os.path.getsize(folder)
     for item in os.listdir(folder):

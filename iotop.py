@@ -93,6 +93,7 @@ class IOTop():
         statedump = Statedump(self.tids, self.disks)
 
         event_count = 0
+        started = 0
         for event in self.traces.events:
             if not args.no_progress:
                 try:
@@ -100,6 +101,11 @@ class IOTop():
                 except ValueError:
                     pass
             event_count += 1
+            if args.begin and started == 0 and event.timestamp >= args.begin:
+                started = 1
+                self.reset_total(event.timestamp)
+            if args.end and event.timestamp > args.end:
+                break
             self.process_event(event, sched, syscall, block_bio, net, statedump)
         if not args.no_progress:
             pbar.finish()
@@ -287,6 +293,13 @@ class IOTop():
             self.ifaces[iface].send_bytes = 0
             self.ifaces[iface].send_packets = 0
 
+        for tid in self.tids.values():
+            for fd in tid.fds.values():
+                fd.read = 0
+                fd.write = 0
+                fd.open = 0
+                fd.close = 0
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='I/O usage analysis')
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
@@ -302,12 +315,10 @@ if __name__ == "__main__":
                 'threshold (ms)')
     parser.add_argument('--no-progress', action="store_true",
             help='Don\'t display the progress bar')
-    parser.add_argument('--start', action="store_true",
-            help='start time (ex: 15:03:55.236371854), must specify ' \
-                    'end time also')
-    parser.add_argument('--end', action="store_true",
-            help='end time (ex: 15:03:55.236371854), must specify ' \
-                    'start time also')
+    parser.add_argument('--begin', type=float,
+            help='start time in seconds from epoch (ex: 1394643671.032202563)')
+    parser.add_argument('--end', type=float,
+            help='end time in seconds from epoch (ex: 1394643671.032202563)')
     parser.add_argument('--seconds', action="store_true",
             help='display time in seconds since epoch')
     args = parser.parse_args()
@@ -317,6 +328,11 @@ if __name__ == "__main__":
         args.names = args.name.split(",")
     else:
         args.names = None
+
+    if args.begin:
+        args.begin = sec_to_nsec(args.begin)
+    if args.end:
+        args.end = sec_to_nsec(args.end)
 
     traces = TraceCollection()
     handle = traces.add_trace(args.path, "ctf")
