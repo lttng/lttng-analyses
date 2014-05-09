@@ -182,7 +182,7 @@ class Syscalls():
             fd = FD()
             fd.filename = name
             fd.open = 1
-        if ret > 0:
+        if ret >= 0:
             fd.fd = ret
         else:
             return
