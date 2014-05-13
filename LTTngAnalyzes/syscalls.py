@@ -17,7 +17,7 @@ class Syscalls():
         self.close_syscalls = ["sys_close"]
         # list of syscall that read on a FD, value in the exit_syscall following
         self.read_syscalls = ["sys_read", "sys_recvmsg", "sys_recvfrom",
-                "sys_splice", "sys_readv"]
+                "sys_splice", "sys_readv", "sys_sendfile64"]
         # list of syscall that write on a FD, value in the exit_syscall following
         self.write_syscalls = ["sys_write", "sys_sendmsg" "sys_sendto", "sys_writev"]
         # generic names assigned to special FDs, don't try to match these in the
@@ -149,15 +149,21 @@ class Syscalls():
             t = self.tids[t.pid]
         current_syscall = self.tids[c.current_tid].current_syscall
         current_syscall["name"] = name
+        current_syscall["start"] = event.timestamp
         if name == "sys_splice":
             # FIXME : FD() for read and write here
             current_syscall["fd_in"] = self.get_fd(t, event["fd_in"])
             current_syscall["fd_out"] = self.get_fd(t, event["fd_out"])
+            current_syscall["count"] = event["len"]
+            return
+        elif name == "sys_sendfile64":
+            current_syscall["fd_in"] = self.get_fd(t, event["in_fd"])
+            current_syscall["fd_out"] = self.get_fd(t, event["out_fd"])
+            current_syscall["count"] = event["count"]
             return
         fd = event["fd"]
         f = self.get_fd(t, fd)
         current_syscall["fd"] = f
-        current_syscall["start"] = event.timestamp
         if name in ["sys_writev"]:
             current_syscall["count"] = event["vlen"]
         elif name in ["sys_recvfrom"]:
@@ -209,6 +215,11 @@ class Syscalls():
             proc.read += ret
             current_syscall["fd_out"].write += ret
             proc.write += ret
+        elif name == "sys_sendfile64":
+            current_syscall["fd_in"].read += ret
+            proc.read += ret
+            current_syscall["fd_out"].write += ret
+            proc.write += ret
         elif name in self.read_syscalls:
             if ret > 0:
                 current_syscall["fd"].read += ret
@@ -226,6 +237,10 @@ class Syscalls():
             return
         if "fd" in current_syscall.keys():
             filename = current_syscall["fd"].filename
+            fd = current_syscall["fd"].fd
+        elif "fd_in" in current_syscall.keys():
+            filename = current_syscall["fd_in"].filename
+            fd = current_syscall["fd_in"].fd
         else:
             filename = "unknown"
         ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
@@ -254,7 +269,7 @@ class Syscalls():
                 self.latency_hist[procname].append((ts_start, ms))
             print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s" % \
                     (ts_start, ts_end, procname, c.current_tid, name,
-                        current_syscall["fd"].fd, filename, count, ret,
+                        fd, filename, count, ret,
                         latency))
 
     def entry(self, event):
