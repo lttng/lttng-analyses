@@ -37,7 +37,8 @@ class IOTop():
         self.syscalls = {}
         self.latency_hist = {}
 
-    def process_event(self, event, sched, syscall, block_bio, net, statedump):
+    def process_event(self, event, sched, syscall, block_bio, net, statedump,
+            started):
         if self.start_ns == 0:
             self.start_ns = event.timestamp
         if self.trace_start_ts == 0:
@@ -51,7 +52,7 @@ class IOTop():
         elif event.name[0:4] == "sys_":
             syscall.entry(event)
         elif event.name == "exit_syscall":
-            syscall.exit(event)
+            syscall.exit(event, started)
         elif event.name == "block_bio_complete" or \
                event.name == "block_rq_complete":
             block_bio.complete(event)
@@ -93,7 +94,10 @@ class IOTop():
         statedump = Statedump(self.tids, self.disks)
 
         event_count = 0
-        started = 0
+        if not args.begin:
+            started = 1
+        else:
+            started = 0
         for event in self.traces.events:
             if not args.no_progress:
                 try:
@@ -107,7 +111,8 @@ class IOTop():
                 self.reset_total(event.timestamp)
             if args.end and event.timestamp > args.end:
                 break
-            self.process_event(event, sched, syscall, block_bio, net, statedump)
+            self.process_event(event, sched, syscall, block_bio, net, \
+                    statedump, started)
         if not args.no_progress:
             pbar.finish()
             print

@@ -229,7 +229,7 @@ class Syscalls():
                 current_syscall["fd"].write += ret
                 proc.write += ret
 
-    def track_rw_latency(self, name, ret, c, ts):
+    def track_rw_latency(self, name, ret, c, ts, started):
         if not self.names and self.latency < 0:
             return
         current_syscall = self.tids[c.current_tid].current_syscall
@@ -263,6 +263,8 @@ class Syscalls():
             if self.names and "all" not in self.names and \
                     not procname in self.names:
                 return
+            if not started:
+                return
             if self.latency_hist != None:
                 if not procname in self.latency_hist.keys():
                     self.latency_hist[procname] = []
@@ -283,7 +285,7 @@ class Syscalls():
             self.track_read_write(name, event, cpu_id)
         return ret_string
 
-    def exit(self, event):
+    def exit(self, event, started):
         cpu_id = event["cpu_id"]
         ret_string = ""
         if not cpu_id in self.cpus:
@@ -303,6 +305,6 @@ class Syscalls():
                     name, current_syscall["filename"], ret)
         elif name in self.read_syscalls or name in self.write_syscalls:
             self.track_read_write_return(name, ret, c)
-            self.track_rw_latency(name, ret, c, event.timestamp)
+            self.track_rw_latency(name, ret, c, event.timestamp, started)
         self.tids[c.current_tid].current_syscall = {}
         return ret_string
