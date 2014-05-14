@@ -132,7 +132,7 @@ class Analyzes():
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         block_bio = BlockBio(self.cpus, self.disks)
         net = Net(self.ifaces)
-        statedump = Statedump(self.tids)
+        statedump = Statedump(self.tids, self.disks)
 
         for event in self.traces.events:
             if self.start_ns == 0:
@@ -158,7 +158,7 @@ class Analyzes():
             elif event.name == "exit_syscall" and \
                     (args.global_syscalls or args.tid_syscalls or
                             args.fds):
-                syscall.exit(event)
+                syscall.exit(event, 1)
             elif event.name == "block_bio_complete" or \
                    event.name == "block_rq_complete":
                 block_bio.complete(event)

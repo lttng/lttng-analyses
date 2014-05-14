@@ -63,7 +63,7 @@ class ProcInfo():
             elif event.name[0:4] == "sys_":
                 payload = syscall.entry(event)
             elif event.name == "exit_syscall":
-                payload = syscall.exit(event)
+                payload = syscall.exit(event, 1)
             elif event.name == "block_bio_complete" or \
                    event.name == "block_rq_complete":
                 block_bio.complete(event)
