@@ -23,8 +23,9 @@ from analyzes import *
 from ascii_graph import Pyasciigraph
 
 class FDInfo():
-    def __init__(self, traces, prefix, isOutputEnabled):
+    def __init__(self, traces, prefix, isOutputEnabled, pid):
         self.prefix = prefix
+        self.pid = pid
         self.isOutputEnabled = isOutputEnabled
         self.traces = traces
         self.cpus = {}
@@ -74,6 +75,9 @@ class FDInfo():
 
     def output_dump(self, event):
         pid = event['pid']
+        if(self.pid >= 0 and self.pid != pid):
+            return
+
         comm = self.tids[pid].comm
         evt = event.name
         filename = event['filename']
@@ -84,6 +88,9 @@ class FDInfo():
             
     def output_open(self, event):
         pid = self.cpus[event['cpu_id']].current_tid
+        if(self.pid >= 0 and self.pid != pid):
+            return
+
         comm = self.tids[pid].comm
         evt = event.name
 
@@ -109,6 +116,9 @@ class FDInfo():
 
     def output_close(self, event):
         pid = self.cpus[event['cpu_id']].current_tid
+        if(self.pid >= 0 and self.pid != pid):
+            return
+
         comm = self.tids[pid].comm
         evt = event.name
         fds = self.tids[pid].fds
@@ -128,6 +138,7 @@ if __name__ == '__main__':
                         help='Prefix in which to search')
     parser.add_argument('-t', '--type', type=str, default='all',
         help='Types of events to display. Possible values: all, open, close, dump')
+    parser.add_argument('--pid', type=int, default='-1')
 
     args = parser.parse_args()
     args.proc_list = []
@@ -153,7 +164,7 @@ if __name__ == '__main__':
     if handle is None:
         sys.exit(1)
 
-    c = FDInfo(traces, args.prefix, isOutputEnabled)
+    c = FDInfo(traces, args.prefix, isOutputEnabled, args.pid)
 
     c.run(args)
 
