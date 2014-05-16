@@ -32,7 +32,7 @@ class FDInfo():
         self.disks = {}
         self.syscalls = {}
         self.open_syscalls = ['sys_open', 'sys_openat', 'sys_dup2',
-            'sys_accept', 'sys_socket']
+                              'sys_accept', 'sys_socket', 'sys_fcntl']
         self.close_syscalls = ['sys_close']
 
 
@@ -93,6 +93,14 @@ class FDInfo():
             filename = 'socket'
         elif evt == 'sys_dup2':
             filename = self.tids[pid].fds[event['oldfd']].filename
+        elif evt == 'sys_fcntl':
+            if event["cmd"] != 0:
+                return
+            oldfd = event["fd"]
+            if oldfd in self.tids[pid].fds.keys():
+                filename = proc.fds[oldfd].filename
+            else:
+                filename = ""
 
         time = ns_to_asctime(event.timestamp)
         
