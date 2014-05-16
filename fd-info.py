@@ -17,6 +17,7 @@ import time
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
+from LTTngAnalyzes.statedump import *
 from LTTngAnalyzes.syscalls import *
 from analyzes import *
 from ascii_graph import Pyasciigraph
@@ -34,7 +35,7 @@ class FDInfo():
         self.close_syscalls = ["sys_close"]
 
 
-    def process_event(self, event, sched, syscall, started=1):
+    def process_event(self, event, sched, syscall, statedump, started=1):
         if event.name == "sched_switch":
             sched.switch(event)
         elif event.name.startswith("sys_"):
@@ -49,6 +50,13 @@ class FDInfo():
             syscall.exit(event, started)
         elif event.name == "sched_process_fork":
             sched.process_fork(event)
+        elif event.name == "lttng_statedump_process_state":
+            statedump.process_state(event)
+        elif event.name == "lttng_statedump_file_descriptor":
+            statedump.file_descriptor(event)
+            if self.type in ['all', 'dump']:
+                self.output_dump(event)
+
 
     def run(self, args):
         """Process the trace"""
@@ -58,10 +66,21 @@ class FDInfo():
 
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
+        statedump = Statedump(self.tids, self.disks)
 
         for event in self.traces.events:
-            self.process_event(event, sched, syscall)
+            self.process_event(event, sched, syscall, statedump)
 
+    def output_dump(self, event):
+        pid = event["pid"]
+        comm = self.tids[pid].comm
+        evt = event.name
+        filename = event["filename"]
+        time = "File opened before trace"
+
+        if filename.startswith(self.prefix):
+            print(pid, comm, evt, filename, time)
+            
     def output_open(self, event):
         pid = self.cpus[event["cpu_id"]].current_tid
         comm = self.tids[pid].comm
@@ -92,13 +111,13 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--prefix', type=str, default="/",
                         help='Prefix in which to search')
     parser.add_argument('-t', '--type', type=str, default="all",
-        help='Type of events to display. Possible values: all, open, close')
+        help='Type of events to display. Possible values: all, open, close, dump')
 
     args = parser.parse_args()
     args.proc_list = []
 
-    if args.type not in ['all', 'open', 'close']:
-        print('Type must be one of all, open, close')
+    if args.type not in ['all', 'open', 'close', 'dump']:
+        print('Type must be one of all, open, close, dump')
         sys.exit(1)
     
     traces = TraceCollection()
