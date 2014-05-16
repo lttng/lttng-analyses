@@ -112,7 +112,7 @@ class FDInfo():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FD syscalls analysis')
     parser.add_argument('path', metavar='<path/to/trace>', help='Trace path')
-    parser.add_argument('-p', '--prefix', type=str, default='/',
+    parser.add_argument('-p', '--prefix', type=str, default='',
                         help='Prefix in which to search')
     parser.add_argument('-t', '--type', type=str, default='all',
         help='Types of events to display. Possible values: all, open, close, dump')
