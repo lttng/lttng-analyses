@@ -23,9 +23,9 @@ from analyzes import *
 from ascii_graph import Pyasciigraph
 
 class FDInfo():
-    def __init__(self, traces, prefix, type):
+    def __init__(self, traces, prefix, isOutputEnabled):
         self.prefix = prefix
-        self.type = type
+        self.isOutputEnabled = isOutputEnabled
         self.traces = traces
         self.cpus = {}
         self.tids = {}
@@ -40,10 +40,10 @@ class FDInfo():
             sched.switch(event)
         elif event.name.startswith("sys_"):
             if event.name in self.open_syscalls \
-            and self.type in ['all', 'open']:
+            and self.isOutputEnabled['open']:
                 self.output_open(event)
             elif event.name in self.close_syscalls \
-            and self.type in ['all', 'close']:
+            and self.isOutputEnabled['close']:
                 self.output_close(event)
             syscall.entry(event)
         elif event.name == "exit_syscall":
@@ -54,7 +54,7 @@ class FDInfo():
             statedump.process_state(event)
         elif event.name == "lttng_statedump_file_descriptor":
             statedump.file_descriptor(event)
-            if self.type in ['all', 'dump']:
+            if self.isOutputEnabled['dump']:
                 self.output_dump(event)
 
 
@@ -111,21 +111,33 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--prefix', type=str, default="/",
                         help='Prefix in which to search')
     parser.add_argument('-t', '--type', type=str, default="all",
-        help='Type of events to display. Possible values: all, open, close, dump')
+        help='Types of events to display. Possible values: all, open, close, dump')
 
     args = parser.parse_args()
     args.proc_list = []
 
-    if args.type not in ['all', 'open', 'close', 'dump']:
-        print('Type must be one of all, open, close, dump')
-        sys.exit(1)
+    types = args.type.split(',')
+
+    possibleTypes = ['open', 'close', 'dump']
+
+    if 'all' in types:
+        isOutputEnabled = { x: True for x in possibleTypes }
+    else:
+        isOutputEnabled = { x: False for x in possibleTypes }
+        for type in types:
+            if type in possibleTypes:
+                isOutputEnabled[type] = True
+            else:
+                print('Invalid type:', type)
+                parser.print_help()
+                sys.exit(1)
     
     traces = TraceCollection()
     handle = traces.add_trace(args.path, "ctf")
     if handle is None:
         sys.exit(1)
 
-    c = FDInfo(traces, args.prefix, args.type)
+    c = FDInfo(traces, args.prefix, isOutputEnabled)
 
     c.run(args)
 
