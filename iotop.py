@@ -277,8 +277,8 @@ class IOTop():
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         self.output_read(args)
-        self.output_file_read(args)
         self.output_write(args)
+        self.output_file_read(args)
         self.output_nr_sector(args)
         self.output_nr_requests(args)
         self.output_dev_latency(args)
