@@ -31,7 +31,8 @@ class FDInfo():
         self.tids = {}
         self.disks = {}
         self.syscalls = {}
-        self.open_syscalls = ['sys_open', 'sys_openat']
+        self.open_syscalls = ['sys_open', 'sys_openat',
+            'sys_accept', 'sys_socket']
         self.close_syscalls = ['sys_close']
 
 
@@ -85,7 +86,10 @@ class FDInfo():
         pid = self.cpus[event['cpu_id']].current_tid
         comm = self.tids[pid].comm
         evt = event.name
-        filename = event['filename']
+        if evt in ['sys_open', 'sys_openat']:
+            filename = event['filename']
+        elif evt in ['sys_accept', 'sys_socket']:
+            filename = 'socket'
         time = ns_to_asctime(event.timestamp)
         
         if filename.startswith(self.prefix):
