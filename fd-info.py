@@ -23,9 +23,10 @@ from analyzes import *
 from ascii_graph import Pyasciigraph
 
 class FDInfo():
-    def __init__(self, traces, prefix, isOutputEnabled, pid):
+    def __init__(self, traces, prefix, isOutputEnabled, pid, pname):
         self.prefix = prefix
         self.pid = pid
+        self.pname = pname
         self.isOutputEnabled = isOutputEnabled
         self.traces = traces
         self.cpus = {}
@@ -79,6 +80,9 @@ class FDInfo():
             return
 
         comm = self.tids[pid].comm
+        if self.pname is not None and self.pname != comm:
+            return
+
         evt = event.name
         filename = event['filename']
         time = 'File opened before trace'
@@ -92,6 +96,9 @@ class FDInfo():
             return
 
         comm = self.tids[pid].comm
+        if self.pname is not None and self.pname != comm:
+            return
+
         evt = event.name
 
         if evt in ['sys_open', 'sys_openat']:
@@ -120,6 +127,9 @@ class FDInfo():
             return
 
         comm = self.tids[pid].comm
+        if self.pname is not None and self.pname != comm:
+            return
+
         evt = event.name
         fds = self.tids[pid].fds
         fd = event['fd']
@@ -137,8 +147,12 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--prefix', type=str, default='',
                         help='Prefix in which to search')
     parser.add_argument('-t', '--type', type=str, default='all',
-        help='Types of events to display. Possible values: all, open, close, dump')
-    parser.add_argument('--pid', type=int, default='-1')
+                        help='Types of events to display. Possible values:\
+                        all, open, close, dump')
+    parser.add_argument('--pid', type=int, default='-1',
+                        help='PID for which to display events')
+    parser.add_argument('--pname', type=str, default=None,
+                        help='Process name for which to display events')
 
     args = parser.parse_args()
     args.proc_list = []
@@ -164,7 +178,7 @@ if __name__ == '__main__':
     if handle is None:
         sys.exit(1)
 
-    c = FDInfo(traces, args.prefix, isOutputEnabled, args.pid)
+    c = FDInfo(traces, args.prefix, isOutputEnabled, args.pid, args.pname)
 
     c.run(args)
 
