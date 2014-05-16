@@ -102,7 +102,7 @@ class FDInfo():
             else:
                 filename = ""
 
-        time = ns_to_asctime(event.timestamp)
+        time = ns_to_hour_nsec(event.timestamp)
         
         if filename.startswith(self.prefix):
             print(pid, comm, evt, filename, time)
@@ -116,7 +116,7 @@ class FDInfo():
         if not fd in fds.keys():
             return
         filename = fds[fd].filename
-        time = ns_to_asctime(event.timestamp)
+        time = ns_to_hour_nsec(event.timestamp)
 
         if filename.startswith(self.prefix):
             print(pid, comm, evt, filename, time)
