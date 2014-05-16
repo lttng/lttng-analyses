@@ -108,13 +108,13 @@ class FDInfo():
         elif evt == 'sys_dup2':
             filename = self.tids[pid].fds[event['oldfd']].filename
         elif evt == 'sys_fcntl':
-            if event["cmd"] != 0:
+            if event['cmd'] != 0:
                 return
-            oldfd = event["fd"]
+            oldfd = event['fd']
             if oldfd in self.tids[pid].fds.keys():
                 filename = proc.fds[oldfd].filename
             else:
-                filename = ""
+                filename = ''
 
         time = ns_to_hour_nsec(event.timestamp)
         
