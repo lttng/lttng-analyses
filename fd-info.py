@@ -155,7 +155,6 @@ if __name__ == '__main__':
                         help='Process name for which to display events')
 
     args = parser.parse_args()
-    args.proc_list = []
 
     types = args.type.split(',')
 
