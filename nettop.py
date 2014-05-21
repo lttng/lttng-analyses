@@ -13,6 +13,7 @@
 import sys
 import argparse
 from babeltrace import *
+from progressbar import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
@@ -40,8 +41,30 @@ class NetTop():
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
 
+        size = getFolderSize(args.path)
+        widgets = ['Processing the trace: ', Percentage(), ' ',
+                Bar(marker='#',left='[',right=']'), ' ', ETA(), ' ']
+
+        if not args.no_progress:
+            pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+            pbar.start()
+
+        event_count = 0
+
         for event in self.traces.events:
+            if not args.no_progress:
+                try:
+                    pbar.update(event_count)
+                except ValueError:
+                    pass
+
             self.process_event(event, sched, syscall)
+            event_count += 1
+
+
+        if not args.no_progress:
+            pbar.finish()
+            print
 
         self.output()
 
@@ -72,6 +95,8 @@ if __name__ == '__main__':
                         all, up, down')
     parser.add_argument('-n', '--number', type=int, default=10,
                         help='Number of processes to display')
+    parser.add_argument('--no-progress', action="store_true",
+                        help='Don\'t display the progress bar')
 
     args = parser.parse_args()
 
