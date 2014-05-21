@@ -18,9 +18,10 @@ from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
 
 class NetTop():
-    def __init__(self, traces, isMeasured):
+    def __init__(self, traces, isMeasured, number):
         self.traces = traces
         self.isMeasured = isMeasured
+        self.number = number
         self.cpus = {}
         self.tids = {}
         self.syscalls = {}
@@ -57,8 +58,10 @@ class NetTop():
                     if self.isMeasured['down']:
                         transferred[tid] += fd.read
 
-        for tid in transferred.keys():
-            print(tid, self.tids[tid].comm, transferred[tid])
+        for tid in sorted(transferred, key = transferred.get,
+                          reverse = True)[:self.number]:
+            if transferred[tid] != 0:
+                print(tid, self.tids[tid].comm, convert_size(transferred[tid]))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Network usage \
@@ -67,6 +70,8 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--type', type=str, default='all',
                         help='Types of network IO to measure. Possible values:\
                         all, up, down')
+    parser.add_argument('-n', '--number', type=int, default=10,
+                        help='Number of processes to display')
 
     args = parser.parse_args()
 
@@ -86,11 +91,15 @@ if __name__ == '__main__':
                 parser.print_help()
                 sys.exit(1)
 
+    if args.number < 0:
+        print('Number of processes must be non-negative')
+        parser.print_help()
+        sys.exit(1)
 
     traces = TraceCollection()
     handle = traces.add_trace(args.path, 'ctf')
 
-    c = NetTop(traces, isMeasured)
+    c = NetTop(traces, isMeasured, args.number)
     c.run(args)
 
     traces.remove_trace(handle)
