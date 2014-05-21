@@ -124,6 +124,8 @@ class Sched():
             self.tids[tid] = p
         else:
             p = self.tids[tid]
+        if "procname" in event.keys():
+            p.comm = event["procname"]
         toremove = []
         for fd in p.fds.keys():
             if p.fds[fd].cloexec == 1:
