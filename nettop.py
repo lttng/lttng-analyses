@@ -10,6 +10,12 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
+# KNOWN LIMITATIONS: right now this script does not behave as expected, as it
+# computes the I/O on all sockets regardless of domain (i.e. unix as well as IP)
+# Its behaviour also fails to account for certain sockets, which means that it
+# will for instance detect wget's network activity properly, but not firefox's.
+# This will be fixed once we have access to the network events' payloads.
+
 import sys
 import argparse
 from babeltrace import *
