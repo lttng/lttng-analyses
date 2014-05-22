@@ -1,6 +1,20 @@
 from LTTngAnalyzes.common import *
 
 class Syscalls():
+    # list of syscalls that open a FD (in the exit_syscall event)
+    OPEN_SYSCALLS = ["sys_open", "sys_openat", "sys_accept",
+                          "sys_fcntl", "sys_socket", "sys_dup2"]
+    # list of syscalls that close a FD (in the "fd =" field)
+    CLOSE_SYSCALLS = ["sys_close"]
+    # list of syscall that read on a FD, value in the exit_syscall following
+    READ_SYSCALLS = ["sys_read", "sys_recvmsg", "sys_recvfrom",
+                          "sys_splice", "sys_readv", "sys_sendfile64"]
+    # list of syscall that write on a FD, value in the exit_syscall following
+    WRITE_SYSCALLS = ["sys_write", "sys_sendmsg" "sys_sendto", "sys_writev"]
+    # generic names assigned to special FDs, don't try to match these in the
+    # closed_fds dict
+    GENERIC_NAMES = ["unknown", "socket"]
+
     def __init__(self, cpus, tids, syscalls, names=None, latency=-1,
             latency_hist=None, seconds=False):
         self.cpus = cpus
@@ -10,19 +24,6 @@ class Syscalls():
         self.latency = latency
         self.latency_hist = latency_hist
         self.seconds = seconds
-        # list of syscalls that open a FD (in the exit_syscall event)
-        self.open_syscalls = ["sys_open", "sys_openat", "sys_accept",
-                "sys_fcntl", "sys_socket", "sys_dup2"]
-        # list of syscalls that close a FD (in the "fd =" field)
-        self.close_syscalls = ["sys_close"]
-        # list of syscall that read on a FD, value in the exit_syscall following
-        self.read_syscalls = ["sys_read", "sys_recvmsg", "sys_recvfrom",
-                "sys_splice", "sys_readv", "sys_sendfile64"]
-        # list of syscall that write on a FD, value in the exit_syscall following
-        self.write_syscalls = ["sys_write", "sys_sendmsg" "sys_sendto", "sys_writev"]
-        # generic names assigned to special FDs, don't try to match these in the
-        # closed_fds dict
-        self.generic_names = ["unknown", "socket"]
         # TS, syscall_name, filename, ms/bytes
         self.read_timing = []
         self.write_timing = []
@@ -85,7 +86,8 @@ class Syscalls():
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
-        if filename not in self.generic_names and filename in proc.closed_fds.keys():
+        if filename not in Syscalls.GENERIC_NAMES \
+           and filename in proc.closed_fds.keys():
             f = proc.closed_fds[filename]
             f.close += 1
             f.read += proc.fds[fd].read
@@ -118,9 +120,9 @@ class Syscalls():
         # if it's a thread, we want the parent
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
-        if name in self.open_syscalls:
+        if name in Syscalls.OPEN_SYSCALLS:
             self.track_open(name, t, event, c)
-        elif name in self.close_syscalls:
+        elif name in Syscalls.CLOSE_SYSCALLS:
             ret_string =  "%s %s(%d)" % (ns_to_hour_nsec(event.timestamp),
                     name, event["fd"])
             self.track_close(name, t, event, c)
@@ -181,7 +183,8 @@ class Syscalls():
             t = self.tids[t.pid]
         current_syscall = self.tids[cpu.current_tid].current_syscall
         name = current_syscall["filename"]
-        if name not in self.generic_names and name in t.closed_fds.keys():
+        if name not in Syscalls.GENERIC_NAMES \
+           and name in t.closed_fds.keys():
             fd = t.closed_fds[name]
             fd.open += 1
         else:
@@ -220,11 +223,11 @@ class Syscalls():
             proc.read += ret
             current_syscall["fd_out"].write += ret
             proc.write += ret
-        elif name in self.read_syscalls:
+        elif name in Syscalls.READ_SYSCALLS:
             if ret > 0:
                 current_syscall["fd"].read += ret
                 proc.read += ret
-        elif name in self.write_syscalls:
+        elif name in Syscalls.WRITE_SYSCALLS:
             if ret > 0:
                 current_syscall["fd"].write += ret
                 proc.write += ret
@@ -281,7 +284,7 @@ class Syscalls():
         self.global_syscall_entry(name)
         self.per_tid_syscall_entry(name, cpu_id)
         ret_string = self.track_fds(name, event, cpu_id)
-        if name in self.read_syscalls or name in self.write_syscalls:
+        if name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
             self.track_read_write(name, event, cpu_id)
         return ret_string
 
@@ -298,7 +301,7 @@ class Syscalls():
             return
         name = current_syscall["name"]
         ret = event["ret"]
-        if name in self.open_syscalls:
+        if name in Syscalls.OPEN_SYSCALLS:
             self.add_tid_fd(event, c)
             ret_string =  "%s %s(%s, fd = %d)" % (
                     ns_to_hour_nsec(current_syscall["start"]),
@@ -307,7 +310,7 @@ class Syscalls():
             current_syscall["fd"] = self.get_fd(t, ret)
             current_syscall["count"]= 0
             self.track_rw_latency(name, ret, c, event.timestamp, started)
-        elif name in self.read_syscalls or name in self.write_syscalls:
+        elif name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
             self.track_read_write_return(name, ret, c)
             self.track_rw_latency(name, ret, c, event.timestamp, started)
         self.tids[c.current_tid].current_syscall = {}
