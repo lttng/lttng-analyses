@@ -23,6 +23,9 @@ from analyzes import *
 from ascii_graph import Pyasciigraph
 
 class FDInfo():
+    DUMP_FORMAT = '{0:4} {1:20} {2:10} \t {3:20} {4:80}'
+    ENTRY_FORMAT = '{0:18} {1:20} {2:10} \t {3:20} {4:80}'
+
     def __init__(self, traces, prefix, isOutputEnabled, pid, pname):
         self.prefix = prefix
         self.pid = pid
@@ -33,13 +36,6 @@ class FDInfo():
         self.tids = {}
         self.disks = {}
         self.syscalls = {}
-        self.open_syscalls = ['sys_open', 'sys_openat', 'sys_dup2',
-                              'sys_accept', 'sys_socket', 'sys_fcntl']
-        self.close_syscalls = ['sys_close']
-        self.read_syscalls = ['sys_read', 'sys_recvmsg', 'sys_recvfrom',
-                              'sys_splice', 'sys_readv', 'sys_sendfile64']
-        self.write_syscalls = ['sys_write', 'sys_sendmsg' 'sys_sendto',
-                               'sys_writev']
 
     def process_event(self, event, sched, syscall, statedump, started=1):
         if event.name == 'sched_switch':
@@ -58,16 +54,16 @@ class FDInfo():
                 self.output_dump(event)
 
     def handle_syscall_entry(self, event, syscall):
-        if event.name in self.open_syscalls \
+        if event.name in Syscalls.OPEN_SYSCALLS \
            and self.isOutputEnabled['open']:
             self.output_open(event)
-        elif event.name in self.close_syscalls \
+        elif event.name in Syscalls.CLOSE_SYSCALLS \
              and self.isOutputEnabled['close']:
             self.output_close(event)
-        elif event.name in self.read_syscalls \
+        elif event.name in Syscalls.READ_SYSCALLS \
              and self.isOutputEnabled['read']:
             self.output_read(event)
-        elif event.name in self.write_syscalls \
+        elif event.name in Syscalls.WRITE_SYSCALLS \
              and self.isOutputEnabled['write']:
             self.output_write(event)
 
@@ -97,11 +93,11 @@ class FDInfo():
 
         evt = event.name
         filename = event['filename']
-        time = 'File opened before trace'
+        time = 'n/a'
 
         if filename.startswith(self.prefix):
-            print(pid, comm, evt, filename, time)
-            
+            print(FDInfo.DUMP_FORMAT.format(time, comm, pid, evt, filename))
+
     def output_open(self, event):
         pid = self.cpus[event['cpu_id']].current_tid
         if(self.pid >= 0 and self.pid != pid):
@@ -118,9 +114,9 @@ class FDInfo():
             return
 
         time = ns_to_hour_nsec(event.timestamp)
-        
+
         if filename.startswith(self.prefix):
-            print(pid, comm, evt, filename, time)
+            print(FDInfo.ENTRY_FORMAT.format(time, comm, pid, evt, filename))
 
     def compute_open_filename(self, event):
         evt = event.name
@@ -160,7 +156,7 @@ class FDInfo():
         time = ns_to_hour_nsec(event.timestamp)
 
         if filename.startswith(self.prefix):
-            print(pid, comm, evt, filename, time)
+            print(FDInfo.ENTRY_FORMAT.format(time, comm, pid, evt, filename))
 
     def output_read(self, event):
         pid = self.cpus[event['cpu_id']].current_tid
@@ -173,7 +169,7 @@ class FDInfo():
 
         evt = event.name
         fds = self.tids[pid].fds
-        
+
         if evt == 'sys_splice':
             fd = event['fd_in']
         elif evt == 'sys_sendfile64':
@@ -188,7 +184,7 @@ class FDInfo():
         time = ns_to_hour_nsec(event.timestamp)
 
         if filename.startswith(self.prefix):
-            print(pid, comm, evt, filename, time)
+            print(FDInfo.ENTRY_FORMAT.format(time, comm, pid, evt, filename))
 
     def output_write(self, event):
         pid = self.cpus[event['cpu_id']].current_tid
@@ -208,8 +204,7 @@ class FDInfo():
         time = ns_to_hour_nsec(event.timestamp)
 
         if filename.startswith(self.prefix):
-            print(pid, comm, evt, filename, time)
-
+            print(FDInfo.ENTRY_FORMAT.format(time, comm, pid, evt, filename))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FD syscalls analysis')
@@ -241,7 +236,7 @@ if __name__ == '__main__':
                 print('Invalid type:', type)
                 parser.print_help()
                 sys.exit(1)
-    
+
     traces = TraceCollection()
     handle = traces.add_trace(args.path, 'ctf')
     if handle is None:
