@@ -64,6 +64,8 @@ class IOTop():
             net.send(event)
         elif event.name == "sched_process_fork":
             sched.process_fork(event)
+        elif event.name == "sched_process_exec":
+            sched.process_exec(event)
         elif event.name == "lttng_statedump_process_state":
             statedump.process_state(event)
         elif event.name == "lttng_statedump_file_descriptor":

@@ -303,6 +303,10 @@ class Syscalls():
             ret_string =  "%s %s(%s, fd = %d)" % (
                     ns_to_hour_nsec(current_syscall["start"]),
                     name, current_syscall["filename"], ret)
+            t = self.tids[c.current_tid]
+            current_syscall["fd"] = self.get_fd(t, ret)
+            current_syscall["count"]= 0
+            self.track_rw_latency(name, ret, c, event.timestamp, started)
         elif name in self.read_syscalls or name in self.write_syscalls:
             self.track_read_write_return(name, ret, c)
             self.track_rw_latency(name, ret, c, event.timestamp, started)
