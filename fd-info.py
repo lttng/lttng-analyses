@@ -23,15 +23,18 @@ from analyzes import *
 from ascii_graph import Pyasciigraph
 
 class FDInfo():
-    DUMP_FORMAT = '{0:4} {1:20} {2:10} \t {3:20} {4:80}'
-    ENTRY_FORMAT = '{0:18} {1:20} {2:10} \t {3:20} {4:80}'
+    DUMP_FORMAT = '{0:18} {1:20} {2:<8} {3:20} {4:60}'
+    ENTRY_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:20} res={5:<3} {6:60}'
 
-    def __init__(self, traces, prefix, isOutputEnabled, pid, pname):
+    def __init__(self, traces, prefix, isOutputEnabled, pid, pname, failed,
+                 duration_ms):
+        self.traces = traces
         self.prefix = prefix
+        self.isOutputEnabled = isOutputEnabled
         self.pid = pid
         self.pname = pname
-        self.isOutputEnabled = isOutputEnabled
-        self.traces = traces
+        self.failed = failed
+        self.duration_ns = duration_ms * 1000000
         self.cpus = {}
         self.tids = {}
         self.disks = {}
@@ -41,9 +44,9 @@ class FDInfo():
         if event.name == 'sched_switch':
             sched.switch(event)
         elif event.name.startswith('sys_'):
-            self.handle_syscall_entry(event, syscall)
+            syscall.entry(event)
         elif event.name == 'exit_syscall':
-            syscall.exit(event, started)
+            self.handle_syscall_exit(event, syscall)
         elif event.name == 'sched_process_fork':
             sched.process_fork(event)
         elif event.name == 'lttng_statedump_process_state':
@@ -53,21 +56,27 @@ class FDInfo():
             if self.isOutputEnabled['dump']:
                 self.output_dump(event)
 
-    def handle_syscall_entry(self, event, syscall):
-        if event.name in Syscalls.OPEN_SYSCALLS \
-           and self.isOutputEnabled['open']:
-            self.output_open(event)
-        elif event.name in Syscalls.CLOSE_SYSCALLS \
-             and self.isOutputEnabled['close']:
-            self.output_close(event)
-        elif event.name in Syscalls.READ_SYSCALLS \
-             and self.isOutputEnabled['read']:
-            self.output_read(event)
-        elif event.name in Syscalls.WRITE_SYSCALLS \
-             and self.isOutputEnabled['write']:
-            self.output_write(event)
+    def handle_syscall_exit(self, event, syscall, started = 1):
+        cpu_id = event['cpu_id']
+        if not cpu_id in self.cpus:
+            return
 
-        syscall.entry(event)
+        c = self.cpus[cpu_id]
+        if c.current_tid == -1:
+            return
+
+        current_syscall = self.tids[c.current_tid].current_syscall
+        if len(current_syscall.keys()) == 0:
+            return
+
+        name = current_syscall['name']
+        if name in Syscalls.OPEN_SYSCALLS and self.isOutputEnabled['open'] or \
+           name in Syscalls.CLOSE_SYSCALLS and self.isOutputEnabled['close'] or \
+           name in Syscalls.READ_SYSCALLS and self.isOutputEnabled['read'] or \
+           name in Syscalls.WRITE_SYSCALLS and self.isOutputEnabled['write']:
+            self.output_fd_event(event, current_syscall)
+
+        syscall.exit(event, started)
 
     def run(self, args):
         '''Process the trace'''
@@ -83,6 +92,10 @@ class FDInfo():
             self.process_event(event, sched, syscall, statedump)
 
     def output_dump(self, event):
+        # dump events can't fail, and don't have a duration, so ignore
+        if self.failed or self.duration_ns > 0:
+            return
+
         pid = event['pid']
         if(self.pid >= 0 and self.pid != pid):
             return
@@ -93,13 +106,19 @@ class FDInfo():
 
         evt = event.name
         filename = event['filename']
-        time = 'n/a'
+        time = ns_to_hour_nsec(event.timestamp)
 
         if filename.startswith(self.prefix):
             print(FDInfo.DUMP_FORMAT.format(time, comm, pid, evt, filename))
 
-    def output_open(self, event):
-        pid = self.cpus[event['cpu_id']].current_tid
+    def output_fd_event(self, exit_event, entry):
+        ret = exit_event['ret']
+        failed = ret < 0
+
+        if self.failed and not failed:
+            return
+
+        pid = self.cpus[exit_event['cpu_id']].current_tid
         if(self.pid >= 0 and self.pid != pid):
             return
 
@@ -107,104 +126,21 @@ class FDInfo():
         if self.pname is not None and self.pname != comm:
             return
 
-        evt = event.name
-
-        filename = self.compute_open_filename(event)
+        filename = entry['filename']
         if filename is None:
             return
 
-        time = ns_to_hour_nsec(event.timestamp)
+        endtime = ns_to_hour_nsec(exit_event.timestamp)
+        duration_ns = (exit_event.timestamp - entry['start'])
+
+        if self.duration_ns > 0 and duration_ns < self.duration_ns:
+            return
+
+        duration = duration_ns / 1000000000
 
         if filename.startswith(self.prefix):
-            print(FDInfo.ENTRY_FORMAT.format(time, comm, pid, evt, filename))
-
-    def compute_open_filename(self, event):
-        evt = event.name
-
-        if evt in ['sys_open', 'sys_openat']:
-            filename = event['filename']
-        elif evt in ['sys_accept', 'sys_socket']:
-            filename = 'socket'
-        elif evt == 'sys_dup2':
-            filename = self.tids[pid].fds[event['oldfd']].filename
-        elif evt == 'sys_fcntl':
-            if event['cmd'] != 0:
-                return
-            oldfd = event['fd']
-            if oldfd in self.tids[pid].fds.keys():
-                filename = proc.fds[oldfd].filename
-            else:
-                filename = ''
-
-        return filename
-
-    def output_close(self, event):
-        pid = self.cpus[event['cpu_id']].current_tid
-        if(self.pid >= 0 and self.pid != pid):
-            return
-
-        comm = self.tids[pid].comm
-        if self.pname is not None and self.pname != comm:
-            return
-
-        evt = event.name
-        fds = self.tids[pid].fds
-        fd = event['fd']
-        if not fd in fds.keys():
-            return
-        filename = fds[fd].filename
-        time = ns_to_hour_nsec(event.timestamp)
-
-        if filename.startswith(self.prefix):
-            print(FDInfo.ENTRY_FORMAT.format(time, comm, pid, evt, filename))
-
-    def output_read(self, event):
-        pid = self.cpus[event['cpu_id']].current_tid
-        if(self.pid >= 0 and self.pid != pid):
-            return
-
-        comm = self.tids[pid].comm
-        if self.pname is not None and self.pname != comm:
-            return
-
-        evt = event.name
-        fds = self.tids[pid].fds
-
-        if evt == 'sys_splice':
-            fd = event['fd_in']
-        elif evt == 'sys_sendfile64':
-            fd = event['in_fd']
-        else:
-            fd = event['fd']
-
-        if not fd in fds.keys():
-            return
-
-        filename = fds[fd].filename
-        time = ns_to_hour_nsec(event.timestamp)
-
-        if filename.startswith(self.prefix):
-            print(FDInfo.ENTRY_FORMAT.format(time, comm, pid, evt, filename))
-
-    def output_write(self, event):
-        pid = self.cpus[event['cpu_id']].current_tid
-        if(self.pid >= 0 and self.pid != pid):
-            return
-
-        comm = self.tids[pid].comm
-        if self.pname is not None and self.pname != comm:
-            return
-
-        evt = event.name
-        fds = self.tids[pid].fds
-        fd = event['fd']
-        if not fd in fds.keys():
-            return
-        filename = fds[fd].filename
-        time = ns_to_hour_nsec(event.timestamp)
-
-        if filename.startswith(self.prefix):
-            print(FDInfo.ENTRY_FORMAT.format(time, comm, pid, evt, filename))
+            print(FDInfo.ENTRY_FORMAT.format(endtime, duration, comm, pid,
+                                             entry['name'], ret, filename))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FD syscalls analysis')
@@ -218,6 +154,10 @@ if __name__ == '__main__':
                         help='PID for which to display events')
     parser.add_argument('--pname', type=str, default=None,
                         help='Process name for which to display events')
+    parser.add_argument('--failed', action='store_true',
+                        help='Display only failed syscalls')
+    parser.add_argument('-d', '--duration', type=int, default='-1',
+                        help='Minimum duration in ms of syscalls to display')
 
     args = parser.parse_args()
 
@@ -242,7 +182,8 @@ if __name__ == '__main__':
     if handle is None:
         sys.exit(1)
 
-    c = FDInfo(traces, args.prefix, isOutputEnabled, args.pid, args.pname)
+    c = FDInfo(traces, args.prefix, isOutputEnabled, args.pid, args.pname,
+               args.failed, args.duration)
 
     c.run(args)
 
