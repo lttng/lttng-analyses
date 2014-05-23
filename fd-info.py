@@ -23,6 +23,17 @@ from LTTngAnalyzes.syscalls import *
 from analyzes import *
 from ascii_graph import Pyasciigraph
 
+def parse_errname(errname):
+    errname = errname.upper()
+
+    try:
+        errNumber = getattr(errno, errname)
+    except AttributeError:
+        print('Invalid errno name: ' + errname)
+        sys.exit(1)
+
+    return errNumber
+
 class FDInfo():
     DUMP_FORMAT = '{0:18} {1:20} {2:<8} {3:20} {4:60}'
     SUCCESS_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:15} res={5:<3} {6:60}'
@@ -32,7 +43,7 @@ class FDInfo():
     NORMAL_WHITE = '\033[37m'
 
     def __init__(self, traces, prefix, isOutputEnabled, pid, pname, failed,
-                 duration_ms, isInteractive, noColor):
+                 duration_ms, isInteractive, noColor, errNumber):
         self.traces = traces
         self.prefix = prefix
         self.isOutputEnabled = isOutputEnabled
@@ -42,6 +53,7 @@ class FDInfo():
         self.duration_ns = duration_ms * 1000000
         self.isInteractive = isInteractive
         self.noColor = noColor
+        self.errNumber = errNumber
         self.cpus = {}
         self.tids = {}
         self.disks = {}
@@ -100,7 +112,7 @@ class FDInfo():
 
     def output_dump(self, event):
         # dump events can't fail, and don't have a duration, so ignore
-        if self.failed or self.duration_ns > 0:
+        if self.failed or self.errNumber or self.duration_ns > 0:
             return
 
         pid = event['pid']
@@ -123,6 +135,9 @@ class FDInfo():
         failed = ret < 0
 
         if self.failed and not failed:
+            return
+
+        if self.errNumber and ret != -errNumber:
             return
 
         pid = self.cpus[exit_event['cpu_id']].current_tid
@@ -181,6 +196,9 @@ if __name__ == '__main__':
                         help='Minimum duration in ms of syscalls to display')
     parser.add_argument('--no-color', action='store_true',
                         help='Disable color output')
+    parser.add_argument('-e', '--errname', type=str,
+                        help='Only display syscalls whose return value matches\
+                        that corresponding to the given errno name')
 
     args = parser.parse_args()
 
@@ -205,8 +223,13 @@ if __name__ == '__main__':
     if handle is None:
         sys.exit(1)
 
+    if args.errname:
+        errNumber = parse_errname(args.errname)
+    else:
+        errNumber = None
+
     c = FDInfo(traces, args.prefix, isOutputEnabled, args.pid, args.pname,
-               args.failed, args.duration, sys.stdout.isatty(), args.no_color)
+               args.failed, args.duration, sys.stdout.isatty(), args.no_color, errNumber)
 
     c.run(args)
 
