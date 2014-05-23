@@ -14,6 +14,7 @@ import sys
 import argparse
 import shutil
 import time
+import errno
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
@@ -24,7 +25,9 @@ from ascii_graph import Pyasciigraph
 
 class FDInfo():
     DUMP_FORMAT = '{0:18} {1:20} {2:<8} {3:20} {4:60}'
-    ENTRY_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:20} res={5:<3} {6:60}'
+    SUCCESS_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:15} res={5:<3} {6:60}'
+    FAILURE_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:15} res={5:<3} ({6}) \
+    {7:60}'
     FAILURE_RED = '\033[31m'
     NORMAL_WHITE = '\033[37m'
 
@@ -134,6 +137,8 @@ class FDInfo():
         if filename is None:
             return
 
+        name = entry['name']
+
         endtime = ns_to_hour_nsec(exit_event.timestamp)
         duration_ns = (exit_event.timestamp - entry['start'])
 
@@ -146,8 +151,14 @@ class FDInfo():
             sys.stdout.write(FDInfo.FAILURE_RED)
 
         if filename.startswith(self.prefix):
-            print(FDInfo.ENTRY_FORMAT.format(endtime, duration, comm, pid,
-                                             entry['name'], ret, filename))
+            if not failed:
+                print(FDInfo.SUCCESS_FORMAT.format(endtime, duration, comm, pid,
+                                                   name, ret, filename))
+            else:
+                errName = errno.errorcode[-ret]
+                print(FDInfo.FAILURE_FORMAT.format(endtime, duration, comm, pid,
+                                                   name, ret, errName, filename))
+
 
         if self.isInteractive and failed and not self.noColor:
             sys.stdout.write(FDInfo.NORMAL_WHITE)
