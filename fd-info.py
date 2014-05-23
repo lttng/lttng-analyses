@@ -10,29 +10,23 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys
-import argparse
-import shutil
-import time
-import errno
+import sys, argparse, errno
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.statedump import *
 from LTTngAnalyzes.syscalls import *
-from analyzes import *
-from ascii_graph import Pyasciigraph
 
 def parse_errname(errname):
     errname = errname.upper()
 
     try:
-        errNumber = getattr(errno, errname)
+        err_number = getattr(errno, errname)
     except AttributeError:
         print('Invalid errno name: ' + errname)
         sys.exit(1)
 
-    return errNumber
+    return err_number
 
 class FDInfo():
     DUMP_FORMAT = '{0:18} {1:20} {2:<8} {3:20} {4:60}'
@@ -42,24 +36,23 @@ class FDInfo():
     FAILURE_RED = '\033[31m'
     NORMAL_WHITE = '\033[37m'
 
-    def __init__(self, traces, prefix, isOutputEnabled, pid, pname, failed,
-                 duration_ms, isInteractive, noColor, errNumber):
+    def __init__(self, args, traces, output_enabled, err_number):
+        self.args = args
+        # Convert from ms to ns
+        self.args.duration = self.args.duration * 1000000
+
         self.traces = traces
-        self.prefix = prefix
-        self.isOutputEnabled = isOutputEnabled
-        self.pid = pid
-        self.pname = pname
-        self.failed = failed
-        self.duration_ns = duration_ms * 1000000
-        self.isInteractive = isInteractive
-        self.noColor = noColor
-        self.errNumber = errNumber
+        self.output_enabled = output_enabled
+        self.err_number = err_number
+
+        self.is_interactive = sys.stdout.isatty()
+
         self.cpus = {}
         self.tids = {}
         self.disks = {}
         self.syscalls = {}
 
-    def process_event(self, event, sched, syscall, statedump, started=1):
+    def process_event(self, event, sched, syscall, statedump):
         if event.name == 'sched_switch':
             sched.switch(event)
         elif event.name.startswith('sys_'):
@@ -72,36 +65,33 @@ class FDInfo():
             statedump.process_state(event)
         elif event.name == 'lttng_statedump_file_descriptor':
             statedump.file_descriptor(event)
-            if self.isOutputEnabled['dump']:
+            if self.output_enabled['dump']:
                 self.output_dump(event)
 
-    def handle_syscall_exit(self, event, syscall, started = 1):
+    def handle_syscall_exit(self, event, syscall, started=1):
         cpu_id = event['cpu_id']
         if not cpu_id in self.cpus:
             return
 
-        c = self.cpus[cpu_id]
-        if c.current_tid == -1:
+        cpu = self.cpus[cpu_id]
+        if cpu.current_tid == -1:
             return
 
-        current_syscall = self.tids[c.current_tid].current_syscall
+        current_syscall = self.tids[cpu.current_tid].current_syscall
         if len(current_syscall.keys()) == 0:
             return
 
         name = current_syscall['name']
-        if name in Syscalls.OPEN_SYSCALLS and self.isOutputEnabled['open'] or \
-           name in Syscalls.CLOSE_SYSCALLS and self.isOutputEnabled['close'] or \
-           name in Syscalls.READ_SYSCALLS and self.isOutputEnabled['read'] or \
-           name in Syscalls.WRITE_SYSCALLS and self.isOutputEnabled['write']:
+        if name in Syscalls.OPEN_SYSCALLS and self.output_enabled['open'] or\
+           name in Syscalls.CLOSE_SYSCALLS and self.output_enabled['close'] or\
+           name in Syscalls.READ_SYSCALLS and self.output_enabled['read'] or\
+           name in Syscalls.WRITE_SYSCALLS and self.output_enabled['write']:
             self.output_fd_event(event, current_syscall)
 
         syscall.exit(event, started)
 
-    def run(self, args):
+    def run(self):
         '''Process the trace'''
-        self.current_sec = 0
-        self.start_ns = 0
-        self.end_ns = 0
 
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
@@ -112,40 +102,40 @@ class FDInfo():
 
     def output_dump(self, event):
         # dump events can't fail, and don't have a duration, so ignore
-        if self.failed or self.errNumber or self.duration_ns > 0:
+        if self.args.failed or self.err_number or self.args.duration > 0:
             return
 
         pid = event['pid']
-        if(self.pid >= 0 and self.pid != pid):
+        if self.args.pid >= 0 and self.args.pid != pid:
             return
 
         comm = self.tids[pid].comm
-        if self.pname is not None and self.pname != comm:
+        if self.args.pname is not None and self.args.pname != comm:
             return
 
         evt = event.name
         filename = event['filename']
         time = ns_to_hour_nsec(event.timestamp)
 
-        if filename.startswith(self.prefix):
+        if filename.startswith(self.args.prefix):
             print(FDInfo.DUMP_FORMAT.format(time, comm, pid, evt, filename))
 
     def output_fd_event(self, exit_event, entry):
         ret = exit_event['ret']
         failed = ret < 0
 
-        if self.failed and not failed:
+        if self.args.failed and not failed:
             return
 
-        if self.errNumber and ret != -errNumber:
+        if self.err_number and ret != -err_number:
             return
 
         pid = self.cpus[exit_event['cpu_id']].current_tid
-        if(self.pid >= 0 and self.pid != pid):
+        if self.args.pid >= 0 and self.args.pid != pid:
             return
 
         comm = self.tids[pid].comm
-        if self.pname is not None and self.pname != comm:
+        if self.args.pname is not None and self.args.pname != comm:
             return
 
         filename = entry['filename']
@@ -157,25 +147,26 @@ class FDInfo():
         endtime = ns_to_hour_nsec(exit_event.timestamp)
         duration_ns = (exit_event.timestamp - entry['start'])
 
-        if self.duration_ns > 0 and duration_ns < self.duration_ns:
+        if self.args.duration > 0 and duration_ns < self.args.duration:
             return
 
         duration = duration_ns / 1000000000
 
-        if self.isInteractive and failed and not self.noColor:
+        if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.FAILURE_RED)
 
-        if filename.startswith(self.prefix):
+        if filename.startswith(self.args.prefix):
             if not failed:
                 print(FDInfo.SUCCESS_FORMAT.format(endtime, duration, comm, pid,
                                                    name, ret, filename))
             else:
-                errName = errno.errorcode[-ret]
+                err_name = errno.errorcode[-ret]
                 print(FDInfo.FAILURE_FORMAT.format(endtime, duration, comm, pid,
-                                                   name, ret, errName, filename))
+                                                   name, ret, err_name,
+                                                   filename))
 
 
-        if self.isInteractive and failed and not self.noColor:
+        if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.NORMAL_WHITE)
 
 if __name__ == '__main__':
@@ -207,14 +198,14 @@ if __name__ == '__main__':
     possibleTypes = ['open', 'close', 'read', 'write', 'dump']
 
     if 'all' in types:
-        isOutputEnabled = { x: True for x in possibleTypes }
+        output_enabled = {x: True for x in possibleTypes}
     else:
-        isOutputEnabled = { x: False for x in possibleTypes }
-        for type in types:
-            if type in possibleTypes:
-                isOutputEnabled[type] = True
+        output_enabled = {x: False for x in possibleTypes}
+        for event_type in types:
+            if event_type in possibleTypes:
+                output_enabled[event_type] = True
             else:
-                print('Invalid type:', type)
+                print('Invalid type:', event_type)
                 parser.print_help()
                 sys.exit(1)
 
@@ -224,13 +215,12 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.errname:
-        errNumber = parse_errname(args.errname)
+        err_number = parse_errname(args.errname)
     else:
-        errNumber = None
+        err_number = None
 
-    c = FDInfo(traces, args.prefix, isOutputEnabled, args.pid, args.pname,
-               args.failed, args.duration, sys.stdout.isatty(), args.no_color, errNumber)
+    analyser = FDInfo(args, traces, output_enabled, err_number)
 
-    c.run(args)
+    analyser.run()
 
     traces.remove_trace(handle)
