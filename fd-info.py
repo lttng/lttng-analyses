@@ -25,9 +25,11 @@ from ascii_graph import Pyasciigraph
 class FDInfo():
     DUMP_FORMAT = '{0:18} {1:20} {2:<8} {3:20} {4:60}'
     ENTRY_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:20} res={5:<3} {6:60}'
+    FAILURE_RED = '\033[31m'
+    NORMAL_WHITE = '\033[37m'
 
     def __init__(self, traces, prefix, isOutputEnabled, pid, pname, failed,
-                 duration_ms):
+                 duration_ms, isInteractive, noColor):
         self.traces = traces
         self.prefix = prefix
         self.isOutputEnabled = isOutputEnabled
@@ -35,6 +37,8 @@ class FDInfo():
         self.pname = pname
         self.failed = failed
         self.duration_ns = duration_ms * 1000000
+        self.isInteractive = isInteractive
+        self.noColor = noColor
         self.cpus = {}
         self.tids = {}
         self.disks = {}
@@ -138,9 +142,15 @@ class FDInfo():
 
         duration = duration_ns / 1000000000
 
+        if self.isInteractive and failed and not self.noColor:
+            sys.stdout.write(FDInfo.FAILURE_RED)
+
         if filename.startswith(self.prefix):
             print(FDInfo.ENTRY_FORMAT.format(endtime, duration, comm, pid,
                                              entry['name'], ret, filename))
+
+        if self.isInteractive and failed and not self.noColor:
+            sys.stdout.write(FDInfo.NORMAL_WHITE)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FD syscalls analysis')
@@ -158,6 +168,8 @@ if __name__ == '__main__':
                         help='Display only failed syscalls')
     parser.add_argument('-d', '--duration', type=int, default='-1',
                         help='Minimum duration in ms of syscalls to display')
+    parser.add_argument('--no-color', action='store_true',
+                        help='Disable color output')
 
     args = parser.parse_args()
 
@@ -183,7 +195,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     c = FDInfo(traces, args.prefix, isOutputEnabled, args.pid, args.pname,
-               args.failed, args.duration)
+               args.failed, args.duration, sys.stdout.isatty(), args.no_color)
 
     c.run(args)
 
