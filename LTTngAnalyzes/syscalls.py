@@ -103,9 +103,15 @@ class Syscalls():
     def track_close(self, name, proc, event, cpu):
         fd = event["fd"]
         if not fd in proc.fds.keys():
-#            print("%lu : Closing FD %d in %d without open" %
-#                    (event.timestamp, fd, proc.tid))
             return
+
+        tid = self.tids[cpu.current_tid]
+        tid.current_syscall = {}
+        current_syscall = tid.current_syscall
+        current_syscall["filename"] = proc.fds[fd].filename
+        current_syscall["name"] = name
+        current_syscall["start"] = event.timestamp
+
         self.close_fd(proc, fd)
 
     def track_fds(self, name, event, cpu_id):
@@ -157,11 +163,13 @@ class Syscalls():
             current_syscall["fd_in"] = self.get_fd(t, event["fd_in"])
             current_syscall["fd_out"] = self.get_fd(t, event["fd_out"])
             current_syscall["count"] = event["len"]
+            current_syscall["filename"] = current_syscall["fd_in"].filename
             return
         elif name == "sys_sendfile64":
             current_syscall["fd_in"] = self.get_fd(t, event["in_fd"])
             current_syscall["fd_out"] = self.get_fd(t, event["out_fd"])
             current_syscall["count"] = event["count"]
+            current_syscall["filename"] = current_syscall["fd_in"].filename
             return
         fd = event["fd"]
         f = self.get_fd(t, fd)
@@ -174,6 +182,8 @@ class Syscalls():
             current_syscall["count"] = ""
         else:
             current_syscall["count"] = event["count"]
+
+        current_syscall["filename"] = f.filename
 
     def add_tid_fd(self, event, cpu):
         ret = event["ret"]
