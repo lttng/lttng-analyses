@@ -113,12 +113,15 @@ class FDInfo():
         if self.args.pname is not None and self.args.pname != comm:
             return
 
-        evt = event.name
+        name = event.name
+        if args.syscall and args.syscall != name:
+            return
+
         filename = event['filename']
         time = ns_to_hour_nsec(event.timestamp)
 
         if filename.startswith(self.args.prefix):
-            print(FDInfo.DUMP_FORMAT.format(time, comm, pid, evt, filename))
+            print(FDInfo.DUMP_FORMAT.format(time, comm, pid, name, filename))
 
     def output_fd_event(self, exit_event, entry):
         ret = exit_event['ret']
@@ -143,6 +146,9 @@ class FDInfo():
             return
 
         name = entry['name']
+
+        if args.syscall and args.syscall != name:
+            return
 
         endtime = ns_to_hour_nsec(exit_event.timestamp)
         duration_ns = (exit_event.timestamp - entry['start'])
@@ -190,6 +196,8 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--errname', type=str,
                         help='Only display syscalls whose return value matches\
                         that corresponding to the given errno name')
+    parser.add_argument('--syscall', type=str, default=None,
+                        help='Name of syscall to display')
 
     args = parser.parse_args()
 
@@ -208,6 +216,9 @@ if __name__ == '__main__':
                 print('Invalid type:', event_type)
                 parser.print_help()
                 sys.exit(1)
+
+    if args.syscall and not args.syscall.startswith('sys_'):
+        args.syscall = 'sys_' + args.syscall
 
     traces = TraceCollection()
     handle = traces.add_trace(args.path, 'ctf')
