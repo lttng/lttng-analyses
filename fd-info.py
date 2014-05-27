@@ -118,10 +118,20 @@ class FDInfo():
             return
 
         filename = event['filename']
-        time = ns_to_hour_nsec(event.timestamp)
+
+        endtime = event.timestamp
+        if self.args.start and endtime < self.args.start:
+            return
+        if self.args.end and endtime > self.args.end:
+            return
+
+        if not self.args.unixtime:
+            endtime = ns_to_hour_nsec(endtime)
+        else:
+            endtime = '{:.9f}'.format(endtime / 1000000000)
 
         if filename.startswith(self.args.prefix):
-            print(FDInfo.DUMP_FORMAT.format(time, comm, pid, name, filename))
+            print(FDInfo.DUMP_FORMAT.format(endtime, comm, pid, name, filename))
 
     def output_fd_event(self, exit_event, entry):
         ret = exit_event['ret']
@@ -150,7 +160,19 @@ class FDInfo():
         if args.syscall and args.syscall != name:
             return
 
-        endtime = ns_to_hour_nsec(exit_event.timestamp)
+        if self.args.start and entry['start'] < self.args.start:
+            return
+
+        if self.args.end and exit_event.timestamp > self.args.end:
+            return
+
+
+        endtime = exit_event.timestamp
+        if not self.args.unixtime:
+            endtime = ns_to_hour_nsec(endtime)
+        else:
+            endtime = '{:.9f}'.format(endtime / 1000000000)
+
         duration_ns = (exit_event.timestamp - entry['start'])
 
         if self.args.duration > 0 and duration_ns < self.args.duration:
@@ -187,17 +209,27 @@ if __name__ == '__main__':
                         help='PID for which to display events')
     parser.add_argument('--pname', type=str, default=None,
                         help='Process name for which to display events')
-    parser.add_argument('--failed', action='store_true',
-                        help='Display only failed syscalls')
     parser.add_argument('-d', '--duration', type=int, default='-1',
                         help='Minimum duration in ms of syscalls to display')
-    parser.add_argument('--no-color', action='store_true',
-                        help='Disable color output')
     parser.add_argument('-e', '--errname', type=str,
                         help='Only display syscalls whose return value matches\
                         that corresponding to the given errno name')
     parser.add_argument('--syscall', type=str, default=None,
                         help='Name of syscall to display')
+    parser.add_argument('--start', type=int, default=None,
+                        help='Start time from which to display events (unix\
+                        time)')
+    parser.add_argument('--end', type=int, default=None,
+                        help='End time after which events are not displayed\
+                        (unix time)')
+    parser.add_argument('--failed', action='store_true',
+                        help='Display only failed syscalls')
+    parser.add_argument('--unixtime', action='store_true',
+                        help='Display timestamps in unix time format')
+    parser.add_argument('--no-color', action='store_true',
+                        help='Disable color output')
+
+
 
     args = parser.parse_args()
 
@@ -229,6 +261,12 @@ if __name__ == '__main__':
         err_number = parse_errname(args.errname)
     else:
         err_number = None
+
+    # Convert start/endtime from seconds to nanoseconds
+    if args.start:
+        args.start = args.start * 1000000000
+    if args.end:
+        args.end = args.end * 1000000000
 
     analyser = FDInfo(args, traces, output_enabled, err_number)
 
