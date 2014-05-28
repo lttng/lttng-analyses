@@ -75,6 +75,10 @@ class CTFFilter():
         self.event_classes = {}
 
     def process_event_metadata(self, event):
+        if self.args.discard and event.name == self.args.name\
+           or not self.args.discard and event.name != self.args.name:
+            return
+
         if event.name not in self.event_classes.keys():
             event_class = CTFWriter.EventClass(event.name)
             for field in event.fields_scope(CTFScope.EVENT_FIELDS):
@@ -144,6 +148,10 @@ class CTFFilter():
         print('seq')
 
     def process_event(self, event):
+        if self.args.discard and event.name == self.args.name\
+           or not self.args.discard and event.name != self.args.name:
+            return
+
         if event.name in ['lttng_statedump_start', 'lttng_statedump_end',
                           'sys_unknown', 'sys_geteuid', 'sys_getuid', 'sys_getegid']:
             return
@@ -234,7 +242,7 @@ if __name__ == '__main__':
     parser.add_argument('output', metavar='<path/to/new/trace>',
                         help='Location of file to which the resulting filtered\
                         trace will be written')
-    parser.add_argument('-n', '--name', type=str, default='',
+    parser.add_argument('-n', '--name', type=str, required=True,
                         help='Name of events to keep\
                         (or discard when --discard is used)')
     parser.add_argument('--discard', action='store_true',
