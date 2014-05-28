@@ -12,6 +12,8 @@
 
 import argparse
 from babeltrace import *
+from progressbar import *
+from LTTngAnalyzes.common import *
 
 # These declarations will go in their own file
 # They have been put here temporarily for testing
@@ -143,7 +145,7 @@ class CTFFilter():
 
     def process_event(self, event):
         if event.name in ['lttng_statedump_start', 'lttng_statedump_end',
-                          'sys_unknown', 'sys_geteuid', 'sys_getuid']:
+                          'sys_unknown', 'sys_geteuid', 'sys_getuid', 'sys_getegid']:
             return
 
         self.clock.time = event.timestamp
@@ -187,13 +189,42 @@ class CTFFilter():
         writeable_event.value = value
 
     def run(self):
+        size = getFolderSize(args.path)
+        # size *= 2 # because we do 2 passes on the events
+        widgets = ['Processing the trace: ', Percentage(), ' ',
+                Bar(marker='#',left='[',right=']'), ' ', ETA(), ' ']
+
+        if not args.no_progress:
+            pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+            pbar.start()
+
+        event_count = 0
+
         for event in self.handle.events:
+            if not args.no_progress:
+                try:
+                    pbar.update(event_count)
+                except ValueError:
+                    pass
+
             self.process_event_metadata(event)
+            event_count += 1
 
         self.stream = self.writer.create_stream(self.stream_class)
 
         for event in self.traces.events:
+            if not args.no_progress:
+                try:
+                    pbar.update(event_count)
+                except ValueError:
+                    pass
+
             self.process_event(event)
+            event_count += 1
+
+        if not args.no_progress:
+            pbar.finish()
+            print
 
         self.stream.flush()
 
@@ -208,6 +239,8 @@ if __name__ == '__main__':
                         (or discard when --discard is used)')
     parser.add_argument('--discard', action='store_true',
                         help='Discard specifed events instead of keeping them')
+    parser.add_argument('--no-progress', action="store_true",
+                        help='Don\'t display the progress bar')
 
     args = parser.parse_args()
 
