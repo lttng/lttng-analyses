@@ -15,6 +15,11 @@ from babeltrace import *
 
 # These declarations will go in their own file
 # They have been put here temporarily for testing
+char8_type = CTFWriter.IntegerFieldDeclaration(8)
+char8_type.signed = True
+char8_type.encoding = CTFStringEncoding.UTF8
+char8_type.alignment = 8
+
 int8_type = CTFWriter.IntegerFieldDeclaration(8)
 int8_type.signed = True
 int8_type.alignment = 8
@@ -50,9 +55,10 @@ uint64_type.alignment = 8
 string_type = CTFWriter.StringFieldDeclaration()
 
 class CTFFilter():
-    def __init__(self, args, handle):
+    def __init__(self, args, handle, traces):
         self.args = args
         self.handle = handle
+        self.traces = traces
 
         self.clock = CTFWriter.Clock('monotonic')
         self.clock.description = 'Monotonic Clock'
@@ -82,9 +88,13 @@ class CTFFilter():
             self.add_int_field(event_class, field)
         elif field_type is StringFieldDeclaration:
             self.add_string_field(event_class, field)
-
-    def process_event(self, event):
-        raise NotImplementedError('process_event not yet implemented')
+        elif field_type is ArrayFieldDeclaration:
+            self.add_array_field(event_class, field)
+        elif field_type is SequenceFieldDeclaration:
+            self.add_sequence_field(event_class, field)
+        else:
+            raise RuntimeError('Unsupported field type: '
+                               + field_type.__name__)
 
     def add_int_field(self, event_class, field):
         # signed int
@@ -120,7 +130,61 @@ class CTFFilter():
                                + field.name)
 
     def add_string_field(self, event_class, field):
-        event_class.add_field(string_type, '+' + field.name)
+        string_type = CTFWriter.ArrayFieldDeclaration(char8_type, 16)
+        event_class.add_field(string_type, '_' + field.name)
+
+    def add_array_field(self, event_class, field):
+        array_type = CTFWriter.ArrayFieldDeclaration(char8_type, field.length)
+        event_class.add_field(array_type, '_' + field.name)
+
+    def add_sequence_field(self, event_class, field):
+        # stuff
+        print('seq')
+
+    def process_event(self, event):
+        if event.name in ['lttng_statedump_start', 'lttng_statedump_end',
+                          'sys_unknown', 'sys_geteuid', 'sys_getuid']:
+            return
+
+        self.clock.time = event.timestamp
+        writeable_event = CTFWriter.Event(self.event_classes[event.name])
+
+        field_names = event.field_list_with_scope(CTFScope.EVENT_FIELDS)
+
+        for field_name in field_names:
+            self.set_field(writeable_event, field_name, event[field_name])
+
+        try:
+            self.stream.append_event(writeable_event)
+        except ValueError:
+            print(event.name)
+            pass
+
+    def set_field(self, writeable_event, field_name, value):
+        field_type = type(value)
+
+        if field_type is str:
+            self.set_char_array(writeable_event.payload('_' + field_name), value)
+        elif field_type is int:
+            self.set_int(writeable_event.payload('_' + field_name), value)
+        elif field_type is list:
+            pass
+        else:
+            raise RuntimeError('Error, unsupported field type '
+                               + field_type.__name__)
+
+    def set_char_array(self, writeable_event, string):
+        if len(string) > 16:
+            string = string[0:16]
+        else:
+            string = "%s" % (string + "\0" * (16 - len(string)))
+
+        for i in range(len(string)):
+            a = writeable_event.field(i)
+            a.value = ord(string[i])
+
+    def set_int(self, writeable_event, value):
+        writeable_event.value = value
 
     def run(self):
         for event in self.handle.events:
@@ -128,7 +192,7 @@ class CTFFilter():
 
         self.stream = self.writer.create_stream(self.stream_class)
 
-        for event in self.handle.events:
+        for event in self.traces.events:
             self.process_event(event)
 
         self.stream.flush()
@@ -152,7 +216,7 @@ if __name__ == '__main__':
     if handle is None:
         sys.exit(1)
 
-    ctf_filter = CTFFilter(args, handle)
+    ctf_filter = CTFFilter(args, handle, traces)
 
     ctf_filter.run()
 
