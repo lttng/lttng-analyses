@@ -15,6 +15,22 @@ from babeltrace import *
 
 # These declarations will go in their own file
 # They have been put here temporarily for testing
+int8_type = CTFWriter.IntegerFieldDeclaration(8)
+int8_type.signed = True
+int8_type.alignment = 8
+
+uint8_type = CTFWriter.IntegerFieldDeclaration(8)
+uint8_type.signed = False
+uint8_type.alignment = 8
+
+int16_type = CTFWriter.IntegerFieldDeclaration(16)
+int16_type.signed = True
+int16_type.alignment = 8
+
+uint16_type = CTFWriter.IntegerFieldDeclaration(16)
+uint16_type.signed = False
+uint16_type.alignment = 8
+
 int32_type = CTFWriter.IntegerFieldDeclaration(32)
 int32_type.signed = True
 int32_type.alignment = 8
@@ -27,9 +43,11 @@ int64_type = CTFWriter.IntegerFieldDeclaration(64)
 int64_type.signed = True
 int64_type.alignment = 8
 
-int64_type = CTFWriter.IntegerFieldDeclaration(64)
-int64_type.signed = False
-int64_type.alignment = 8
+uint64_type = CTFWriter.IntegerFieldDeclaration(64)
+uint64_type.signed = False
+uint64_type.alignment = 8
+
+string_type = CTFWriter.StringFieldDeclaration()
 
 class CTFFilter():
     def __init__(self, args, handle):
@@ -62,6 +80,8 @@ class CTFFilter():
 
         if field_type is IntegerFieldDeclaration:
             self.add_int_field(event_class, field)
+        elif field_type is StringFieldDeclaration:
+            self.add_string_field(event_class, field)
 
     def process_event(self, event):
         raise NotImplementedError('process_event not yet implemented')
@@ -69,20 +89,38 @@ class CTFFilter():
     def add_int_field(self, event_class, field):
         # signed int
         if field.signedness == 1:
-            if field.length == 32:
+            if field.length == 8:
+                event_class.add_field(int8_type, '_' + field.name)
+            elif field.length == 16:
+                event_class.add_field(int16_type, '_' + field.name)
+            elif field.length == 32:
                 event_class.add_field(int32_type, '_' + field.name)
             elif field.length == 64:
                 event_class.add_field(int64_type, '_' + field.name)
-                # unsigned int
+            else:
+                raise RuntimeError(
+                    'Error, unsupported field length {0} bits of field {1}'
+                    .format(field.length, field.name))
+        # unsigned int
         elif field.signedness == 0:
-            if field.length == 32:
-                event_class.add_field(int32_type, '_' + field.name)
+            if field.length == 8:
+                event_class.add_field(uint8_type, '_' + field.name)
+            elif field.length == 16:
+                event_class.add_field(uint16_type, '_' + field.name)
+            elif field.length == 32:
+                event_class.add_field(uint32_type, '_' + field.name)
             elif field.length == 64:
-                event_class.add_field(int64_type, '_' + field.name)
+                event_class.add_field(uint64_type, '_' + field.name)
+            else:
+                raise RuntimeError(
+                    'Error, unsupported field length {0} bits of field {1}'
+                    .format(field.length, field.name))
         else:
             raise RuntimeError('Error, could not determine signedness of field'
                                + field.name)
 
+    def add_string_field(self, event_class, field):
+        event_class.add_field(string_type, '+' + field.name)
 
     def run(self):
         for event in self.handle.events:
