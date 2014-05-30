@@ -10,7 +10,7 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys, argparse, errno
+import sys, argparse, errno, json
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
@@ -51,6 +51,7 @@ class FDInfo():
         self.tids = {}
         self.disks = {}
         self.syscalls = {}
+        self.latencies = []
 
     def process_event(self, event, sched, syscall, statedump):
         if event.name == 'sched_switch':
@@ -99,6 +100,10 @@ class FDInfo():
 
         for event in self.traces.events:
             self.process_event(event, sched, syscall, statedump)
+
+        f = open('visualizations/latencies.json', 'w')
+        json.dump(self.latencies, f)
+        f.close()
 
     def output_dump(self, event):
         # dump events can't fail, and don't have a duration, so ignore
@@ -179,6 +184,8 @@ class FDInfo():
             return
 
         duration = duration_ns / 1000000000
+
+        self.latencies.append([entry['start'], duration_ns])
 
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.FAILURE_RED)
