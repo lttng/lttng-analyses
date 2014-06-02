@@ -101,7 +101,11 @@ class FDInfo():
         for event in self.traces.events:
             self.process_event(event, sched, syscall, statedump)
 
-        f = open('visualizations/latencies.json', 'w')
+        if self.args.json_latencies:
+            self.output_json_latencies();
+
+    def output_json_latencies(self):
+        f = open(self.args.json_latencies, 'w')
         json.dump(self.latencies, f)
         f.close()
 
@@ -185,7 +189,8 @@ class FDInfo():
 
         duration = duration_ns / 1000000000
 
-        self.latencies.append([entry['start'], duration_ns])
+        if self.args.json_latencies:
+            self.latencies.append([entry['start'], duration_ns, pid])
 
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.FAILURE_RED)
@@ -235,8 +240,8 @@ if __name__ == '__main__':
                         help='Display timestamps in unix time format')
     parser.add_argument('--no-color', action='store_true',
                         help='Disable color output')
-
-
+    parser.add_argument('--json-latencies', type=str, default=None,
+                        help='Store latencies info as JSON to specified file')
 
     args = parser.parse_args()
 
