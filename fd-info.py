@@ -28,6 +28,27 @@ def parse_errname(errname):
 
     return err_number
 
+def parse_duration(duration):
+    """Receives a numeric string with time unit suffix
+    Returns an int representing a duration in nanoseconds"""
+
+    # default case is no duration is entered by user
+    if duration == '-1':
+        return -1
+
+    if duration.endswith('ns'):
+        return int(duration[0:-2])
+    elif duration.endswith('us'):
+        return int(float(duration[0:-2]) * 1000)
+    elif duration.endswith('ms'):
+        return int(float(duration[0:-2]) * 1000000)
+    elif duration.endswith('s'):
+        return int(float(duration[0:-1]) * 1000000000)
+    else:
+        print('Invalid duration: ' + duration)
+        sys.exit(1)
+
+
 class FDInfo():
     DUMP_FORMAT = '{0:18} {1:20} {2:<8} {3:20} {4:60}'
     SUCCESS_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:15} res={5:<3} {6:60}'
@@ -38,8 +59,6 @@ class FDInfo():
 
     def __init__(self, args, traces, output_enabled, err_number):
         self.args = args
-        # Convert from ms to ns
-        self.args.duration = self.args.duration * 1000000
 
         self.traces = traces
         self.output_enabled = output_enabled
@@ -221,7 +240,7 @@ if __name__ == '__main__':
                         help='PID for which to display events')
     parser.add_argument('--pname', type=str, default=None,
                         help='Process name for which to display events')
-    parser.add_argument('-d', '--duration', type=int, default='-1',
+    parser.add_argument('-d', '--duration', type=str, default='-1',
                         help='Minimum duration in ms of syscalls to display')
     parser.add_argument('-e', '--errname', type=str,
                         help='Only display syscalls whose return value matches\
@@ -279,6 +298,9 @@ if __name__ == '__main__':
         args.start = args.start * 1000000000
     if args.end:
         args.end = args.end * 1000000000
+
+    # Parse duration option
+    args.duration = parse_duration(args.duration)
 
     analyser = FDInfo(args, traces, output_enabled, err_number)
 
