@@ -209,7 +209,8 @@ class FDInfo():
         duration = duration_ns / 1000000000
 
         if self.args.json_latencies:
-            self.latencies.append([entry['start'], duration_ns, pid])
+            category = Syscalls.get_syscall_category(name)
+            self.latencies.append([entry['start'], duration_ns, pid, category])
 
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.FAILURE_RED)

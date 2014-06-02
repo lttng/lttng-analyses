@@ -15,6 +15,24 @@ class Syscalls():
     # closed_fds dict
     GENERIC_NAMES = ["unknown", "socket"]
 
+    def get_syscall_category(name):
+        """Receives a syscall name and returns an int
+        corresponding to the I/O category to which it corresponds:
+        0 Open, 1 Close, 2 Read, 3 Write, -1 Not I/O
+
+        This is used to produce json data for visualization"""
+
+        if name in Syscalls.OPEN_SYSCALLS:
+            return 0
+        if name in Syscalls.CLOSE_SYSCALLS:
+            return 1
+        if name in Syscalls.READ_SYSCALLS:
+            return 2
+        if name in Syscalls.WRITE_SYSCALLS:
+            return 3
+
+        return -1
+
     def __init__(self, cpus, tids, syscalls, names=None, latency=-1,
             latency_hist=None, seconds=False):
         self.cpus = cpus
