@@ -70,7 +70,11 @@ class FDInfo():
         self.tids = {}
         self.disks = {}
         self.syscalls = {}
+
         self.latencies = []
+        # Stores metadata about processes when outputting to json
+        # Keys: PID, values: {pname, fds}
+        self.json_metadata = {}
 
     def process_event(self, event, sched, syscall, statedump):
         if event.name == 'sched_switch':
@@ -124,8 +128,12 @@ class FDInfo():
             self.output_json_latencies();
 
     def output_json_latencies(self):
-        f = open(self.args.json_latencies, 'w')
+        f = open(self.args.json_latencies + 'latencies.json', 'w')
         json.dump(self.latencies, f)
+        f.close()
+
+        f = open(self.args.json_latencies + 'pid_metadata.json', 'w')
+        json.dump(self.json_metadata, f)
         f.close()
 
     def output_dump(self, event):
@@ -209,6 +217,9 @@ class FDInfo():
         duration = duration_ns / 1000000000
 
         if self.args.json_latencies:
+            if pid not in self.json_metadata:
+                self.json_metadata[pid] = {'pname': comm}
+
             category = Syscalls.get_syscall_category(name)
             self.latencies.append([entry['start'], duration_ns, pid, category])
 
@@ -261,7 +272,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-color', action='store_true',
                         help='Disable color output')
     parser.add_argument('--json-latencies', type=str, default=None,
-                        help='Store latencies info as JSON to specified file')
+                        help='Store latencies as JSON in specified directory')
 
     args = parser.parse_args()
 
