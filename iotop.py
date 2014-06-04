@@ -340,6 +340,8 @@ class IOTop():
             for fd in tid.fds.values():
                 fd.read = 0
                 fd.write = 0
+                fd.block_read = 0
+                fd.block_write = 0
                 fd.open = 0
                 fd.close = 0
 
