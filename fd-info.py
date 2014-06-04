@@ -218,10 +218,21 @@ class FDInfo():
 
         if self.args.json_latencies:
             if pid not in self.json_metadata:
-                self.json_metadata[pid] = {'pname': comm}
+                self.json_metadata[pid] = {'pname': comm, 'fds': {}}
+
+            fd = None
+
+            if 'fd' in entry.keys():
+                fd = entry['fd'].fd
+            elif 'fd_in' in entry.keys():
+                fd = entry['fd_in'].fd
+
+            if fd:
+                if fd not in self.json_metadata[pid]['fds']:
+                    self.json_metadata[pid]['fds'][fd] = filename
 
             category = Syscalls.get_syscall_category(name)
-            self.latencies.append([entry['start'], duration_ns, pid, category])
+            self.latencies.append([entry['start'], duration_ns, pid, category, fd])
 
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.FAILURE_RED)
