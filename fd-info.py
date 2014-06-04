@@ -231,11 +231,13 @@ class FDInfo():
                 print(FDInfo.SUCCESS_FORMAT.format(endtime, duration, comm, pid,
                                                    name, ret, filename))
             else:
-                err_name = errno.errorcode[-ret]
-                print(FDInfo.FAILURE_FORMAT.format(endtime, duration, comm, pid,
-                                                   name, ret, err_name,
-                                                   filename))
-
+                try:
+                    err_name = errno.errorcode[-ret]
+                    print(FDInfo.FAILURE_FORMAT.format(endtime, duration, comm, pid,
+                        name, ret, err_name,
+                        filename))
+                except KeyError:
+                    print("Invalid error code:", -ret)
 
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.NORMAL_WHITE)
