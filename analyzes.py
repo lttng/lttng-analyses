@@ -21,7 +21,7 @@ from LTTngAnalyzes.textreport import *
 from LTTngAnalyzes.graphitereport import *
 from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
-from LTTngAnalyzes.block_bio import *
+from LTTngAnalyzes.block import *
 from LTTngAnalyzes.net import *
 from LTTngAnalyzes.statedump import *
 
@@ -130,7 +130,7 @@ class Analyzes():
 
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
-        block_bio = BlockBio(self.cpus, self.disks)
+        block = Block(self.cpus, self.disks)
         net = Net(self.ifaces)
         statedump = Statedump(self.tids, self.disks)
 
@@ -159,11 +159,10 @@ class Analyzes():
                     (args.global_syscalls or args.tid_syscalls or
                             args.fds):
                 syscall.exit(event, 1)
-            elif event.name == "block_bio_complete" or \
-                   event.name == "block_rq_complete":
-                block_bio.complete(event)
-            elif event.name == "block_bio_queue":
-                block_bio.queue(event)
+            elif event.name == "block_rq_complete":
+                block.complete(event)
+            elif event.name == "block_rq_issue":
+                block.issue(event)
             elif event.name == "netif_receive_skb":
                 net.recv(event)
             elif event.name == "net_dev_xmit":
@@ -242,7 +241,7 @@ if __name__ == "__main__":
 
     while True:
         if args.graphite:
-            events="sched_switch,block_bio_complete,block_bio_queue," \
+            events="sched_switch,block_complete,block_queue," \
                     "netif_receive_skb,net_dev_xmit"
             os.system("lttng create graphite -o graphite-live >/dev/null")
             os.system("lttng enable-event -k %s -s graphite >/dev/null" % events)

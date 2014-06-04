@@ -1,11 +1,11 @@
 from LTTngAnalyzes.common import *
 
-class BlockBio():
+class Block():
     def __init__(self, cpus, disks):
         self.cpus = cpus
         self.disks = disks
 
-    def queue(self, event):
+    def issue(self, event):
         dev = event["dev"]
         sector = event["sector"]
         nr_sector = event["nr_sector"]

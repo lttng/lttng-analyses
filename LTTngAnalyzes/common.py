@@ -92,7 +92,7 @@ def convert_size(size):
            return '%s %s' % (s, size_name[i])
        except:
            print(i, size_name)
-           raise("Too big to be true")
+           raise Exception("Too big to be true")
    else:
        return '0 B'
 

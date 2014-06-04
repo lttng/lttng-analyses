@@ -19,7 +19,7 @@ from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
-from LTTngAnalyzes.block_bio import *
+from LTTngAnalyzes.block import *
 from LTTngAnalyzes.net import *
 from LTTngAnalyzes.statedump import *
 from analyzes import *
@@ -36,8 +36,9 @@ class IOTop():
         self.ifaces = {}
         self.syscalls = {}
         self.latency_hist = {}
+        self.block_requests = {}
 
-    def process_event(self, event, sched, syscall, block_bio, net, statedump,
+    def process_event(self, event, sched, syscall, block, net, statedump,
             started):
         if self.start_ns == 0:
             self.start_ns = event.timestamp
@@ -53,11 +54,10 @@ class IOTop():
             syscall.entry(event)
         elif event.name == "exit_syscall":
             syscall.exit(event, started)
-        elif event.name == "block_bio_complete" or \
-               event.name == "block_rq_complete":
-            block_bio.complete(event)
-        elif event.name == "block_bio_queue":
-            block_bio.queue(event)
+        elif event.name == "block_rq_complete":
+            block.complete(event)
+        elif event.name == "block_rq_issue":
+            block.issue(event)
         elif event.name == "netif_receive_skb":
             net.recv(event)
         elif event.name == "net_dev_xmit":
@@ -91,7 +91,7 @@ class IOTop():
         syscall = Syscalls(self.cpus, self.tids, self.syscalls,
                 names=args.names, latency=args.latency,
                 latency_hist=self.latency_hist, seconds=args.seconds)
-        block_bio = BlockBio(self.cpus, self.disks)
+        block = Block(self.cpus, self.disks)
         net = Net(self.ifaces)
         statedump = Statedump(self.tids, self.disks)
 
@@ -113,7 +113,7 @@ class IOTop():
                 self.reset_total(event.timestamp)
             if args.end and event.timestamp > args.end:
                 break
-            self.process_event(event, sched, syscall, block_bio, net, \
+            self.process_event(event, sched, syscall, block, net, \
                     statedump, started)
         if not args.no_progress:
             pbar.finish()

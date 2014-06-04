@@ -18,7 +18,7 @@ from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
-from LTTngAnalyzes.block_bio import *
+from LTTngAnalyzes.block import *
 from LTTngAnalyzes.net import *
 from LTTngAnalyzes.statedump import *
 from analyzes import *
@@ -43,7 +43,7 @@ class ProcInfo():
 
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
-        block_bio = BlockBio(self.cpus, self.disks)
+        block = Block(self.cpus, self.disks)
         net = Net(self.ifaces)
         statedump = Statedump(self.tids, self.disks)
 
@@ -64,11 +64,11 @@ class ProcInfo():
                 payload = syscall.entry(event)
             elif event.name == "exit_syscall":
                 payload = syscall.exit(event, 1)
-            elif event.name == "block_bio_complete" or \
+            elif event.name == "block_complete" or \
                    event.name == "block_rq_complete":
-                block_bio.complete(event)
-            elif event.name == "block_bio_queue":
-                block_bio.queue(event)
+                block.complete(event)
+            elif event.name == "block_queue":
+                block.queue(event)
             elif event.name == "netif_receive_skb":
                 net.recv(event)
             elif event.name == "net_dev_xmit":
