@@ -47,7 +47,10 @@ class Pyasciigraph:
         return all_max
 
     def _gen_graph_string(self, value, max_value, graph_length, start_value):
-        number_of_square = int(value * graph_length / max_value)
+        if max_value == 0:
+            number_of_square = int(value * graph_length)
+        else:
+            number_of_square = int(value * graph_length / max_value)
         number_of_space = int(start_value - number_of_square)
         return '█' * number_of_square + self._u(' ') * number_of_space
 
