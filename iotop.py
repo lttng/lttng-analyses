@@ -36,7 +36,6 @@ class IOTop():
         self.ifaces = {}
         self.syscalls = {}
         self.latency_hist = {}
-        self.block_requests = {}
 
     def process_event(self, event, sched, syscall, block, net, statedump,
             started):
@@ -91,7 +90,7 @@ class IOTop():
         syscall = Syscalls(self.cpus, self.tids, self.syscalls,
                 names=args.names, latency=args.latency,
                 latency_hist=self.latency_hist, seconds=args.seconds)
-        block = Block(self.cpus, self.disks)
+        block = Block(self.cpus, self.disks, self.tids)
         net = Net(self.ifaces)
         statedump = Statedump(self.tids, self.disks)
 
@@ -182,12 +181,12 @@ class IOTop():
                 key=operator.attrgetter('read'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d)" % (convert_size(tid.read), tid.comm, \
-                    tid.tid), tid.read))
+            values.append(("%s %s (%d), %s on disk" % (convert_size(tid.read), tid.comm, \
+                    tid.tid, convert_size(tid.block_read)), tid.read))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('I/O Read', values):
+        for line in graph.graph('Syscall I/O Read', values):
             print(line)
 
     def output_write(self, args):
@@ -199,12 +198,46 @@ class IOTop():
                 key=operator.attrgetter('write'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d)" % (convert_size(tid.write), tid.comm, \
-                    tid.tid), tid.write))
+            values.append(("%s %s (%d), %s on disk" % (convert_size(tid.write), tid.comm, \
+                    tid.tid, convert_size(tid.block_write)), tid.write))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('I/O Write', values):
+        for line in graph.graph('Syscall I/O Write', values):
+            print(line)
+
+    def disk_output_read(self, args):
+        count = 0
+        limit = args.top
+        graph = Pyasciigraph()
+        values = []
+        for tid in sorted(self.tids.values(),
+                key=operator.attrgetter('block_read'), reverse=True):
+            if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
+                continue
+            values.append(("%s %s (%d)" % (convert_size(tid.block_read), tid.comm, \
+                    tid.tid), tid.block_read))
+            count = count + 1
+            if limit > 0 and count >= limit:
+                break
+        for line in graph.graph('Block I/O Read', values):
+            print(line)
+
+    def disk_output_write(self, args):
+        count = 0
+        limit = args.top
+        graph = Pyasciigraph()
+        values = []
+        for tid in sorted(self.tids.values(),
+                key=operator.attrgetter('block_write'), reverse=True):
+            if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
+                continue
+            values.append(("%s %s (%d)" % (convert_size(tid.block_write), tid.comm, \
+                    tid.tid), tid.block_write))
+            count = count + 1
+            if limit > 0 and count >= limit:
+                break
+        for line in graph.graph('Block I/O Write', values):
             print(line)
 
     def output_nr_sector(self, args):
@@ -279,7 +312,9 @@ class IOTop():
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         self.output_read(args)
+        self.disk_output_read(args)
         self.output_write(args)
+        self.disk_output_write(args)
         self.output_file_read(args)
         self.output_nr_sector(args)
         self.output_nr_requests(args)

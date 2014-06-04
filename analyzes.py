@@ -130,7 +130,7 @@ class Analyzes():
 
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
-        block = Block(self.cpus, self.disks)
+        block = Block(self.cpus, self.disks, self.tids)
         net = Net(self.ifaces)
         statedump = Statedump(self.tids, self.disks)
 
