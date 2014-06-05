@@ -19,6 +19,8 @@ class Process():
         self.migrate_count = 0
         self.read = 0
         self.write = 0
+        self.block_read = 0
+        self.block_write = 0
         self.last_sched = 0
         # indexed by syscall_name
         self.syscalls = {}
@@ -92,7 +94,7 @@ def convert_size(size):
            return '%s %s' % (s, size_name[i])
        except:
            print(i, size_name)
-           raise("Too big to be true")
+           raise Exception("Too big to be true")
    else:
        return '0 B'
 
