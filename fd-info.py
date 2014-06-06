@@ -10,7 +10,7 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys, argparse, errno, json
+import sys, argparse, errno, json, os.path
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
@@ -128,11 +128,11 @@ class FDInfo():
             self.output_json_latencies();
 
     def output_json_latencies(self):
-        f = open(self.args.json_latencies + 'latencies.json', 'w')
+        f = open(os.path.join(self.args.json_latencies, 'latencies.json'), 'w')
         json.dump(self.latencies, f)
         f.close()
 
-        f = open(self.args.json_latencies + 'pid_metadata.json', 'w')
+        f = open(os.path.join(self.args.json_latencies, 'pid_metadata.json'), 'w')
         json.dump(self.json_metadata, f)
         f.close()
 
