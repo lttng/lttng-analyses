@@ -57,6 +57,10 @@ class IOTop():
             block.complete(event)
         elif event.name == "block_rq_issue":
             block.issue(event)
+        elif event.name == "block_bio_remap":
+            block.remap(event)
+        elif event.name == "block_bio_backmerge":
+            block.backmerge(event)
         elif event.name == "netif_receive_skb":
             net.recv(event)
         elif event.name == "net_dev_xmit":
@@ -124,6 +128,8 @@ class IOTop():
             # stats only for the last segment
             self.output(args, self.start_ns, self.trace_end_ts,
                     final=1)
+        # XXX : debug
+        #block.dump_orphan_requests()
 
     def check_refresh(self, args, event):
         """Check if we need to output something"""
