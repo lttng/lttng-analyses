@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
     while True:
         if args.graphite:
-            events="sched_switch,block_complete,block_queue," \
+            events="sched_switch,block_rq_complete,block_rq_issue," \
                     "netif_receive_skb,net_dev_xmit"
             os.system("lttng create graphite -o graphite-live >/dev/null")
             os.system("lttng enable-event -k %s -s graphite >/dev/null" % events)
