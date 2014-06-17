@@ -1,9 +1,17 @@
 from LTTngAnalyzes.common import *
 
 class Syscalls():
-    # list of syscalls that open a FD (in the exit_syscall event)
-    OPEN_SYSCALLS = ["sys_open", "sys_openat", "sys_accept",
-                          "sys_fcntl", "sys_socket", "sys_dup2"]
+    # list of syscalls that open a FD on disk (in the exit_syscall event)
+    DISK_OPEN_SYSCALLS = ["sys_open", "sys_openat"]
+    # list of syscalls that open a FD on the network (in the exit_syscall event)
+    # FIXME : sys_socket could be file-based (unix socket) but we need the
+    # payload to know that
+    NET_OPEN_SYSCALLS = ["sys_accept", "sys_socket"]
+    # list of syscalls that can duplicate a FD
+    DUP_OPEN_SYSCALLS = ["sys_fcntl", "sys_dup2"]
+    # merge the 3 open lists
+    OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + \
+            NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
     # list of syscalls that close a FD (in the "fd =" field)
     CLOSE_SYSCALLS = ["sys_close"]
     # list of syscall that read on a FD, value in the exit_syscall following
@@ -42,9 +50,6 @@ class Syscalls():
         self.latency = latency
         self.latency_hist = latency_hist
         self.seconds = seconds
-        # TS, syscall_name, filename, ms/bytes
-        self.read_timing = []
-        self.write_timing = []
 
     def global_syscall_entry(self, name):
         if not name in self.syscalls:
@@ -88,6 +93,7 @@ class Syscalls():
                 self.close_fd(proc, newfd)
             if oldfd in proc.fds.keys():
                 current_syscall["filename"] = proc.fds[oldfd].filename
+                current_syscall["fdtype"] = proc.fds[oldfd].fdtype
             else:
                 current_syscall["filename"] = ""
         elif name in ["sys_fcntl"]:
@@ -97,10 +103,17 @@ class Syscalls():
             oldfd = event["fd"]
             if oldfd in proc.fds.keys():
                 current_syscall["filename"] = proc.fds[oldfd].filename
+                current_syscall["fdtype"] = proc.fds[oldfd].fdtype
             else:
                 current_syscall["filename"] = ""
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
+        if name in Syscalls.NET_OPEN_SYSCALLS:
+            current_syscall["fdtype"] = FD.NET_FD
+        elif name in Syscalls.DISK_OPEN_SYSCALLS:
+            current_syscall["fdtype"] = FD.DISK_FD
+        else:
+            current_syscall["fdtype"] = FD.UNK_FD
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
@@ -108,8 +121,10 @@ class Syscalls():
            and filename in proc.closed_fds.keys():
             f = proc.closed_fds[filename]
             f.close += 1
-            f.read += proc.fds[fd].read
-            f.write += proc.fds[fd].write
+            f.net_read += proc.fds[fd].net_read
+            f.disk_read += proc.fds[fd].disk_read
+            f.net_write += proc.fds[fd].net_write
+            f.disk_write += proc.fds[fd].disk_write
         else:
             proc.closed_fds[filename] = proc.fds[fd]
             proc.closed_fds[filename].close = 1
@@ -177,7 +192,6 @@ class Syscalls():
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
         if name == "sys_splice":
-            # FIXME : FD() for read and write here
             current_syscall["fd_in"] = self.get_fd(t, event["fd_in"])
             current_syscall["fd_out"] = self.get_fd(t, event["fd_out"])
             current_syscall["count"] = event["len"]
@@ -232,6 +246,32 @@ class Syscalls():
         #print("%lu : %s opened %s (%d times)" % (event.timestamp, t.comm,
         #    fd.filename, fd.open))
 
+    def read_append(self, fd, proc, count):
+        if fd.fdtype == FD.NET_FD:
+            fd.net_read += count
+            proc.net_read += count
+        elif fd.fdtype == FD.DISK_FD:
+            fd.disk_read += count
+            proc.disk_read += count
+        else:
+            fd.unk_read += count
+            proc.unk_read += count
+        fd.read += count
+        proc.read += count
+
+    def write_append(self, fd, proc, count):
+        if fd.fdtype == FD.NET_FD:
+            fd.net_write += count
+            proc.net_write += count
+        elif fd.fdtype == FD.DISK_FD:
+            fd.disk_write += count
+            proc.disk_write += count
+        else:
+            fd.unk_write += count
+            proc.unk_write += count
+        fd.write += count
+        proc.write += count
+
     def track_read_write_return(self, name, ret, cpu):
         if ret < 0:
             # TODO: track errors
@@ -242,23 +282,17 @@ class Syscalls():
             proc = self.tids[proc.pid]
         current_syscall = self.tids[cpu.current_tid].current_syscall
         if name == "sys_splice":
-            current_syscall["fd_in"].read += ret
-            proc.read += ret
-            current_syscall["fd_out"].write += ret
-            proc.write += ret
+            self.read_append(current_syscall["fd_in"], proc, ret)
+            self.write_append(current_syscall["fd_out"], proc, ret)
         elif name == "sys_sendfile64":
-            current_syscall["fd_in"].read += ret
-            proc.read += ret
-            current_syscall["fd_out"].write += ret
-            proc.write += ret
+            self.read_append(current_syscall["fd_in"], proc, ret)
+            self._write_append(current_syscall["fd_out"], proc, ret)
         elif name in Syscalls.READ_SYSCALLS:
             if ret > 0:
-                current_syscall["fd"].read += ret
-                proc.read += ret
+                self.read_append(current_syscall["fd"], proc, ret)
         elif name in Syscalls.WRITE_SYSCALLS:
             if ret > 0:
-                current_syscall["fd"].write += ret
-                proc.write += ret
+                self.write_append(current_syscall["fd"], proc, ret)
 
     def track_rw_latency(self, name, ret, c, ts, started):
         if not self.names and self.latency < 0:
@@ -337,6 +371,7 @@ class Syscalls():
             t = self.tids[c.current_tid]
             current_syscall["fd"] = self.get_fd(t, ret)
             current_syscall["count"]= 0
+            current_syscall["fd"].fdtype = current_syscall["fdtype"]
             self.track_rw_latency(name, ret, c, event.timestamp, started)
         elif name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
             self.track_read_write_return(name, ret, c)

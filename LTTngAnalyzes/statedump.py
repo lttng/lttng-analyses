@@ -16,8 +16,10 @@ class Statedump():
                     if len(parent.fds[fd].filename) == 0:
                         parent.fds[fd].filename = p.fds[fd].filename
                     # merge the values as they are for the same FD
-                    parent.fds[fd].read += p.fds[fd].read
-                    parent.fds[fd].write += p.fds[fd].write
+                    parent.fds[fd].net_read += p.fds[fd].net_read
+                    parent.fds[fd].net_write += p.fds[fd].net_write
+                    parent.fds[fd].disk_read += p.fds[fd].disk_read
+                    parent.fds[fd].disk_write += p.fds[fd].disk_write
                     parent.fds[fd].open += p.fds[fd].open
                     parent.fds[fd].close += p.fds[fd].close
                 toremove.append(fd)

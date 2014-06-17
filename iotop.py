@@ -187,8 +187,11 @@ class IOTop():
                 key=operator.attrgetter('read'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d), %s on disk" % (convert_size(tid.read), tid.comm, \
-                    tid.tid, convert_size(tid.block_read)), tid.read))
+            values.append(("%s %s (%d), %s disk, %s net, %s block, %s unknown" % \
+                    (convert_size(tid.read), tid.comm, \
+                    tid.tid, convert_size(tid.disk_read),
+                    convert_size(tid.net_read), convert_size(tid.block_read),
+                    convert_size(tid.unk_read)), tid.read))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -204,8 +207,11 @@ class IOTop():
                 key=operator.attrgetter('write'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d), %s on disk" % (convert_size(tid.write), tid.comm, \
-                    tid.tid, convert_size(tid.block_write)), tid.write))
+            values.append(("%s %s (%d), %s disk, %s net, %s block, %s unknown" % \
+                    (convert_size(tid.write), tid.comm, \
+                    tid.tid, convert_size(tid.disk_write),
+                    convert_size(tid.net_write), convert_size(tid.block_write),
+                    convert_size(tid.unk_write)), tid.write))
             count = count + 1
             if limit > 0 and count >= limit:
                 break

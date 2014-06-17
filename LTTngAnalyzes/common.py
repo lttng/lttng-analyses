@@ -17,10 +17,22 @@ class Process():
         self.comm = ""
         self.cpu_ns = 0
         self.migrate_count = 0
-        self.read = 0
-        self.write = 0
+        # network read/write
+        self.net_read = 0
+        self.net_write = 0
+        # disk read/write (might be cached)
+        self.disk_read = 0
+        self.disk_write = 0
+        # actual block access read/write
         self.block_read = 0
         self.block_write = 0
+        # unclassified read/write (FD passing and statedump)
+        self.unk_read = 0
+        self.unk_write = 0
+        # total I/O read/write
+        self.read = 0
+        self.write = 0
+        # last TS where the process was scheduled in
         self.last_sched = 0
         # indexed by syscall_name
         self.syscalls = {}
@@ -61,14 +73,30 @@ class Iface():
         self.send_packets = 0
 
 class FD():
+    UNK_FD = -1
+    DISK_FD = 0
+    NET_FD = 1
+
     def __init__(self):
         self.filename = ""
         self.fd = -1
+        # network read/write
+        self.net_read = 0
+        self.net_write = 0
+        # disk read/write (might be cached)
+        self.disk_read = 0
+        self.disk_write = 0
+        # unclassified read/write (FD passing and statedump)
+        self.unk_read = 0
+        self.unk_write = 0
+        # total read/write
         self.read = 0
         self.write = 0
         self.open = 0
         self.close = 0
         self.cloexec = 0
+        # DISK_FD, NET_FD, UNK_FD
+        self.fdtype = FD.UNK_FD
         # if FD was inherited, parent PID
         self.parent = -1
 

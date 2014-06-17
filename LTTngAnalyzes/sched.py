@@ -93,6 +93,7 @@ class Sched():
         f = FD()
         f.filename = fd.filename
         f.fd = fd.fd
+        f.fdtype = fd.fdtype
         return f
 
     def process_fork(self, event):
