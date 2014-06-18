@@ -122,11 +122,11 @@ class Syscalls():
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
         if name in Syscalls.NET_OPEN_SYSCALLS:
-            current_syscall["fdtype"] = FD.NET_FD
+            current_syscall["fdtype"] = FDType.net
         elif name in Syscalls.DISK_OPEN_SYSCALLS:
-            current_syscall["fdtype"] = FD.DISK_FD
+            current_syscall["fdtype"] = FDType.disk
         else:
-            current_syscall["fdtype"] = FD.UNK_FD
+            current_syscall["fdtype"] = FDType.unknown
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
@@ -260,10 +260,10 @@ class Syscalls():
         #    fd.filename, fd.open))
 
     def read_append(self, fd, proc, count):
-        if fd.fdtype == FD.NET_FD:
+        if fd.fdtype == FDType.net:
             fd.net_read += count
             proc.net_read += count
-        elif fd.fdtype == FD.DISK_FD:
+        elif fd.fdtype == FDType.disk:
             fd.disk_read += count
             proc.disk_read += count
         else:
@@ -273,10 +273,10 @@ class Syscalls():
         proc.read += count
 
     def write_append(self, fd, proc, count):
-        if fd.fdtype == FD.NET_FD:
+        if fd.fdtype == FDType.net:
             fd.net_write += count
             proc.net_write += count
-        elif fd.fdtype == FD.DISK_FD:
+        elif fd.fdtype == FDType.disk:
             fd.disk_write += count
             proc.disk_write += count
         else:

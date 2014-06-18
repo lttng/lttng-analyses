@@ -1,6 +1,7 @@
 import math
 import time
 import os
+from enum import IntEnum
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
@@ -72,11 +73,12 @@ class Iface():
         self.send_bytes = 0
         self.send_packets = 0
 
-class FD():
-    UNK_FD = -1
-    DISK_FD = 0
-    NET_FD = 1
+class FDType(IntEnum):
+    unknown = -1
+    disk = 0
+    net = 1
 
+class FD():
     def __init__(self):
         self.filename = ""
         self.fd = -1
@@ -95,8 +97,7 @@ class FD():
         self.open = 0
         self.close = 0
         self.cloexec = 0
-        # DISK_FD, NET_FD, UNK_FD
-        self.fdtype = FD.UNK_FD
+        self.fdtype = FDType.unknown
         # if FD was inherited, parent PID
         self.parent = -1
 
