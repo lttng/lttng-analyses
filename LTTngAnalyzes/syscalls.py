@@ -6,13 +6,13 @@ class IOCategory(IntEnum):
     """Defines an enumeration mapping IO categories to integer values.
     Used mainly to export syscall metadata (to JSON)."""
 
-    invalid = -1
+    invalid = 0
     # Can't use open as a name given that is is a built-in function
     # TODO: find less stupid name
-    opn = 0
-    close = 1
-    read = 2
-    write = 3
+    opn = 1
+    close = 2
+    read = 3
+    write = 4
 
 class Syscalls():
     # list nof syscalls that open a FD on disk (in the exit_syscall event)

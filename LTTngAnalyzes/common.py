@@ -74,9 +74,9 @@ class Iface():
         self.send_packets = 0
 
 class FDType(IntEnum):
-    unknown = -1
-    disk = 0
-    net = 1
+    unknown = 0
+    disk = 1
+    net = 2
 
 class FD():
     def __init__(self):
