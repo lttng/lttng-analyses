@@ -1,7 +1,21 @@
 from LTTngAnalyzes.common import *
+from enum import IntEnum
+
+#Using IntEnum rather than Enum allows direct serialization
+class IOCategory(IntEnum):
+    """Defines an enumeration mapping IO categories to integer values.
+    Used mainly to export syscall metadata (to JSON)."""
+
+    invalid = -1
+    # Can't use open as a name given that is is a built-in function
+    # TODO: find less stupid name
+    opn = 0
+    close = 1
+    read = 2
+    write = 3
 
 class Syscalls():
-    # list of syscalls that open a FD on disk (in the exit_syscall event)
+    # list nof syscalls that open a FD on disk (in the exit_syscall event)
     DISK_OPEN_SYSCALLS = ["sys_open", "sys_openat"]
     # list of syscalls that open a FD on the network (in the exit_syscall event)
     # FIXME : sys_socket could be file-based (unix socket) but we need the
@@ -24,22 +38,21 @@ class Syscalls():
     GENERIC_NAMES = ["unknown", "socket"]
 
     def get_syscall_category(name):
-        """Receives a syscall name and returns an int
-        corresponding to the I/O category to which it corresponds:
-        0 Open, 1 Close, 2 Read, 3 Write, -1 Not I/O
+        """Receives a syscall name and returns an enum value
+        representing its IO category (open, close, read, or write)"
 
         This is used to produce json data for visualization"""
 
         if name in Syscalls.OPEN_SYSCALLS:
-            return 0
+            return IOCategory.opn
         if name in Syscalls.CLOSE_SYSCALLS:
-            return 1
+            return IOCategory.close
         if name in Syscalls.READ_SYSCALLS:
-            return 2
+            return IOCategory.read
         if name in Syscalls.WRITE_SYSCALLS:
-            return 3
+            return IOCategory.write
 
-        return -1
+        return IOCategory.invalid
 
     def __init__(self, cpus, tids, syscalls, names=None, latency=-1,
             latency_hist=None, seconds=False):
