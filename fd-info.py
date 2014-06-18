@@ -219,6 +219,9 @@ class FDInfo():
         if self.args.json_latencies:
             if pid not in self.json_metadata:
                 self.json_metadata[pid] = {'pname': comm, 'fds': {}}
+            # Fix process name
+            elif self.json_metadata[pid]['pname'] != comm:
+                self.json_metadata[pid]['pname'] = comm
 
             fd = None
 
