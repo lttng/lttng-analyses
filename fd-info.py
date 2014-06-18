@@ -228,8 +228,15 @@ class FDInfo():
                 fd = entry['fd_in'].fd
 
             if fd:
+                fdtype = FDType.unknown
+
+                if fd in self.tids[pid].fds:
+                    fdtype = self.tids[pid].fds[fd].fdtype
+
                 if fd not in self.json_metadata[pid]['fds']:
-                    self.json_metadata[pid]['fds'][fd] = filename
+                    self.json_metadata[pid]['fds'][fd] = {}
+                    self.json_metadata[pid]['fds'][fd]['filename'] = filename
+                    self.json_metadata[pid]['fds'][fd]['fdtype'] = fdtype
 
             category = Syscalls.get_syscall_category(name)
             self.latencies.append([entry['start'], duration_ns, pid, category, fd])

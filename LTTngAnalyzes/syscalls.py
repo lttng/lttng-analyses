@@ -54,6 +54,14 @@ class Syscalls():
 
         return IOCategory.invalid
 
+    def get_fd_type(name):
+        if name in Syscalls.NET_OPEN_SYSCALLS:
+            return FDType.net
+        if name in Syscalls.DISK_OPEN_SYSCALLS:
+            return FDType.disk
+
+        return FDType.unknown
+
     def __init__(self, cpus, tids, syscalls, names=None, latency=-1,
             latency_hist=None, seconds=False):
         self.cpus = cpus
@@ -121,12 +129,7 @@ class Syscalls():
                 current_syscall["filename"] = ""
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
-        if name in Syscalls.NET_OPEN_SYSCALLS:
-            current_syscall["fdtype"] = FDType.net
-        elif name in Syscalls.DISK_OPEN_SYSCALLS:
-            current_syscall["fdtype"] = FDType.disk
-        else:
-            current_syscall["fdtype"] = FDType.unknown
+        current_syscall["fdtype"] = Syscalls.get_fd_type(name)
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
