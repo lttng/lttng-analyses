@@ -15,12 +15,13 @@ class IOCategory(IntEnum):
     write = 4
 
 class Syscalls():
+    # TODO: decouple socket/family logic from this class
+    INET_FAMILIES = [AddressFamily.AF_INET, AddressFamily.AF_INET6]
+    DISK_FAMILIES = [AddressFamily.AF_UNIX]
     # list nof syscalls that open a FD on disk (in the exit_syscall event)
     DISK_OPEN_SYSCALLS = ["sys_open", "sys_openat"]
     # list of syscalls that open a FD on the network (in the exit_syscall event)
-    # FIXME : sys_socket could be file-based (unix socket) but we need the
-    # payload to know that
-    NET_OPEN_SYSCALLS = ["sys_accept", "sys_socket"]
+    NET_OPEN_SYSCALLS = ["sys_accept", "sys_socket", "sys_connect"]
     # list of syscalls that can duplicate a FD
     DUP_OPEN_SYSCALLS = ["sys_fcntl", "sys_dup2"]
     # merge the 3 open lists
@@ -54,9 +55,13 @@ class Syscalls():
 
         return IOCategory.invalid
 
-    def get_fd_type(name):
+    def get_fd_type(name, family):
         if name in Syscalls.NET_OPEN_SYSCALLS:
-            return FDType.net
+            if family in Syscalls.INET_FAMILIES:
+                return FDType.net
+            if family in Syscalls.DISK_FAMILIES:
+                return FDType.disk
+
         if name in Syscalls.DISK_OPEN_SYSCALLS:
             return FDType.disk
 
@@ -101,13 +106,13 @@ class Syscalls():
     def track_open(self, name, proc, event, cpu):
         self.tids[cpu.current_tid].current_syscall = {}
         current_syscall = self.tids[cpu.current_tid].current_syscall
-        if name in ["sys_open", "sys_openat"]:
+        if name in Syscalls.DISK_OPEN_SYSCALLS:
             current_syscall["filename"] = event["filename"]
             if event["flags"] & O_CLOEXEC == O_CLOEXEC:
                 current_syscall["cloexec"] = 1
-        elif name in ["sys_accept", "sys_socket"]:
+        elif name in Syscalls.NET_OPEN_SYSCALLS:
             current_syscall["filename"] = "socket"
-        elif name in ["sys_dup2"]:
+        elif name == "sys_dup2":
             newfd = event["newfd"]
             oldfd = event["oldfd"]
             if newfd in proc.fds.keys():
@@ -117,7 +122,7 @@ class Syscalls():
                 current_syscall["fdtype"] = proc.fds[oldfd].fdtype
             else:
                 current_syscall["filename"] = ""
-        elif name in ["sys_fcntl"]:
+        elif name == "sys_fcntl":
             # F_DUPFD
             if event["cmd"] != 0:
                 return
@@ -127,9 +132,16 @@ class Syscalls():
                 current_syscall["fdtype"] = proc.fds[oldfd].fdtype
             else:
                 current_syscall["filename"] = ""
+
+        if name in Syscalls.NET_OPEN_SYSCALLS:
+            family = event["family"]
+            current_syscall["family"] = family
+        else:
+            family = AddressFamily.AF_UNSPEC
+
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
-        current_syscall["fdtype"] = Syscalls.get_fd_type(name)
+        current_syscall["fdtype"] = Syscalls.get_fd_type(name, family)
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
@@ -240,6 +252,7 @@ class Syscalls():
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
         current_syscall = self.tids[cpu.current_tid].current_syscall
+
         name = current_syscall["filename"]
         if name not in Syscalls.GENERIC_NAMES \
            and name in t.closed_fds.keys():
@@ -248,6 +261,8 @@ class Syscalls():
         else:
             fd = FD()
             fd.filename = name
+            if current_syscall["name"] in Syscalls.NET_OPEN_SYSCALLS:
+                fd.family = current_syscall["family"]
             fd.open = 1
         if ret >= 0:
             fd.fd = ret

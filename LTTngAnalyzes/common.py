@@ -2,6 +2,7 @@ import math
 import time
 import os
 from enum import IntEnum
+from socket import AddressFamily
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
@@ -85,6 +86,8 @@ class FD():
         # network read/write
         self.net_read = 0
         self.net_write = 0
+        # address family
+        self.family = AddressFamily.AF_UNSPEC
         # disk read/write (might be cached)
         self.disk_read = 0
         self.disk_write = 0
