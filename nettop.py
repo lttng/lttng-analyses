@@ -10,11 +10,8 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-# KNOWN LIMITATIONS: right now this script does not behave as expected, as it
-# computes the I/O on all sockets regardless of domain (i.e. unix as well as IP)
-# Its behaviour also fails to account for certain sockets, which means that it
-# will for instance detect wget's network activity properly, but not firefox's.
-# This will be fixed once we have access to the network events' payloads.
+# KNOWN LIMITATIONS: Does not account for net IO on sockets opened before
+# start of trace
 
 import sys
 import argparse
@@ -25,13 +22,30 @@ from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
 
 class NetTop():
-    def __init__(self, traces, isMeasured, number):
+    def __init__(self, traces, is_io_measured, is_connection_measured, number):
         self.traces = traces
-        self.isMeasured = isMeasured
+        self.is_io_measured = is_io_measured
+        self.is_connection_measured = is_connection_measured
         self.number = number
         self.cpus = {}
         self.tids = {}
         self.syscalls = {}
+
+    def get_total_transfer(self, transfer):
+        total = 0
+
+        if is_connection_measured['ipv4']:
+            if is_io_measured['up']:
+                total += transfer['ipv4']['up']
+            if is_io_measured['down']:
+                total += transfer['ipv4']['down']
+        if is_connection_measured['ipv6']:
+            if is_io_measured['up']:
+                total += transfer['ipv6']['up']
+            if is_io_measured['down']:
+                total += transfer['ipv6']['down']
+
+        return total
 
     def process_event(self, event, sched, syscall):
         if event.name == 'sched_switch':
@@ -78,19 +92,29 @@ class NetTop():
         transferred = {}
 
         for tid in self.tids.keys():
-            transferred[tid] = 0;
+            transferred[tid] = {'ipv4': {}, 'ipv6': {}}
+
+            transferred[tid]['ipv4'] = {'up': 0, 'down': 0};
+            transferred[tid]['ipv6'] = {'up': 0, 'down': 0};
 
             for fd in self.tids[tid].fds.values():
-                if fd.filename.startswith('socket'):
-                    if self.isMeasured['up']:
-                        transferred[tid] += fd.write
-                    if self.isMeasured['down']:
-                        transferred[tid] += fd.read
+                if fd.fdtype is FDType.net:
+                    if fd.family == AddressFamily.AF_INET:
+                        transferred[tid]['ipv4']['up'] += fd.net_write
+                        transferred[tid]['ipv4']['down'] += fd.net_read
+                    elif fd.family == AddressFamily.AF_INET6:
+                        transferred[tid]['ipv6']['up'] += fd.net_write
+                        transferred[tid]['ipv6']['down'] += fd.net_read
 
-        for tid in sorted(transferred, key = transferred.get,
+        for tid in sorted(transferred, key = lambda tid:
+                          self.get_total_transfer(transferred[tid]),
                           reverse = True)[:self.number]:
-            if transferred[tid] != 0:
-                print(tid, self.tids[tid].comm, convert_size(transferred[tid]))
+
+            total = self.get_total_transfer(transferred[tid])
+
+            if total != 0:
+                print(tid, self.tids[tid].comm, convert_size(total))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Network usage \
@@ -99,6 +123,9 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--type', type=str, default='all',
                         help='Types of network IO to measure. Possible values:\
                         all, up, down')
+    parser.add_argument('-c', '--connection', type=str, default='all',
+                        help='Types of connections to measure. Possible values:\
+                        all, ipv4, ipv6')
     parser.add_argument('-n', '--number', type=int, default=10,
                         help='Number of processes to display')
     parser.add_argument('--no-progress', action="store_true",
@@ -106,17 +133,31 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    types = args.type.split(',')
+    io_types = args.type.split(',')
+    possible_io_types = ['up', 'down']
 
-    possibleTypes = ['up', 'down']
-
-    if 'all' in types:
-        isMeasured = { x: True for x in possibleTypes }
+    if 'all' in io_types:
+        is_io_measured = { x: True for x in possible_io_types }
     else:
-        isMeasured = { x: False for x in possibleTypes }
-        for type in types:
-            if type in possibleTypes:
-                isMeasured[type] = True
+        is_io_measured = { x: False for x in possible_io_types }
+        for type in io_types:
+            if type in possible_io_types:
+                is_io_measured[type] = True
+            else:
+                print('Invalid type:', type)
+                parser.print_help()
+                sys.exit(1)
+
+    connection_types = args.connection.split(',')
+    possible_connection_types = ['ipv4', 'ipv6']
+
+    if 'all' in connection_types:
+        is_connection_measured = { x: True for x in possible_connection_types }
+    else:
+        is_connection_measured = { x: False for x in possible_connection_types }
+        for type in connection_types:
+            if type in possible_connection_types:
+                is_connection_measured[type] = True
             else:
                 print('Invalid type:', type)
                 parser.print_help()
@@ -130,7 +171,7 @@ if __name__ == '__main__':
     traces = TraceCollection()
     handle = traces.add_trace(args.path, 'ctf')
 
-    c = NetTop(traces, isMeasured, args.number)
+    c = NetTop(traces, is_io_measured, is_connection_measured, args.number)
     c.run(args)
 
     traces.remove_trace(handle)
