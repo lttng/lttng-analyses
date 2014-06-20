@@ -22,6 +22,8 @@ from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
 
 class NetTop():
+    TOTAL_FORMAT = '{0:20} {1:<10} total: {2:10}'
+
     def __init__(self, traces, is_io_measured, is_connection_measured, number):
         self.traces = traces
         self.is_io_measured = is_io_measured
@@ -106,6 +108,9 @@ class NetTop():
                         transferred[tid]['ipv6']['up'] += fd.net_write
                         transferred[tid]['ipv6']['down'] += fd.net_read
 
+        print('Processes by Network I/O')
+        print('#' * 80)
+
         for tid in sorted(transferred, key = lambda tid:
                           self.get_total_transfer(transferred[tid]),
                           reverse = True)[:self.number]:
@@ -113,7 +118,9 @@ class NetTop():
             total = self.get_total_transfer(transferred[tid])
 
             if total != 0:
-                print(tid, self.tids[tid].comm, convert_size(total))
+                print(NetTop.TOTAL_FORMAT.format(self.tids[tid].comm,
+                                                 '(' + str(tid) + ')',
+                                                 convert_size(total)))
 
 
 if __name__ == '__main__':
