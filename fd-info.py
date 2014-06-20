@@ -220,32 +220,7 @@ class FDInfo():
         duration = duration_ns / 1000000000
 
         if self.args.json_latencies:
-            if pid not in self.json_metadata:
-                self.json_metadata[pid] = {'pname': comm, 'fds': {}}
-            # Fix process name
-            elif self.json_metadata[pid]['pname'] != comm:
-                self.json_metadata[pid]['pname'] = comm
-
-            fd = None
-
-            if 'fd' in entry.keys():
-                fd = entry['fd'].fd
-            elif 'fd_in' in entry.keys():
-                fd = entry['fd_in'].fd
-
-            if fd:
-                fdtype = FDType.unknown
-
-                if fd in self.tids[pid].fds:
-                    fdtype = self.tids[pid].fds[fd].fdtype
-
-                if fd not in self.json_metadata[pid]['fds']:
-                    self.json_metadata[pid]['fds'][fd] = {}
-                    self.json_metadata[pid]['fds'][fd]['filename'] = filename
-                    self.json_metadata[pid]['fds'][fd]['fdtype'] = fdtype
-
-            category = Syscalls.get_syscall_category(name)
-            self.latencies.append([entry['start'], duration_ns, pid, category, fd])
+            self.log_fd_event_json(pid, comm, entry, name, duration_ns, filename)
 
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.FAILURE_RED)
@@ -265,6 +240,35 @@ class FDInfo():
 
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.NORMAL_WHITE)
+
+    def log_fd_event_json(self, pid, comm, entry, name, duration_ns, filename):
+        if pid not in self.json_metadata:
+            self.json_metadata[pid] = {'pname': comm, 'fds': {}}
+        # Fix process name
+        elif self.json_metadata[pid]['pname'] != comm:
+            self.json_metadata[pid]['pname'] = comm
+
+        fd = None
+
+        if 'fd' in entry.keys():
+            fd = entry['fd'].fd
+        elif 'fd_in' in entry.keys():
+            fd = entry['fd_in'].fd
+
+        if fd:
+            fdtype = FDType.unknown
+
+            if fd in self.tids[pid].fds:
+                fdtype = self.tids[pid].fds[fd].fdtype
+
+            if fd not in self.json_metadata[pid]['fds']:
+                self.json_metadata[pid]['fds'][fd] = {}
+                self.json_metadata[pid]['fds'][fd]['filename'] = filename
+                self.json_metadata[pid]['fds'][fd]['fdtype'] = fdtype
+
+        category = Syscalls.get_syscall_category(name)
+        self.latencies.append([entry['start'], duration_ns, pid, category, fd])
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FD syscalls analysis')
