@@ -166,7 +166,7 @@ class FDInfo():
         else:
             endtime = '{:.9f}'.format(endtime / 1000000000)
 
-        if filename.startswith(self.args.prefix):
+        if filename.startswith(self.args.prefix) and not self.args.quiet:
             print(FDInfo.DUMP_FORMAT.format(endtime, comm, pid, name, filename))
 
     def output_fd_event(self, exit_event, entry):
@@ -201,7 +201,6 @@ class FDInfo():
 
         if self.args.end and exit_event.timestamp > self.args.end:
             return
-
 
         endtime = exit_event.timestamp
         if not self.args.unixtime:
@@ -247,7 +246,7 @@ class FDInfo():
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.FAILURE_RED)
 
-        if filename.startswith(self.args.prefix):
+        if filename.startswith(self.args.prefix) and not self.args.quiet:
             if not failed:
                 print(FDInfo.SUCCESS_FORMAT.format(endtime, duration, comm, pid,
                                                    name, ret, filename))
@@ -296,6 +295,8 @@ if __name__ == '__main__':
                         help='Disable color output')
     parser.add_argument('--json-latencies', type=str, default=None,
                         help='Store latencies as JSON in specified directory')
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='Don\'t output fd events to stdout')
 
     args = parser.parse_args()
 
