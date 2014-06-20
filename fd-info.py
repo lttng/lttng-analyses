@@ -17,6 +17,10 @@ from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.statedump import *
 from LTTngAnalyzes.syscalls import *
 
+NS_IN_S = 1000000000
+NS_IN_MS = 1000000
+NS_IN_US = 1000
+
 def parse_errname(errname):
     errname = errname.upper()
 
@@ -39,11 +43,11 @@ def parse_duration(duration):
     if duration.endswith('ns'):
         return int(duration[0:-2])
     elif duration.endswith('us'):
-        return int(float(duration[0:-2]) * 1000)
+        return int(float(duration[0:-2]) * NS_IN_US)
     elif duration.endswith('ms'):
-        return int(float(duration[0:-2]) * 1000000)
+        return int(float(duration[0:-2]) * NS_IN_MS)
     elif duration.endswith('s'):
-        return int(float(duration[0:-1]) * 1000000000)
+        return int(float(duration[0:-1]) * NS_IN_S)
     else:
         print('Invalid duration: ' + duration)
         sys.exit(1)
@@ -164,7 +168,7 @@ class FDInfo():
         if not self.args.unixtime:
             endtime = ns_to_hour_nsec(endtime)
         else:
-            endtime = '{:.9f}'.format(endtime / 1000000000)
+            endtime = '{:.9f}'.format(endtime / NS_IN_S)
 
         if filename.startswith(self.args.prefix) and not self.args.quiet:
             print(FDInfo.DUMP_FORMAT.format(endtime, comm, pid, name, filename))
