@@ -16,6 +16,7 @@ from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.statedump import *
 from LTTngAnalyzes.syscalls import *
+from pymongo import MongoClient
 
 NS_IN_S = 1000000000
 NS_IN_MS = 1000000
@@ -129,7 +130,10 @@ class FDInfo():
             self.process_event(event, sched, syscall, statedump)
 
         if self.args.json_latencies:
-            self.output_json_latencies();
+            self.output_json_latencies()
+
+        if self.args.mongo:
+            self.store_mongo_latencies()
 
     def output_json_latencies(self):
         f = open(os.path.join(self.args.json_latencies, 'latencies.json'), 'w')
@@ -139,6 +143,13 @@ class FDInfo():
         f = open(os.path.join(self.args.json_latencies, 'pid_metadata.json'), 'w')
         json.dump(self.json_metadata, f)
         f.close()
+
+    def store_mongo_latencies(self):
+        client = MongoClient('localhost', 27017)
+        db = client.analyses
+        collection = db.fdinfo
+
+        collection.insert(self.json_metadata)
 
     def output_dump(self, event):
         # dump events can't fail, and don't have a duration, so ignore
@@ -219,7 +230,7 @@ class FDInfo():
 
         duration = duration_ns / 1000000000
 
-        if self.args.json_latencies:
+        if self.args.json_latencies or self.args.mongo:
             self.log_fd_event_json(pid, comm, entry, name, duration_ns, filename)
 
         if self.is_interactive and failed and not self.args.no_color:
@@ -242,11 +253,11 @@ class FDInfo():
             sys.stdout.write(FDInfo.NORMAL_WHITE)
 
     def log_fd_event_json(self, pid, comm, entry, name, duration_ns, filename):
-        if pid not in self.json_metadata:
-            self.json_metadata[pid] = {'pname': comm, 'fds': {}}
+        if str(pid) not in self.json_metadata:
+            self.json_metadata[str(pid)] = {'pname': comm, 'fds': {}}
         # Fix process name
-        elif self.json_metadata[pid]['pname'] != comm:
-            self.json_metadata[pid]['pname'] = comm
+        elif self.json_metadata[str(pid)]['pname'] != comm:
+            self.json_metadata[str(pid)]['pname'] = comm
 
         fd = None
 
@@ -261,10 +272,10 @@ class FDInfo():
             if fd in self.tids[pid].fds:
                 fdtype = self.tids[pid].fds[fd].fdtype
 
-            if fd not in self.json_metadata[pid]['fds']:
-                self.json_metadata[pid]['fds'][fd] = {}
-                self.json_metadata[pid]['fds'][fd]['filename'] = filename
-                self.json_metadata[pid]['fds'][fd]['fdtype'] = fdtype
+            if str(fd) not in self.json_metadata[str(pid)]['fds']:
+                self.json_metadata[str(pid)]['fds'][str(fd)] = {}
+                self.json_metadata[str(pid)]['fds'][str(fd)]['filename'] = filename
+                self.json_metadata[str(pid)]['fds'][str(fd)]['fdtype'] = fdtype
 
         category = Syscalls.get_syscall_category(name)
         self.latencies.append([entry['start'], duration_ns, pid, category, fd])
@@ -303,6 +314,8 @@ if __name__ == '__main__':
                         help='Disable color output')
     parser.add_argument('--json-latencies', type=str, default=None,
                         help='Store latencies as JSON in specified directory')
+    parser.add_argument('--mongo', action='store_true',
+                        help='Store latencies into MongoDB')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Don\'t output fd events to stdout')
 
