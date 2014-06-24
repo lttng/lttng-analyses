@@ -224,14 +224,14 @@ class FDInfo():
         if not self.args.unixtime:
             endtime = ns_to_hour_nsec(endtime)
         else:
-            endtime = '{:.9f}'.format(endtime / 1000000000)
+            endtime = '{:.9f}'.format(endtime / NS_IN_S)
 
         duration_ns = (exit_event.timestamp - entry['start'])
 
         if self.args.duration > 0 and duration_ns < self.args.duration:
             return
 
-        duration = duration_ns / 1000000000
+        duration = duration_ns / NS_IN_S
 
         if self.args.json_latencies or self.args.mongo:
             self.log_fd_event_json(pid, comm, entry, name, duration_ns, filename)
@@ -355,9 +355,9 @@ if __name__ == '__main__':
 
     # Convert start/endtime from seconds to nanoseconds
     if args.start:
-        args.start = args.start * 1000000000
+        args.start = args.start * NS_IN_S
     if args.end:
-        args.end = args.end * 1000000000
+        args.end = args.end * NS_IN_S
 
     # Parse duration option
     args.duration = parse_duration(args.duration)
