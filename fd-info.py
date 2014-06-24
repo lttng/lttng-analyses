@@ -281,7 +281,11 @@ class FDInfo():
                 self.json_metadata[str(pid)]['fds'][str(fd)]['fdtype'] = fdtype
 
         category = Syscalls.get_syscall_category(name)
-        self.latencies.append([entry['start'], duration_ns, pid, category, fd])
+        self.latencies.append({'ts_start': entry['start'],
+                               'duration': duration_ns,
+                               'pid': pid,
+                               'category': category,
+                               'fd': fd})
 
 
 if __name__ == '__main__':
