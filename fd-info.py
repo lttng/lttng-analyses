@@ -17,6 +17,7 @@ from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.statedump import *
 from LTTngAnalyzes.syscalls import *
 from pymongo import MongoClient
+from pymongo.errors import CollectionInvalid
 
 NS_IN_S = 1000000000
 NS_IN_MS = 1000000
@@ -24,6 +25,8 @@ NS_IN_US = 1000
 
 MONGO_HOST = 'localhost'
 MONGO_PORT = 27017
+
+BYTES_IN_MB = 1048576
 
 def parse_errname(errname):
     errname = errname.upper()
@@ -83,6 +86,10 @@ class FDInfo():
         # Stores metadata about processes when outputting to json
         # Keys: PID, values: {pname, fds}
         self.json_metadata = {}
+        # Used to identify session in database
+        self.session_name = self.args.path.split('/')[-3]
+        # Hyphens in collections names are an incovenience in mongo
+        self.session_name = self.session_name.replace('-', '_')
 
     def process_event(self, event, sched, syscall, statedump):
         if event.name == 'sched_switch':
@@ -150,9 +157,29 @@ class FDInfo():
     def store_mongo_latencies(self):
         client = MongoClient(MONGO_HOST, MONGO_PORT)
         db = client.analyses
-        collection = db.fdinfo
 
-        collection.insert(self.json_metadata)
+        latencies_name = 'latencies_' + self.session_name
+        metadata_name = 'metadata_' + self.session_name
+
+        try:
+            db.create_collection(latencies_name, capped = True,
+                                 size = 64 * BYTES_IN_MB)
+            db.create_collection(metadata_name, capped = True,
+                                 size = 8 * BYTES_IN_MB)
+        except CollectionInvalid as ex:
+            print('Failed to create collection: ')
+            print(ex)
+            print('Data will not be stored to MongoDB')
+            return
+
+        # Only insert data once both collections have been successfully created
+        for event in self.latencies:
+            db[latencies_name].insert(event)
+
+        for pid in self.json_metadata:
+            metadatum = self.json_metadata[pid]
+            metadatum['pid'] = pid
+            db[metadata_name].insert(metadatum)
 
     def output_dump(self, event):
         # dump events can't fail, and don't have a duration, so ignore
