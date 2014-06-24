@@ -22,6 +22,9 @@ NS_IN_S = 1000000000
 NS_IN_MS = 1000000
 NS_IN_US = 1000
 
+MONGO_HOST = 'localhost'
+MONGO_PORT = 27017
+
 def parse_errname(errname):
     errname = errname.upper()
 
@@ -145,7 +148,7 @@ class FDInfo():
         f.close()
 
     def store_mongo_latencies(self):
-        client = MongoClient('localhost', 27017)
+        client = MongoClient(MONGO_HOST, MONGO_PORT)
         db = client.analyses
         collection = db.fdinfo
 
