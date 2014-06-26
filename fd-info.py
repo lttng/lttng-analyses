@@ -285,11 +285,11 @@ class FDInfo():
             sys.stdout.write(FDInfo.NORMAL_WHITE)
 
     def log_fd_event_json(self, pid, comm, entry, name, duration_ns, filename):
-        if str(pid) not in self.json_metadata:
-            self.json_metadata[str(pid)] = {'pname': comm, 'fds': {}}
+        if pid not in self.json_metadata:
+            self.json_metadata[pid] = {'pname': comm, 'fds': {}}
         # Fix process name
-        elif self.json_metadata[str(pid)]['pname'] != comm:
-            self.json_metadata[str(pid)]['pname'] = comm
+        elif self.json_metadata[pid]['pname'] != comm:
+            self.json_metadata[pid]['pname'] = comm
 
         fd = None
 
@@ -304,10 +304,10 @@ class FDInfo():
             if fd in self.tids[pid].fds:
                 fdtype = self.tids[pid].fds[fd].fdtype
 
-            if str(fd) not in self.json_metadata[str(pid)]['fds']:
-                self.json_metadata[str(pid)]['fds'][str(fd)] = {}
-                self.json_metadata[str(pid)]['fds'][str(fd)]['filename'] = filename
-                self.json_metadata[str(pid)]['fds'][str(fd)]['fdtype'] = fdtype
+            if str(fd) not in self.json_metadata[pid]['fds']:
+                self.json_metadata[pid]['fds'][str(fd)] = {}
+                self.json_metadata[pid]['fds'][str(fd)]['filename'] = filename
+                self.json_metadata[pid]['fds'][str(fd)]['fdtype'] = fdtype
 
         category = Syscalls.get_syscall_category(name)
         self.latencies.append({'ts_start': entry['start'],
