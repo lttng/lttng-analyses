@@ -87,7 +87,7 @@ class FDInfo():
         # Keys: PID, values: {pname, fds}
         self.json_metadata = {}
         # Used to identify session in database
-        self.session_name = self.args.path.split('/')[-3]
+        self.session_name = self.args.path.split('/')[-2]
         # Hyphens in collections names are an incovenience in mongo
         self.session_name = self.session_name.replace('-', '_')
 
