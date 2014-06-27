@@ -172,11 +172,14 @@ class FDInfo():
             print('Data will not be stored to MongoDB')
             return
 
-        db.sessions.insert({'name': self.session_name});
+        db.sessions.insert({'name': self.session_name})
 
         # Only insert data once both collections have been successfully created
         for event in self.latencies:
             db[latencies_name].insert(event)
+
+        # Ascending timestamp index
+        db[latencies_name].create_index("ts_start")
 
         for pid in self.json_metadata:
             metadatum = self.json_metadata[pid]
