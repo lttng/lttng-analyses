@@ -12,14 +12,14 @@ and the latency of the I/O syscalls and block devices.
 
 The user can specify a threshold to see the requests that took more than a
 certain time to complete, this extracts the timestamp begin and end of the
-request, so it is then easier to dig into the trace and understand why this
+requests, so it is then easier to dig into the trace and understand why this
 latency happened. It is also possible to see all the I/O requests performed by
-a list of processes.
+a list of processes (see `--name` parameter).
 
 ## Requirements
-LTTng 2.5
-Babeltrace 1.2 (with python bindings compiled)
-Python 3
+* LTTng 2.5
+* Babeltrace 1.2 (with python bindings compiled)
+* Python 3
 
 ## Install on Ubuntu (12.04 and 14.04 at least)
 ```
@@ -43,7 +43,7 @@ next, after a fresh install it requires to logout and login)
 # lttng destroy
 ```
 
-## Remote Trace creation
+## Remote trace creation
 You can also create a trace on a server and send it to a remote host. The
 remote host only need to run `lttng-relayd -d` and be reachable by network.
 The only difference with the above commands is the trace session creation `# lttng create -U net://<remote-host>`
