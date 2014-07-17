@@ -205,6 +205,18 @@ rsync requests latency (ms)
 This trace was collected before we had all the instrumentation required to extract
 nicely all the block usage and resolve the name of the partitions, now it looks more like :
 ```
+Block I/O Write
+############################################################################################
+██████████████████████████████████████████████████  290816  284.0 KB lttng-consumerd (10287)
+██████████████████████████                          155648  152.0 KB lttng-consumerd (10291)
+██                                                   12288  12.0 KB jbd2/sda2-8 (181)       
+                                                      4096  4.0 KB  (0)                     
+                                                         0  0 B init (1)                    
+                                                         0  0 B kthreadd (2)                
+                                                         0  0 B ksoftirqd/0 (3)             
+                                                         0  0 B kworker/0:0H (5)            
+                                                         0  0 B ibus-engine-sim (3078)      
+                                                         0  0 B rcu_sched (7)
 Disk nr_sector
 ###############################################################################
 ████████████████████████████████████████████████████████████████████  872  dm-0
