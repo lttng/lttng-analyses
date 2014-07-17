@@ -46,7 +46,10 @@ next, after a fresh install it requires to logout and login)
 ## Remote trace creation
 You can also create a trace on a server and send it to a remote host. The
 remote host only need to run `lttng-relayd -d` and be reachable by network.
-The only difference with the above commands is the trace session creation `# lttng create -U net://<remote-host>`
+The only difference with the above commands is the trace session creation :
+```
+# lttng create -U net://<remote-host>
+```
 
 ## Run the analysis
 Once you have collected your trace, you can run iotop.py on it.  In this
