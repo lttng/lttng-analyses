@@ -133,11 +133,12 @@ class Syscalls():
             else:
                 current_syscall["filename"] = ""
 
-        if name in Syscalls.NET_OPEN_SYSCALLS:
+        if name in Syscalls.NET_OPEN_SYSCALLS and "family" in event.keys():
             family = event["family"]
             current_syscall["family"] = family
         else:
             family = AddressFamily.AF_UNSPEC
+            current_syscall["family"] = family
 
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
