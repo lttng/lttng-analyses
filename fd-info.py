@@ -10,7 +10,7 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys, argparse, errno, json, os.path
+import sys, argparse, errno, json, os.path, socket
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
@@ -22,9 +22,6 @@ from pymongo.errors import CollectionInvalid
 NS_IN_S = 1000000000
 NS_IN_MS = 1000000
 NS_IN_US = 1000
-
-MONGO_HOST = 'localhost'
-MONGO_PORT = 27017
 
 BYTES_IN_MB = 1048576
 
@@ -155,7 +152,7 @@ class FDInfo():
         f.close()
 
     def store_mongo_latencies(self):
-        client = MongoClient(MONGO_HOST, MONGO_PORT)
+        client = MongoClient(self.args.mongo_host, self.args.mongo_port)
         db = client.analyses
 
         latencies_name = 'latencies_' + self.session_name
@@ -353,8 +350,9 @@ if __name__ == '__main__':
                         help='Disable color output')
     parser.add_argument('--json-latencies', type=str, default=None,
                         help='Store latencies as JSON in specified directory')
-    parser.add_argument('--mongo', action='store_true',
-                        help='Store latencies into MongoDB')
+    parser.add_argument('--mongo', type=str, default=None,
+                        help='Store latencies into MongoDB at specified ip\
+                        and port')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Don\'t output fd events to stdout')
 
@@ -397,6 +395,19 @@ if __name__ == '__main__':
 
     # Parse duration option
     args.duration = parse_duration(args.duration)
+
+    if args.mongo:
+        try:
+            (args.mongo_host, args.mongo_port) = args.mongo.split(":")
+            socket.inet_aton(args.mongo_host)
+            args.mongo_port = int(args.mongo_port)
+        except ValueError:
+            print('Invalid MongoDB address format: ', args.mongo)
+            print('Expected format: IPV4:PORT')
+            sys.exit(1)
+        except socket.error:
+            print('Invalid MongoDB ip ', args.mongo_host)
+            sys.exit(1)
 
     analyser = FDInfo(args, traces, output_enabled, err_number)
 
