@@ -1,6 +1,8 @@
 import math
 import time
 import os
+import socket
+import struct
 from enum import IntEnum
 from socket import AddressFamily
 
@@ -160,3 +162,6 @@ def getFolderSize(folder):
         elif os.path.isdir(itempath):
             total_size += getFolderSize(itempath)
     return total_size
+
+def int_to_ipv4(ip):
+    return socket.inet_ntoa(struct.pack("!I", ip))

@@ -21,7 +21,7 @@ class Syscalls():
     # list nof syscalls that open a FD on disk (in the exit_syscall event)
     DISK_OPEN_SYSCALLS = ["sys_open", "sys_openat"]
     # list of syscalls that open a FD on the network (in the exit_syscall event)
-    NET_OPEN_SYSCALLS = ["sys_accept", "sys_socket", "sys_connect"]
+    NET_OPEN_SYSCALLS = ["sys_accept", "sys_socket"]
     # list of syscalls that can duplicate a FD
     DUP_OPEN_SYSCALLS = ["sys_fcntl", "sys_dup2"]
     # merge the 3 open lists
@@ -110,6 +110,12 @@ class Syscalls():
             current_syscall["filename"] = event["filename"]
             if event["flags"] & O_CLOEXEC == O_CLOEXEC:
                 current_syscall["cloexec"] = 1
+        elif name in ["sys_accept"] and "family" in event.keys():
+            if event["family"] == AddressFamily.AF_INET:
+                ipport = "%s:%d" % (int_to_ipv4(event["v4addr"]), event["sport"])
+                current_syscall["filename"] = ipport
+            else:
+                current_syscall["filename"] = "socket"
         elif name in Syscalls.NET_OPEN_SYSCALLS:
             current_syscall["filename"] = "socket"
         elif name == "sys_dup2":
@@ -194,6 +200,13 @@ class Syscalls():
             ret_string =  "%s %s(%d)" % (ns_to_hour_nsec(event.timestamp),
                     name, event["fd"])
             self.track_close(name, t, event, c)
+        # when a connect occurs, no new FD is returned, but we can fix
+        # the "filename" if we have the destination info
+        elif name in ["sys_connect"] and "family" in event.keys():
+            if event["family"] == AddressFamily.AF_INET:
+                fd = self.get_fd(t, event["fd"])
+                ipport = "%s:%d" % (int_to_ipv4(event["v4addr"]), event["dport"])
+                fd.filename = ipport
         return ret_string
 
     def get_fd(self, proc, fd):

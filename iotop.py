@@ -177,6 +177,16 @@ class IOTop():
                 break
         for line in graph.graph('Files Read', values, sort=2):
             print(line)
+        for f in files.values():
+            if f["write"] == 0:
+                continue
+            values.append(("%s %s %s" % (f["name"],
+                convert_size(f["write"]), f["other"]), f["write"]))
+            count = count + 1
+            if limit > 0 and count >= limit:
+                break
+        for line in graph.graph('Files Write', values, sort=2):
+            print(line)
 
     def output_read(self, args):
         count = 0
