@@ -44,7 +44,7 @@ class Sched():
                     if not context in c.perf.keys():
                         c.perf[context] = event[context]
                     if not context in p.perf.keys():
-                        p.perf[context] = event[context]
+                        p.perf[context] = 0
                     else:
                         # add the difference between the last known value
                         # for this counter on the current CPU
