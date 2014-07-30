@@ -31,7 +31,7 @@ class Sched():
             if context.startswith("perf_"):
                 c.perf[context] = event[context]
 
-    def sched_switch_per_tid(self, ts, prev_tid, next_tid, next_comm, cpu_id, event):
+    def sched_switch_per_tid(self, ts, prev_tid, next_tid, next_comm, cpu_id, event, ret):
         """Compute per-tid usage"""
         # per-tid usage
         if prev_tid in self.tids:
@@ -47,7 +47,10 @@ class Sched():
                     else:
                         # add the difference between the last known value
                         # for this counter on the current CPU
-                        p.perf[context] += event[context] - c.perf[context]
+                        diff = event[context] - c.perf[context]
+                        p.perf[context] += diff
+                        if diff > 0:
+                            ret[context] = diff
 
         # exclude swapper process
         if next_tid == 0:
@@ -62,19 +65,22 @@ class Sched():
             p = self.tids[next_tid]
             p.comm = next_comm
         p.last_sched = ts
+        return ret
 
     def switch(self, event):
-        """Handle sched_switch event"""
+        """Handle sched_switch event, returns a dict of changed values"""
         prev_tid = event["prev_tid"]
         next_comm = event["next_comm"]
         next_tid = event["next_tid"]
         cpu_id = event["cpu_id"]
+        ret = {}
 
         self.sched_switch_per_tid(event.timestamp, prev_tid, next_tid, next_comm,
-                cpu_id, event)
+                cpu_id, event, ret)
         # because of perf events check, we need to do the CPU analysis after
         # the per-tid analysis
         self.sched_switch_per_cpu(cpu_id, event.timestamp, next_tid, event)
+        return ret
 
     def migrate_task(self, event):
         tid = event["tid"]
