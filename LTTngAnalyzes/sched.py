@@ -43,19 +43,19 @@ class Sched():
                 if context.startswith("perf_"):
                     if not context in c.perf.keys():
                         c.perf[context] = event[context]
+                    # add the difference between the last known value
+                    # for this counter on the current CPU
+                    diff = event[context] - c.perf[context]
                     if not context in p.perf.keys():
-                        p.perf[context] = 0
+                        p.perf[context] = diff
                     else:
-                        # add the difference between the last known value
-                        # for this counter on the current CPU
-                        diff = event[context] - c.perf[context]
                         p.perf[context] += diff
-                        if diff > 0:
-                            ret[context] = diff
+                    if diff > 0:
+                        ret[context] = diff
 
         # exclude swapper process
         if next_tid == 0:
-            return
+            return ret
 
         if not next_tid in self.tids:
             p = Process()
