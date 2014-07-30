@@ -45,6 +45,7 @@ class Process():
         # indexed by filename
         self.closed_fds = {}
         self.current_syscall = {}
+        self.perf = {}
 
 class CPU():
     def __init__(self):
@@ -52,6 +53,7 @@ class CPU():
         self.cpu_ns = 0
         self.current_tid = -1
         self.start_task_ns = 0
+        self.perf = {}
 
 class Syscall():
     def __init__(self):
