@@ -1,3 +1,4 @@
+from babeltrace import CTFScope
 from LTTngAnalyzes.common import *
 
 class Sched():
@@ -38,7 +39,7 @@ class Sched():
             p = self.tids[prev_tid]
             p.cpu_ns += (ts - p.last_sched)
             c = self.cpus[cpu_id]
-            for context in event.keys():
+            for context in event.field_list_with_scope(CTFScope.STREAM_EVENT_CONTEXT):
                 if context.startswith("perf_"):
                     if not context in c.perf.keys():
                         c.perf[context] = event[context]
