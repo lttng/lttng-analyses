@@ -266,7 +266,8 @@ class FDInfo():
         duration = duration_ns / NS_IN_S
 
         if self.args.json_latencies or self.args.mongo:
-            self.log_fd_event_json(pid, comm, entry, name, duration_ns, filename)
+            self.log_fd_event_json(pid, comm, entry, name, duration_ns,filename,
+                                   ret)
 
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.FAILURE_RED)
@@ -287,7 +288,8 @@ class FDInfo():
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.NORMAL_WHITE)
 
-    def log_fd_event_json(self, pid, comm, entry, name, duration_ns, filename):
+    def log_fd_event_json(self, pid, comm, entry, name, duration_ns, filename,
+                          ret):
         if pid not in self.json_metadata:
             self.json_metadata[pid] = {'pname': comm, 'fds': {}}
         # Fix process name
@@ -313,12 +315,17 @@ class FDInfo():
                 self.json_metadata[pid]['fds'][str(fd)]['fdtype'] = fdtype
 
         category = Syscalls.get_syscall_category(name)
-        self.latencies.append({'ts_start': entry['start'],
-                               'duration': duration_ns,
-                               'pid': pid,
-                               'category': category,
-                               'fd': fd})
 
+        latency = {'ts_start': entry['start'],
+                   'duration': duration_ns,
+                   'pid': pid,
+                   'category': category,
+                   'fd': fd}
+
+        if ret < 0:
+            latency['errno'] = -ret
+
+        self.latencies.append(latency)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FD syscalls analysis')
