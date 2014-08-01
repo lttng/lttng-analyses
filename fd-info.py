@@ -319,8 +319,10 @@ class FDInfo():
         latency = {'ts_start': entry['start'],
                    'duration': duration_ns,
                    'pid': pid,
-                   'category': category,
-                   'fd': fd}
+                   'category': category}
+
+        if fd is not None:
+            latency['fd'] = fd
 
         if ret < 0:
             latency['errno'] = -ret
