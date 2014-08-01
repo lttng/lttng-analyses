@@ -49,6 +49,8 @@ class IOTop():
 
         if event.name == "sched_switch":
             sched.switch(event)
+        if event.name in ["sched_wakeup", "sched_wakeup_new"]:
+            sched.wakeup(event)
         elif event.name[0:4] == "sys_":
             syscall.entry(event)
         elif event.name == "exit_syscall":

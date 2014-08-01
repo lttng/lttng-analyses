@@ -54,6 +54,7 @@ class CPU():
         self.current_tid = -1
         self.start_task_ns = 0
         self.perf = {}
+        self.wakeup_queue = []
 
 class Syscall():
     def __init__(self):

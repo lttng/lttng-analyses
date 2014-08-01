@@ -34,11 +34,15 @@ class Sched():
 
     def sched_switch_per_tid(self, ts, prev_tid, next_tid, next_comm, cpu_id, event, ret):
         """Compute per-tid usage"""
+        # if we don't know yet the CPU, skip this
+        if not cpu_id in self.cpus.keys():
+            return ret
+        c = self.cpus[cpu_id]
         # per-tid usage
         if prev_tid in self.tids:
             p = self.tids[prev_tid]
             p.cpu_ns += (ts - p.last_sched)
-            c = self.cpus[cpu_id]
+            # perf PMU counters checks
             for context in event.field_list_with_scope(CTFScope.STREAM_EVENT_CONTEXT):
                 if context.startswith("perf_"):
                     if not context in c.perf.keys():
@@ -66,6 +70,11 @@ class Sched():
             p = self.tids[next_tid]
             p.comm = next_comm
         p.last_sched = ts
+        for q in c.wakeup_queue:
+            if q["task"] == p:
+                ret["sched_latency"] = ts - q["ts"]
+                ret["next_tid"] = next_tid
+                c.wakeup_queue.remove(q)
         return ret
 
     def switch(self, event):
@@ -93,6 +102,25 @@ class Sched():
         else:
             p = self.tids[tid]
         p.migrate_count += 1
+
+    def wakeup(self, event):
+        """Stores the sched_wakeup infos to compute scheduling latencies"""
+        target_cpu = event["target_cpu"]
+        tid = event["tid"]
+        if not target_cpu in self.cpus.keys():
+            c = CPU()
+            c.cpu_id = target_cpu
+            self.cpus[target_cpu] = c
+        else:
+            c = self.cpus[target_cpu]
+
+        if not tid in self.tids:
+            p = Process()
+            p.tid = tid
+            self.tids[tid] = p
+        else:
+            p = self.tids[tid]
+        c.wakeup_queue.append({"ts": event.timestamp, "task": p})
 
     def fix_process(self, name, tid, pid):
         if not tid in self.tids:
