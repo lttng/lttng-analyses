@@ -11,6 +11,7 @@
 # all copies or substantial portions of the Software.
 
 import sys, argparse, errno, json, os.path, socket
+from collections import OrderedDict
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
@@ -304,15 +305,24 @@ class FDInfo():
             fd = entry['fd_in'].fd
 
         if fd:
+            fdstr = str(fd)
             fdtype = FDType.unknown
 
             if fd in self.tids[pid].fds:
                 fdtype = self.tids[pid].fds[fd].fdtype
 
+            fd_metadata = {}
+            fd_metadata['filename'] = filename
+            fd_metadata['fdtype'] = fdtype
+
             if str(fd) not in self.json_metadata[pid]['fds']:
-                self.json_metadata[pid]['fds'][str(fd)] = {}
-                self.json_metadata[pid]['fds'][str(fd)]['filename'] = filename
-                self.json_metadata[pid]['fds'][str(fd)]['fdtype'] = fdtype
+                self.json_metadata[pid]['fds'][fdstr] = OrderedDict()
+                self.json_metadata[pid]['fds'][fdstr][str(entry['start'])] = fd_metadata
+            else:
+                last_ts = next(reversed(self.json_metadata[pid]['fds'][fdstr]))
+                if filename != self.json_metadata[pid]['fds'][fdstr][last_ts]['filename']:
+                    self.json_metadata[pid]['fds'][fdstr][str(entry['start'])] = fd_metadata
+
 
         category = Syscalls.get_syscall_category(name)
 
