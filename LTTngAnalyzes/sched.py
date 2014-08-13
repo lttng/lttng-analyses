@@ -20,23 +20,26 @@ class Sched():
                 c.start_task_ns = 0
                 c.current_tid = -1
         else:
-            c = CPU()
-            c.cpu_id = cpu_id
-            c.current_tid = next_tid
-            # when we schedule a real task (not swapper)
-            c.start_task_ns = ts
-            # first activity on the CPU
-            self.cpus[cpu_id] = c
-            self.cpus[cpu_id].total_per_cpu_pc_list = []
+            self.add_cpu(cpu_id, ts, next_tid)
         for context in event.keys():
             if context.startswith("perf_"):
                 c.perf[context] = event[context]
+
+    def add_cpu(self, cpu_id, ts, next_tid):
+        c = CPU()
+        c.cpu_id = cpu_id
+        c.current_tid = next_tid
+        # when we schedule a real task (not swapper)
+        c.start_task_ns = ts
+        # first activity on the CPU
+        self.cpus[cpu_id] = c
+        self.cpus[cpu_id].total_per_cpu_pc_list = []
 
     def sched_switch_per_tid(self, ts, prev_tid, next_tid, next_comm, cpu_id, event, ret):
         """Compute per-tid usage"""
         # if we don't know yet the CPU, skip this
         if not cpu_id in self.cpus.keys():
-            return ret
+            self.add_cpu(cpu_id, ts, next_tid)
         c = self.cpus[cpu_id]
         # per-tid usage
         if prev_tid in self.tids:
