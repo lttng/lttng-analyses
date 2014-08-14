@@ -38,7 +38,7 @@ class Perf():
         self.perf = []
 
         # Stores metadata about processes when outputting to json
-        # Keys: PID, values: {pname}
+        # Keys: TID, values: {pname}
         self.json_metadata = {}
         # Used to identify session in database
         self.session_name = self.args.path.split('/')[-2]
@@ -70,22 +70,25 @@ class Perf():
             self.process_event(event, sched)
 
         if self.args.json:
-            self.output_json_perf()
+            self.output_json()
 
         if self.args.mongo:
-            self.store_mongo_perf()
+            self.store_mongo()
 
-    def output_json_perf(self):
-        f = open(os.path.join(self.args.json, 'perf.json'), 'w')
+    def output_json(self):
+        perf_name = 'perf_' + self.session_name + '.json'
+        perf_path = os.path.join(self.args.json, latencies_name)
+        f = open(perf_path, 'w')
         json.dump(self.perf, f)
         f.close()
 
-        f = open(os.path.join(self.args.json, 'pid_metadata.json'), 'w')
+        metadata_name = 'metadata_' + self.session_name + '.json'
+        metadata_path = os.path.join(self.args.json, metadata_name)
+        f = open(os.path.join(self.args.json, 'metadata.json'), 'w')
         json.dump(self.json_metadata, f)
         f.close()
 
-    def store_mongo_perf(self):
-        print('store_mongo')
+    def store_mongo(self):
         client = MongoClient(self.args.mongo_host, self.args.mongo_port)
         db = client.analyses
 
