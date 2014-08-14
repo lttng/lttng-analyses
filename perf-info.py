@@ -20,19 +20,11 @@ from pymongo import MongoClient
 from pymongo.errors import CollectionInvalid
 
 NS_IN_S = 1000000000
-NS_IN_MS = 1000000
-NS_IN_US = 1000
-
 BYTES_IN_MB = 1048576
 
+
 class Perf():
-    DUMP_FORMAT = '{0:18} {1:20} {2:<8} {3:20} {4:60}'
     PERF_FORMAT = '{0:18} {1:20} {2:<8} {3:20} {4:<8}'
-    SUCCESS_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:15} res={5:<3} {6:60}'
-    FAILURE_FORMAT = '{0:18} ({1:8f}) {2:20} {3:<8} {4:15} res={5:<3} ({6}) \
-    {7:60}'
-    FAILURE_RED = '\033[31m'
-    NORMAL_WHITE = '\033[37m'
 
     def __init__(self, args, traces, types):
         self.args = args
@@ -56,14 +48,14 @@ class Perf():
     def process_event(self, event, sched):
         if event.name == 'sched_switch':
             ret = sched.switch(event)
-            tid = event["prev_tid"]
+            tid = event['prev_tid']
             if len(ret.keys()) > 0:
                 d = {'ts': event.timestamp,
-                    'tid': tid}
+                     'tid': tid}
                 for context in ret.keys():
                     if self.types and context not in self.types:
                         continue
-                    if context.startswith("perf_"):
+                    if context.startswith('perf_'):
                         if self.args.delta:
                             d[context] = ret[context]
                         else:
@@ -77,22 +69,23 @@ class Perf():
         for event in self.traces.events:
             self.process_event(event, sched)
 
-        if self.args.json_perf:
+        if self.args.json:
             self.output_json_perf()
 
         if self.args.mongo:
             self.store_mongo_perf()
 
     def output_json_perf(self):
-        f = open(os.path.join(self.args.json_perf, 'perf.json'), 'w')
+        f = open(os.path.join(self.args.json, 'perf.json'), 'w')
         json.dump(self.perf, f)
         f.close()
 
-        f = open(os.path.join(self.args.json_perf, 'pid_metadata.json'), 'w')
+        f = open(os.path.join(self.args.json, 'pid_metadata.json'), 'w')
         json.dump(self.json_metadata, f)
         f.close()
 
     def store_mongo_perf(self):
+        print('store_mongo')
         client = MongoClient(self.args.mongo_host, self.args.mongo_port)
         db = client.analyses
 
@@ -100,10 +93,10 @@ class Perf():
         metadata_name = 'metadata_' + self.session_name
 
         try:
-            db.create_collection(perf_name, capped = True,
-                                 size = 64 * BYTES_IN_MB)
-            db.create_collection(metadata_name, capped = True,
-                                 size = 8 * BYTES_IN_MB)
+            db.create_collection(perf_name, capped=True,
+                                 size=(64 * BYTES_IN_MB))
+            db.create_collection(metadata_name, capped=True,
+                                 size=(8 * BYTES_IN_MB))
         except CollectionInvalid as ex:
             print('Failed to create collection: ')
             print(ex)
@@ -117,7 +110,7 @@ class Perf():
             db[perf_name].insert(event)
 
         # Ascending timestamp index
-        db[perf_name].create_index("ts")
+        db[perf_name].create_index('ts')
 
         for tid in self.json_metadata:
             metadatum = self.json_metadata[tid]
@@ -134,7 +127,7 @@ class Perf():
             return
 
         name = event.name
-        if name != "sched_switch":
+        if name != 'sched_switch':
             return
 
         endtime = event.timestamp
@@ -150,15 +143,15 @@ class Perf():
 
         insert = 0
         for context in ret.keys():
-            if context.startswith("perf_"):
-                if self.args.json_perf or self.args.mongo:
+            if context.startswith('perf_'):
+                if self.args.json or self.args.mongo:
                     insert = 1
                 if not self.args.quiet:
                     print(Perf.PERF_FORMAT.format(endtime, comm, tid, context,
-                       ret[context]))
+                                                  ret[context]))
         if insert:
             self.log_perf_event_json(endtime, comm, tid, ret)
-                    
+
     def log_perf_event_json(self, ts, comm, tid, ret):
         if tid not in self.json_metadata:
             self.json_metadata[tid] = {'pname': comm}
@@ -171,8 +164,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Perf counter analysis')
     parser.add_argument('path', metavar='<path/to/trace>', help='Trace path')
     parser.add_argument('-t', '--type', type=str, default='all',
-                        help='Types of events to display. Possible values:\
-                        all, open, close, read, write dump')
+                        help='Types of perf counters to display')
     parser.add_argument('--tid', type=str, default=0,
                         help='TID for which to display events')
     parser.add_argument('--pname', type=str, default=None,
@@ -186,24 +178,25 @@ if __name__ == '__main__':
     parser.add_argument('--unixtime', action='store_true',
                         help='Display timestamps in unix time format')
     parser.add_argument('--delta', action='store_true',
-            help='Display deltas instead of total count')
-    parser.add_argument('--json-perf', type=str, default=None,
-                        help='Store perf counter changes as JSON in specified directory')
+                        help='Display deltas instead of total count')
+    parser.add_argument('--json', type=str, default=None,
+                        help='Store perf counter changes as JSON in specified\
+                        directory')
     parser.add_argument('--mongo', type=str, default=None,
-                        help='Store perf counter changes into MongoDB at specified ip\
-                        and port')
+                        help='Store perf counter changes into MongoDB at\
+                        specified ip and port')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Don\'t output fd events to stdout')
 
     args = parser.parse_args()
 
-    if args.type != "all":
+    if args.type != 'all':
         types = args.type.split(',')
     else:
         types = None
 
     if args.tid:
-        args.tid = args.tid.split(",")
+        args.tid = args.tid.split(',')
     else:
         args.tid = None
 
@@ -220,7 +213,7 @@ if __name__ == '__main__':
 
     if args.mongo:
         try:
-            (args.mongo_host, args.mongo_port) = args.mongo.split(":")
+            (args.mongo_host, args.mongo_port) = args.mongo.split(':')
             socket.inet_aton(args.mongo_host)
             args.mongo_port = int(args.mongo_port)
         except ValueError:
