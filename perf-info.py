@@ -98,27 +98,38 @@ class Perf():
         try:
             db.create_collection(perf_name, capped=True,
                                  size=(64 * BYTES_IN_MB))
-            db.create_collection(metadata_name, capped=True,
-                                 size=(8 * BYTES_IN_MB))
         except CollectionInvalid as ex:
             print('Failed to create collection: ')
             print(ex)
             print('Data will not be stored to MongoDB')
             return
 
-        db.sessions.insert({'name': self.session_name})
-
-        # Only insert data once both collections have been successfully created
         for event in self.perf:
             db[perf_name].insert(event)
 
         # Ascending timestamp index
         db[perf_name].create_index('ts')
 
+        if metadata_name not in db.collection_names():
+            try:
+                db.create_collection(metadata_name, capped=True,
+                                     size=(8 * BYTES_IN_MB))
+            except CollectionInvalid as ex:
+                print('Failed to create collection: ')
+                print(ex)
+                print('Metadata will not be stored to MongoDB')
+                return
+
+            db.sessions.insert({'name': self.session_name})
+
         for tid in self.json_metadata:
+
             metadatum = self.json_metadata[tid]
             metadatum['tid'] = tid
-            db[metadata_name].insert(metadatum)
+            db[metadata_name].update({'tid': tid}, metadatum, upsert=True)
+
+        # Ascending TID index
+        db[metadata_name].create_index('tid')
 
     def output_perf(self, event, ret):
         tid = event['prev_tid']
