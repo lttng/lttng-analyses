@@ -20,7 +20,6 @@ from pymongo import MongoClient
 from pymongo.errors import CollectionInvalid
 
 NS_IN_S = 1000000000
-BYTES_IN_MB = 1048576
 
 
 class Perf():
@@ -96,8 +95,7 @@ class Perf():
         metadata_name = 'metadata_' + self.session_name
 
         try:
-            db.create_collection(perf_name, capped=True,
-                                 size=(64 * BYTES_IN_MB))
+            db.create_collection(perf_name)
         except CollectionInvalid as ex:
             print('Failed to create collection: ')
             print(ex)
@@ -112,8 +110,7 @@ class Perf():
 
         if metadata_name not in db.collection_names():
             try:
-                db.create_collection(metadata_name, capped=True,
-                                     size=(8 * BYTES_IN_MB))
+                db.create_collection(metadata_name)
             except CollectionInvalid as ex:
                 print('Failed to create collection: ')
                 print(ex)

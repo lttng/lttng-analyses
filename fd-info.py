@@ -23,7 +23,6 @@ from pymongo.errors import CollectionInvalid
 NS_IN_S = 1000000000
 NS_IN_MS = 1000000
 NS_IN_US = 1000
-BYTES_IN_MB = 1048576
 
 
 def parse_errname(errname):
@@ -168,8 +167,7 @@ class FDInfo():
         metadata_name = 'metadata_' + self.session_name
 
         try:
-            db.create_collection(latencies_name, capped=True,
-                                 size=(64 * BYTES_IN_MB))
+            db.create_collection(latencies_name)
         except CollectionInvalid as ex:
             print('Failed to create collection: ')
             print(ex)
@@ -184,8 +182,7 @@ class FDInfo():
 
         if metadata_name not in db.collection_names():
             try:
-                db.create_collection(metadata_name, capped=True,
-                                     size=(8 * BYTES_IN_MB))
+                db.create_collection(metadata_name)
             except CollectionInvalid as ex:
                 print('Failed to create collection: ')
                 print(ex)
