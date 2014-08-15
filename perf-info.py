@@ -120,7 +120,6 @@ class Perf():
             db.sessions.insert({'name': self.session_name})
 
         for tid in self.json_metadata:
-
             metadatum = self.json_metadata[tid]
             metadatum['tid'] = tid
             db[metadata_name].update({'tid': tid}, metadatum, upsert=True)

@@ -334,10 +334,10 @@ class FDInfo():
                 fds[fdstr] = OrderedDict()
                 fds[fdstr][str(entry['start'])] = fd_metadata
             else:
-                fd = self.json_metadata[tid]['fds'][fdstr]
-                last_ts = next(reversed(fd))
-                if filename != fd[last_ts]['filename']:
-                    fd[str(entry['start'])] = fd_metadata
+                chrono_fd = self.json_metadata[tid]['fds'][fdstr]
+                last_ts = next(reversed(chrono_fd))
+                if filename != chrono_fd[last_ts]['filename']:
+                    chrono_fd[str(entry['start'])] = fd_metadata
 
         category = Syscalls.get_syscall_category(name)
 
