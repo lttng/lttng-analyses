@@ -34,17 +34,18 @@ class Perf():
 
         self.cpus = {}
         self.tids = {}
+        self.disks = {}
         self.perf = []
 
         # Stores metadata about processes when outputting to json
-        # Keys: TID, values: {pname}
+        # Keys: PID, values: {pname, threads}
         self.json_metadata = {}
         # Used to identify session in database
         self.session_name = self.args.path.split('/')[-2]
         # Hyphens in collections names are an incovenience in mongo
         self.session_name = self.session_name.replace('-', '_')
 
-    def process_event(self, event, sched):
+    def process_event(self, event, sched, statedump):
         if event.name == 'sched_switch':
             ret = sched.switch(event)
             tid = event['prev_tid']
@@ -60,13 +61,16 @@ class Perf():
                         else:
                             d[context] = self.tids[tid].perf[context]
                 self.output_perf(event, d)
+        elif event.name == 'lttng_statedump_process_state':
+            statedump.process_state(event)
 
     def run(self):
         '''Process the trace'''
         sched = Sched(self.cpus, self.tids)
+        statedump = Statedump(self.tids, self.disks)
 
         for event in self.traces.events:
-            self.process_event(event, sched)
+            self.process_event(event, sched, statedump)
 
         if self.args.json:
             self.output_json()
@@ -119,18 +123,22 @@ class Perf():
 
             db.sessions.insert({'name': self.session_name})
 
-        for tid in self.json_metadata:
-            metadatum = self.json_metadata[tid]
-            metadatum['tid'] = tid
-            db[metadata_name].update({'tid': tid}, metadatum, upsert=True)
+        for pid in self.json_metadata:
+            metadatum = self.json_metadata[pid]
+            metadatum['pid'] = pid
+            db[metadata_name].update({'pid': pid}, metadatum, upsert=True)
 
-        # Ascending TID index
-        db[metadata_name].create_index('tid')
+        # Ascending PID index
+        db[metadata_name].create_index('pid')
 
     def output_perf(self, event, ret):
         tid = event['prev_tid']
         if self.args.tid and str(tid) not in self.args.tid:
             return
+
+        pid = self.tids[tid].pid
+        if pid == -1:
+            pid = tid
 
         comm = self.tids[tid].comm
         if self.args.pname is not None and self.args.pname != comm:
@@ -160,14 +168,27 @@ class Perf():
                     print(Perf.PERF_FORMAT.format(endtime, comm, tid, context,
                                                   ret[context]))
         if insert:
-            self.log_perf_event_json(endtime, comm, tid, ret)
+            self.log_perf_event_json(endtime, comm, tid, pid, ret)
 
-    def log_perf_event_json(self, ts, comm, tid, ret):
-        if tid not in self.json_metadata:
-            self.json_metadata[tid] = {'pname': comm}
-        # Fix process name
-        elif self.json_metadata[tid]['pname'] != comm:
-            self.json_metadata[tid]['pname'] = comm
+    def log_perf_event_json(self, ts, comm, tid, pid, ret):
+        if pid == tid:
+            if pid not in self.json_metadata:
+                self.json_metadata[pid] = {'pname': comm, 'threads': {} }
+            elif self.json_metadata[pid]['pname'] != comm:
+                self.json_metadata[pid]['pname'] = comm
+        else:
+            if pid not in self.json_metadata:
+                self.json_metadata[pid] = {'pname': 'unknown', 'threads': {} }
+
+            tid_str = str(tid)
+            if tid_str not in self.json_metadata[pid]['threads']:
+                self.json_metadata[pid]['threads'][tid_str] = {
+                    'pname': comm
+                }
+            else:
+                if self.json_metadata[pid]['threads'][tid_str]['pname'] != comm:
+                    self.json_metadata[pid]['threads'][tid_str]['pname'] = comm
+
         self.perf.append(ret)
 
 if __name__ == '__main__':

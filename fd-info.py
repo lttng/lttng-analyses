@@ -82,7 +82,7 @@ class FDInfo():
 
         self.latencies = []
         # Stores metadata about processes when outputting to json
-        # Keys: TID, values: {pname, fds}
+        # Keys: PID, values: {pname, fds, threads}
         self.json_metadata = {}
         # Used to identify session in database
         if self.args.path[-1] == '/':
@@ -191,13 +191,13 @@ class FDInfo():
 
             db.sessions.insert({'name': self.session_name})
 
-        for tid in self.json_metadata:
-            metadatum = self.json_metadata[tid]
-            metadatum['tid'] = tid
-            db[metadata_name].update({'tid': tid}, metadatum, upsert=True)
+        for pid in self.json_metadata:
+            metadatum = self.json_metadata[pid]
+            metadatum['pid'] = pid
+            db[metadata_name].update({'pid': pid}, metadatum, upsert=True)
 
-        # Ascending TID index
-        db[metadata_name].create_index('tid')
+        # Ascending PID index
+        db[metadata_name].create_index('pid')
 
     def output_dump(self, event):
         # dump events can't fail, and don't have a duration, so ignore
@@ -248,6 +248,10 @@ class FDInfo():
         if self.args.tid >= 0 and self.args.tid != tid:
             return
 
+        pid = self.tids[tid].pid
+        if pid == -1:
+            pid = tid
+
         comm = self.tids[tid].comm
         if self.args.pname is not None and self.args.pname != comm:
             return
@@ -281,7 +285,7 @@ class FDInfo():
         duration = duration_ns / NS_IN_S
 
         if self.args.json or self.args.mongo:
-            self.log_fd_event_json(tid, comm, entry, name, duration_ns,
+            self.log_fd_event_json(tid, pid, comm, entry, name, duration_ns,
                                    filename, ret)
 
         if self.is_interactive and failed and not self.args.no_color:
@@ -303,13 +307,36 @@ class FDInfo():
         if self.is_interactive and failed and not self.args.no_color:
             sys.stdout.write(FDInfo.NORMAL_WHITE)
 
-    def log_fd_event_json(self, tid, comm, entry, name, duration_ns, filename,
-                          ret):
-        if tid not in self.json_metadata:
-            self.json_metadata[tid] = {'pname': comm, 'fds': {}}
-        # Fix process name
-        elif self.json_metadata[tid]['pname'] != comm:
-            self.json_metadata[tid]['pname'] = comm
+    def log_fd_event_json(self, tid, pid, comm, entry, name, duration_ns,
+                          filename, ret):
+        # Dealing with plain old process
+        if pid == tid:
+            if pid not in self.json_metadata:
+                self.json_metadata[pid] = {
+                    'pname': comm,
+                    'fds': {},
+                    'threads': {}
+                }
+            else:
+                if self.json_metadata[pid]['pname'] != comm:
+                    self.json_metadata[pid]['pname'] = comm
+        # Dealing with a thread
+        else:
+            if pid not in self.json_metadata:
+                self.json_metadata[pid] = {
+                    'pname': 'unknown',
+                    'fds': {},
+                    'threads': {}
+                }
+
+            tid_str = str(tid)
+            if tid_str not in self.json_metadata[pid]['threads']:
+                self.json_metadata[pid]['threads'][tid_str] = {
+                    'pname': comm
+                }
+            else:
+                if self.json_metadata[pid]['threads'][tid_str]['pname'] != comm:
+                    self.json_metadata[pid]['threads'][tid_str]['pname'] = comm
 
         fd = None
 
@@ -319,7 +346,7 @@ class FDInfo():
             fd = entry['fd_in'].fd
 
         if fd:
-            fdstr = str(fd)
+            fd_str = str(fd)
             fdtype = FDType.unknown
 
             if fd in self.tids[tid].fds:
@@ -329,12 +356,12 @@ class FDInfo():
             fd_metadata['filename'] = filename
             fd_metadata['fdtype'] = fdtype
 
-            if str(fd) not in self.json_metadata[tid]['fds']:
-                fds = self.json_metadata[tid]['fds']
-                fds[fdstr] = OrderedDict()
-                fds[fdstr][str(entry['start'])] = fd_metadata
+            if str(fd) not in self.json_metadata[pid]['fds']:
+                fds = self.json_metadata[pid]['fds']
+                fds[fd_str] = OrderedDict()
+                fds[fd_str][str(entry['start'])] = fd_metadata
             else:
-                chrono_fd = self.json_metadata[tid]['fds'][fdstr]
+                chrono_fd = self.json_metadata[pid]['fds'][fd_str]
                 last_ts = next(reversed(chrono_fd))
                 if filename != chrono_fd[last_ts]['filename']:
                     chrono_fd[str(entry['start'])] = fd_metadata
@@ -344,6 +371,7 @@ class FDInfo():
         latency = {'ts_start': entry['start'],
                    'duration': duration_ns,
                    'tid': tid,
+                   'pid': pid,
                    'category': category}
 
         if fd is not None:
