@@ -76,7 +76,7 @@ class Perf():
 
     def output_json(self):
         perf_name = 'perf_' + self.session_name + '.json'
-        perf_path = os.path.join(self.args.json, latencies_name)
+        perf_path = os.path.join(self.args.json, perf_name)
         f = open(perf_path, 'w')
         json.dump(self.perf, f)
         f.close()
