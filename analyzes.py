@@ -131,7 +131,7 @@ class Analyzes():
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         block = Block(self.cpus, self.disks, self.tids)
-        net = Net(self.ifaces)
+        net = Net(self.ifaces, self.cpus, self.tids)
         statedump = Statedump(self.tids, self.disks)
 
         for event in self.traces.events:

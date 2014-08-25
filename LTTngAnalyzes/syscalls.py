@@ -33,7 +33,7 @@ class Syscalls():
     READ_SYSCALLS = ["sys_read", "sys_recvmsg", "sys_recvfrom",
                           "sys_splice", "sys_readv", "sys_sendfile64"]
     # list of syscall that write on a FD, value in the exit_syscall following
-    WRITE_SYSCALLS = ["sys_write", "sys_sendmsg" "sys_sendto", "sys_writev"]
+    WRITE_SYSCALLS = ["sys_write", "sys_sendmsg", "sys_sendto", "sys_writev"]
     # generic names assigned to special FDs, don't try to match these in the
     # closed_fds dict
     GENERIC_NAMES = ["unknown", "socket"]
@@ -252,8 +252,10 @@ class Syscalls():
             current_syscall["count"] = event["vlen"]
         elif name in ["sys_recvfrom"]:
             current_syscall["count"] = event["size"]
-        elif name in ["sys_recvmsg"]:
+        elif name in ["sys_recvmsg", "sys_sendmsg"]:
             current_syscall["count"] = ""
+        elif name in ["sys_sendto"]:
+            current_syscall["count"] = event["len"]
         else:
             current_syscall["count"] = event["count"]
 
@@ -277,6 +279,8 @@ class Syscalls():
             fd.filename = name
             if current_syscall["name"] in Syscalls.NET_OPEN_SYSCALLS:
                 fd.family = current_syscall["family"]
+                if fd.family in Syscalls.INET_FAMILIES:
+                    fd.fdtype = FDType.net
             fd.open = 1
         if ret >= 0:
             fd.fd = ret
@@ -292,7 +296,7 @@ class Syscalls():
         #    fd.filename, fd.open))
 
     def read_append(self, fd, proc, count):
-        if fd.fdtype == FDType.net:
+        if fd.fdtype in [FDType.net, FDType.maybe_net]:
             fd.net_read += count
             proc.net_read += count
         elif fd.fdtype == FDType.disk:
@@ -305,7 +309,7 @@ class Syscalls():
         proc.read += count
 
     def write_append(self, fd, proc, count):
-        if fd.fdtype == FDType.net:
+        if fd.fdtype in [FDType.net, FDType.maybe_net]:
             fd.net_write += count
             proc.net_write += count
         elif fd.fdtype == FDType.disk:

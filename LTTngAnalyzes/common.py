@@ -83,6 +83,9 @@ class FDType(IntEnum):
     unknown = 0
     disk = 1
     net = 2
+    # not 100% sure they are network FDs (assumed when net_dev_xmit is
+    # called during a write syscall and the type in unknown).
+    maybe_net = 3
 
 class FD():
     def __init__(self):

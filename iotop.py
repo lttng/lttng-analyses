@@ -97,7 +97,7 @@ class IOTop():
                 names=args.names, latency=args.latency,
                 latency_hist=self.latency_hist, seconds=args.seconds)
         block = Block(self.cpus, self.disks, self.tids)
-        net = Net(self.ifaces)
+        net = Net(self.ifaces, self.cpus, self.tids)
         statedump = Statedump(self.tids, self.disks)
 
         event_count = 0
