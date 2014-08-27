@@ -370,7 +370,7 @@ class Syscalls():
         if name in ["sys_recvmsg"]:
             count = ""
         else:
-            count = ", count = %d" % (current_syscall["count"])
+            count = ", count = %s" % (current_syscall["count"])
         if self.names and self.latency < 0:
             self.latency = 0
         if self.latency >= 0 and ms > self.latency:
