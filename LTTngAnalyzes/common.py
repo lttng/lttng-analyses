@@ -38,6 +38,8 @@ class Process():
         self.write = 0
         # last TS where the process was scheduled in
         self.last_sched = 0
+        # the process scheduled before this one
+        self.prev_tid = -1
         # indexed by syscall_name
         self.syscalls = {}
         # indexed by fd
