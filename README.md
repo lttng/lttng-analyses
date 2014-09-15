@@ -35,8 +35,9 @@ next, after a fresh install it requires to logout and login)
 ## Trace creation
 ```
 # lttng create
-# lttng enable-event -k sched_switch,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device
-# lttng enable-event -k --syscall -a
+# lttng enable-channel -k bla --subbuf-size=2M
+# lttng enable-event -k sched_switch,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device,writeback_pages_written,mm_vmscan_wakeup_kswapd,mm_page_free -c bla
+# lttng enable-event -k --syscall -a -c bla
 # lttng start
 ...do stuff...
 # lttng stop
@@ -229,4 +230,11 @@ Disk request time/sector
 ###############################################################################
 ███████████████████████████████████████████████████████████████  0.017  ms sda2
 ██████████████████                                               0.005  ms dm-0
+```
+## Work in progress
+Extract the source of a latency.
+Example with the kswapd/writeback integration :
+```
+./iotop.py --no-progress --latency 5 /home/julien/lttng-traces/reddit-postgres01/auto-20140911-134938/kernel/
+[13:49:47.242730583 - 13:49:47.442835037] python (2353) sys_write(fd = 3 </root/bla>, count = 102395904) = 102395904, woke up kswapd (33753 pages freed from cache), 10046 pages written on disk, 200.104 ms
 ```

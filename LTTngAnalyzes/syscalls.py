@@ -390,7 +390,7 @@ class Syscalls():
             if "wakeup_kswapd" in current_syscall.keys():
                 kswapd = "woke up kswapd"
                 if "page_free" in current_syscall.keys():
-                    kswapd += " (%d pages freed), " % current_syscall["page_free"]
+                    kswapd += " (%d pages freed from cache), " % current_syscall["page_free"]
                 else:
                     kswapd += ", "
             else:
