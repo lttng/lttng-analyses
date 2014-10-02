@@ -4,7 +4,7 @@ import os
 import socket
 import struct
 from enum import IntEnum
-from socket import AddressFamily
+from socket import socket
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
@@ -97,7 +97,7 @@ class FD():
         self.net_read = 0
         self.net_write = 0
         # address family
-        self.family = AddressFamily.AF_UNSPEC
+        self.family = socket.AF_UNSPEC
         # disk read/write (might be cached)
         self.disk_read = 0
         self.disk_write = 0

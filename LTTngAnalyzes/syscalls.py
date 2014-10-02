@@ -1,5 +1,6 @@
 from LTTngAnalyzes.common import *
 from enum import IntEnum
+import socket
 
 #Using IntEnum rather than Enum allows direct serialization
 class IOCategory(IntEnum):
@@ -16,8 +17,8 @@ class IOCategory(IntEnum):
 
 class Syscalls():
     # TODO: decouple socket/family logic from this class
-    INET_FAMILIES = [AddressFamily.AF_INET, AddressFamily.AF_INET6]
-    DISK_FAMILIES = [AddressFamily.AF_UNIX]
+    INET_FAMILIES = [socket.AF_INET, socket.AF_INET6]
+    DISK_FAMILIES = [socket.AF_UNIX]
     # list nof syscalls that open a FD on disk (in the exit_syscall event)
     DISK_OPEN_SYSCALLS = ["sys_open", "sys_openat"]
     # list of syscalls that open a FD on the network (in the exit_syscall event)
@@ -111,7 +112,7 @@ class Syscalls():
             if event["flags"] & O_CLOEXEC == O_CLOEXEC:
                 current_syscall["cloexec"] = 1
         elif name in ["sys_accept"] and "family" in event.keys():
-            if event["family"] == AddressFamily.AF_INET:
+            if event["family"] == socket.AF_INET:
                 ipport = "%s:%d" % (int_to_ipv4(event["v4addr"]), event["sport"])
                 current_syscall["filename"] = ipport
             else:
@@ -143,7 +144,7 @@ class Syscalls():
             family = event["family"]
             current_syscall["family"] = family
         else:
-            family = AddressFamily.AF_UNSPEC
+            family = socket.AF_UNSPEC
             current_syscall["family"] = family
 
         current_syscall["name"] = name
@@ -203,7 +204,7 @@ class Syscalls():
         # when a connect occurs, no new FD is returned, but we can fix
         # the "filename" if we have the destination info
         elif name in ["sys_connect"] and "family" in event.keys():
-            if event["family"] == AddressFamily.AF_INET:
+            if event["family"] == socket.AF_INET:
                 fd = self.get_fd(t, event["fd"])
                 ipport = "%s:%d" % (int_to_ipv4(event["v4addr"]), event["dport"])
                 fd.filename = ipport
