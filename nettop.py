@@ -15,6 +15,7 @@
 
 import sys
 import argparse
+import socket
 from babeltrace import *
 from progressbar import *
 from LTTngAnalyzes.common import *
@@ -101,10 +102,10 @@ class NetTop():
 
             for fd in self.tids[tid].fds.values():
                 if fd.fdtype is FDType.net:
-                    if fd.family == AddressFamily.AF_INET:
+                    if fd.family == socket.AF_INET:
                         transferred[tid]['ipv4']['up'] += fd.net_write
                         transferred[tid]['ipv4']['down'] += fd.net_read
-                    elif fd.family == AddressFamily.AF_INET6:
+                    elif fd.family == socket.AF_INET6:
                         transferred[tid]['ipv6']['up'] += fd.net_write
                         transferred[tid]['ipv6']['down'] += fd.net_read
 
