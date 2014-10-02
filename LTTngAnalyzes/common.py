@@ -3,7 +3,6 @@ import time
 import os
 import socket
 import struct
-from enum import IntEnum
 from socket import AddressFamily
 
 NSEC_PER_SEC = 1000000000
@@ -79,7 +78,7 @@ class Iface():
         self.send_bytes = 0
         self.send_packets = 0
 
-class FDType(IntEnum):
+class FDType():
     unknown = 0
     disk = 1
     net = 2

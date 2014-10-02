@@ -1,8 +1,6 @@
 from LTTngAnalyzes.common import *
-from enum import IntEnum
 
-#Using IntEnum rather than Enum allows direct serialization
-class IOCategory(IntEnum):
+class IOCategory():
     """Defines an enumeration mapping IO categories to integer values.
     Used mainly to export syscall metadata (to JSON)."""
 
