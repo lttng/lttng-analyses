@@ -36,6 +36,9 @@ class IOTop():
         self.ifaces = {}
         self.syscalls = {}
         self.latency_hist = {}
+        # prototyping stuff
+        self.random = {}
+        self.random["write_queue"] = 0
 
     def process_event(self, event, sched, syscall, block, net, statedump,
             started):
@@ -53,6 +56,12 @@ class IOTop():
             sched.wakeup(event)
         elif event.name[0:4] == "sys_":
             syscall.entry(event)
+        elif event.name == "writeback_pages_written":
+            syscall.wb_pages(event)
+        elif event.name == "mm_vmscan_wakeup_kswapd":
+            syscall.wakeup_kswapd(event)
+        elif event.name == "mm_page_free":
+            syscall.page_free(event)
         elif event.name == "exit_syscall":
             syscall.exit(event, started)
         elif event.name == "block_rq_complete":

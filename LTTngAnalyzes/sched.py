@@ -93,6 +93,9 @@ class Sched():
         # because of perf events check, we need to do the CPU analysis after
         # the per-tid analysis
         self.sched_switch_per_cpu(cpu_id, event.timestamp, next_tid, event)
+        if next_tid > 0:
+            self.tids[next_tid].prev_tid = prev_tid
+
         return ret
 
     def migrate_task(self, event):

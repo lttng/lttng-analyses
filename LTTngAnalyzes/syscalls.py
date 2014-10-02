@@ -381,9 +381,21 @@ class Syscalls():
                 if not procname in self.latency_hist.keys():
                     self.latency_hist[procname] = []
                 self.latency_hist[procname].append((ts_start, ms))
-            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s" % \
+            if "pages_written" in current_syscall.keys():
+                pages = "%d pages written on disk, " % current_syscall["pages_written"]
+            else:
+                pages = ""
+            if "wakeup_kswapd" in current_syscall.keys():
+                kswapd = "woke up kswapd"
+                if "page_free" in current_syscall.keys():
+                    kswapd += " (%d pages freed from cache), " % current_syscall["page_free"]
+                else:
+                    kswapd += ", "
+            else:
+                kswapd = ""
+            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s%s%s" % \
                     (ts_start, ts_end, procname, c.current_tid, name,
-                        fd, filename, count, ret,
+                        fd, filename, count, ret, kswapd, pages,
                         latency))
 
     def entry(self, event):
@@ -425,3 +437,47 @@ class Syscalls():
             self.track_rw_latency(name, ret, c, event.timestamp, started)
         self.tids[c.current_tid].current_syscall = {}
         return ret_string
+
+    def wb_pages(self, event):
+        """writeback_pages_written"""
+        for c in self.cpus.values():
+            if c.current_tid <= 0:
+                continue
+            current_syscall = self.tids[c.current_tid].current_syscall
+            if len(current_syscall.keys()) == 0:
+                continue
+            current_syscall["pages_written"] = event["pages"]
+
+    def wakeup_kswapd(self, event):
+        """mm_vmscan_wakeup_kswapd"""
+        cpu_id = event["cpu_id"]
+        ret_string = ""
+        if not cpu_id in self.cpus:
+            return
+        c = self.cpus[cpu_id]
+        if c.current_tid == -1:
+            return
+        current_syscall = self.tids[c.current_tid].current_syscall
+        if len(current_syscall.keys()) == 0:
+            return
+        current_syscall["wakeup_kswapd"] = 1
+
+    def page_free(self, event):
+        """mm_page_free"""
+        for c in self.cpus.values():
+            if c.current_tid <= 0:
+                continue
+            p = self.tids[c.current_tid]
+            # if the current process is kswapd0, we need to
+            # attribute the page freed to the process that
+            # woke it up.
+            if p.comm == "kswapd0" and p.prev_tid > 0:
+                p = self.tids[p.prev_tid]
+            current_syscall = p.current_syscall
+            if len(current_syscall.keys()) == 0:
+                continue
+            if "wakeup_kswapd" in current_syscall.keys():
+                if "page_free" in current_syscall.keys():
+                    current_syscall["page_free"] += 1
+                else:
+                    current_syscall["page_free"] = 1
