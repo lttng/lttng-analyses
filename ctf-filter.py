@@ -11,9 +11,15 @@
 # all copies or substantial portions of the Software.
 
 import argparse
+import sys
 from babeltrace import *
-from progressbar import *
 from LTTngAnalyzes.common import *
+
+try:
+    from progressbar import *
+    progressbar_available = True
+except ImportError:
+    progressbar_available = False
 
 # These declarations will go in their own file
 # They have been put here temporarily for testing
@@ -197,14 +203,18 @@ class CTFFilter():
         writeable_event.value = value
 
     def run(self):
-        size = getFolderSize(args.path)
-        # size *= 2 # because we do 2 passes on the events
-        widgets = ['Processing the trace: ', Percentage(), ' ',
-                Bar(marker='#',left='[',right=']'), ' ', ETA(), ' ']
-
         if not args.no_progress:
-            pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
-            pbar.start()
+            if progressbar_available:
+                size = getFolderSize(args.path)
+                widgets = ['Processing the trace: ', Percentage(), ' ',
+                    Bar(marker='#',left='[',right=']'),
+                    ' ', ETA(), ' '] #see docs for other options
+                pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+                pbar.start()
+            else:
+                print("Warning: progressbar module not available, using --no-progress.",
+                    file=sys.stderr)
+                args.no_progress = True
 
         event_count = 0
 

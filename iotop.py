@@ -14,7 +14,6 @@ import sys
 import argparse
 import shutil
 import time
-from progressbar import *
 from babeltrace import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
@@ -24,6 +23,12 @@ from LTTngAnalyzes.net import *
 from LTTngAnalyzes.statedump import *
 from analyzes import *
 from ascii_graph import Pyasciigraph
+
+try:
+    from progressbar import *
+    progressbar_available = True
+except ImportError:
+    progressbar_available = False
 
 class IOTop():
     def __init__(self, traces):
@@ -93,13 +98,18 @@ class IOTop():
         self.start_ns = 0
         self.end_ns = 0
 
-        size = getFolderSize(args.path)
-        widgets = ['Processing the trace: ', Percentage(), ' ',
-                Bar(marker='#',left='[',right=']'),
-                ' ', ETA(), ' '] #see docs for other options
         if not args.no_progress:
-            pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
-            pbar.start()
+            if progressbar_available:
+                size = getFolderSize(args.path)
+                widgets = ['Processing the trace: ', Percentage(), ' ',
+                    Bar(marker='#',left='[',right=']'),
+                    ' ', ETA(), ' '] #see docs for other options
+                pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+                pbar.start()
+            else:
+                print("Warning: progressbar module not available, using --no-progress.",
+                    file=sys.stderr)
+                args.no_progress = True
 
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls,

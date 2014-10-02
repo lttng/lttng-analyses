@@ -17,10 +17,15 @@ import sys
 import argparse
 import socket
 from babeltrace import *
-from progressbar import *
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.sched import *
 from LTTngAnalyzes.syscalls import *
+
+try:
+    from progressbar import *
+    progressbar_available = True
+except ImportError:
+    progressbar_available = False
 
 class NetTop():
     TOTAL_FORMAT = '{0:20} {1:<10} total: {2:10}'
@@ -64,13 +69,18 @@ class NetTop():
         sched = Sched(self.cpus, self.tids)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls)
 
-        size = getFolderSize(args.path)
-        widgets = ['Processing the trace: ', Percentage(), ' ',
-                Bar(marker='#',left='[',right=']'), ' ', ETA(), ' ']
-
         if not args.no_progress:
-            pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
-            pbar.start()
+            if progressbar_available:
+                size = getFolderSize(args.path)
+                widgets = ['Processing the trace: ', Percentage(), ' ',
+                    Bar(marker='#',left='[',right=']'),
+                    ' ', ETA(), ' '] #see docs for other options
+                pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+                pbar.start()
+            else:
+                print("Warning: progressbar module not available, using --no-progress.",
+                    file=sys.stderr)
+                args.no_progress = True
 
         event_count = 0
 
