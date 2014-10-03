@@ -309,6 +309,35 @@ class FDInfo():
 
     def log_fd_event_json(self, tid, pid, comm, entry, name, duration_ns,
                           filename, ret):
+        self.track_thread(tid, pid, comm)
+
+        fd = None
+
+        if 'fd' in entry.keys():
+            fd = entry['fd'].fd
+        elif 'fd_in' in entry.keys():
+            fd = entry['fd_in'].fd
+
+        if fd:
+            self.track_fd(fd, filename, tid, pid, entry)
+
+        category = Syscalls.get_syscall_category(name)
+
+        latency = {'ts_start': entry['start'],
+                   'duration': duration_ns,
+                   'tid': tid,
+                   'pid': pid,
+                   'category': category}
+
+        if fd is not None:
+            latency['fd'] = fd
+
+        if ret < 0:
+            latency['errno'] = -ret
+
+        self.latencies.append(latency)
+
+    def track_thread(self, tid, pid, comm):
         # Dealing with plain old process
         if pid == tid:
             if pid not in self.json_metadata:
@@ -338,49 +367,27 @@ class FDInfo():
                 if self.json_metadata[pid]['threads'][tid_str]['pname'] != comm:
                     self.json_metadata[pid]['threads'][tid_str]['pname'] = comm
 
-        fd = None
+    def track_fd(self, fd, filename, tid, pid, entry):
+        fd_str = str(fd)
+        fdtype = FDType.unknown
 
-        if 'fd' in entry.keys():
-            fd = entry['fd'].fd
-        elif 'fd_in' in entry.keys():
-            fd = entry['fd_in'].fd
+        if fd in self.tids[tid].fds:
+            fdtype = self.tids[tid].fds[fd].fdtype
 
-        if fd:
-            fd_str = str(fd)
-            fdtype = FDType.unknown
+        fd_metadata = {}
+        fd_metadata['filename'] = filename
+        fd_metadata['fdtype'] = fdtype
 
-            if fd in self.tids[tid].fds:
-                fdtype = self.tids[tid].fds[fd].fdtype
+        if str(fd) not in self.json_metadata[pid]['fds']:
+            fds = self.json_metadata[pid]['fds']
+            fds[fd_str] = OrderedDict()
+            fds[fd_str][str(entry['start'])] = fd_metadata
+        else:
+            chrono_fd = self.json_metadata[pid]['fds'][fd_str]
+            last_ts = next(reversed(chrono_fd))
+            if filename != chrono_fd[last_ts]['filename']:
+                chrono_fd[str(entry['start'])] = fd_metadata
 
-            fd_metadata = {}
-            fd_metadata['filename'] = filename
-            fd_metadata['fdtype'] = fdtype
-
-            if str(fd) not in self.json_metadata[pid]['fds']:
-                fds = self.json_metadata[pid]['fds']
-                fds[fd_str] = OrderedDict()
-                fds[fd_str][str(entry['start'])] = fd_metadata
-            else:
-                chrono_fd = self.json_metadata[pid]['fds'][fd_str]
-                last_ts = next(reversed(chrono_fd))
-                if filename != chrono_fd[last_ts]['filename']:
-                    chrono_fd[str(entry['start'])] = fd_metadata
-
-        category = Syscalls.get_syscall_category(name)
-
-        latency = {'ts_start': entry['start'],
-                   'duration': duration_ns,
-                   'tid': tid,
-                   'pid': pid,
-                   'category': category}
-
-        if fd is not None:
-            latency['fd'] = fd
-
-        if ret < 0:
-            latency['errno'] = -ret
-
-        self.latencies.append(latency)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FD syscalls analysis')
