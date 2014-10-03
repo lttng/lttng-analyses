@@ -312,14 +312,20 @@ class FDInfo():
         self.track_thread(tid, pid, comm)
 
         fd = None
+        fd_in = None
+        fd_out = None
 
         if 'fd' in entry.keys():
             fd = entry['fd'].fd
         elif 'fd_in' in entry.keys():
-            fd = entry['fd_in'].fd
+            fd_in = entry['fd_in'].fd
+            fd_out = entry['fd_out'].fd
 
         if fd:
             self.track_fd(fd, filename, tid, pid, entry)
+        elif fd_in and fd_out:
+            self.track_fd(fd_in, filename, tid, pid, entry)
+            self.track_fd(fd_out, filename, tid, pid, entry)
 
         category = Syscalls.get_syscall_category(name)
 
@@ -331,6 +337,9 @@ class FDInfo():
 
         if fd is not None:
             latency['fd'] = fd
+        elif fd_in is not None and fd_out is not None:
+            latency['fd_in'] = fd_in
+            latency['fd_out'] = fd_out
 
         if ret < 0:
             latency['errno'] = -ret
