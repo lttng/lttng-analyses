@@ -343,6 +343,14 @@ class FDInfo():
 
         if ret < 0:
             latency['errno'] = -ret
+        else:
+            if name in ['sys_splice', 'sys_sendfile64']:
+                latency['read'] = ret
+                latency['write'] = ret
+            elif name in Syscalls.READ_SYSCALLS:
+                latency['read'] = ret
+            elif name in Syscalls.WRITE_SYSCALLS:
+                latency['write'] = ret
 
         self.latencies.append(latency)
 
