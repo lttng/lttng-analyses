@@ -329,12 +329,9 @@ class Syscalls():
         if proc.pid != -1 and proc.tid != proc.pid:
             proc = self.tids[proc.pid]
         current_syscall = self.tids[cpu.current_tid].current_syscall
-        if name == "sys_splice":
+        if name in ["sys_splice", "sys_sendfile64"]:
             self.read_append(current_syscall["fd_in"], proc, ret)
             self.write_append(current_syscall["fd_out"], proc, ret)
-        elif name == "sys_sendfile64":
-            self.read_append(current_syscall["fd_in"], proc, ret)
-            self._write_append(current_syscall["fd_out"], proc, ret)
         elif name in Syscalls.READ_SYSCALLS:
             if ret > 0:
                 self.read_append(current_syscall["fd"], proc, ret)
