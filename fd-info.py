@@ -80,7 +80,7 @@ class FDInfo():
         self.disks = {}
         self.syscalls = {}
 
-        self.latencies = []
+        self.fd_events = []
         # Stores metadata about processes when outputting to json
         # Keys: PID, values: {pname, fds, threads}
         self.json_metadata = {}
@@ -147,10 +147,10 @@ class FDInfo():
             self.store_mongo()
 
     def output_json(self):
-        latencies_name = 'latencies_' + self.session_name + '.json'
-        latencies_path = os.path.join(self.args.json, latencies_name)
-        f = open(latencies_path, 'w')
-        json.dump(self.latencies, f)
+        fd_events_name = 'fd_events_' + self.session_name + '.json'
+        fd_events_path = os.path.join(self.args.json, fd_events_name)
+        f = open(fd_events_path, 'w')
+        json.dump(self.fd_events, f)
         f.close()
 
         metadata_name = 'metadata_' + self.session_name + '.json'
@@ -163,22 +163,22 @@ class FDInfo():
         client = MongoClient(self.args.mongo_host, self.args.mongo_port)
         db = client.analyses
 
-        latencies_name = 'latencies_' + self.session_name
+        fd_events_name = 'fd_events_' + self.session_name
         metadata_name = 'metadata_' + self.session_name
 
         try:
-            db.create_collection(latencies_name)
+            db.create_collection(fd_events_name)
         except CollectionInvalid as ex:
             print('Failed to create collection: ')
             print(ex)
             print('Data will not be stored to MongoDB')
             return
 
-        for event in self.latencies:
-            db[latencies_name].insert(event)
+        for event in self.fd_events:
+            db[fd_events_name].insert(event)
 
         # Ascending timestamp index
-        db[latencies_name].create_index('ts_start')
+        db[fd_events_name].create_index('ts_start')
 
         if metadata_name not in db.collection_names():
             try:
@@ -329,30 +329,30 @@ class FDInfo():
 
         category = Syscalls.get_syscall_category(name)
 
-        latency = {'ts_start': entry['start'],
+        fd_event = {'ts_start': entry['start'],
                    'duration': duration_ns,
                    'tid': tid,
                    'pid': pid,
                    'category': category}
 
         if fd is not None:
-            latency['fd'] = fd
+            fd_event['fd'] = fd
         elif fd_in is not None and fd_out is not None:
-            latency['fd_in'] = fd_in
-            latency['fd_out'] = fd_out
+            fd_event['fd_in'] = fd_in
+            fd_event['fd_out'] = fd_out
 
         if ret < 0:
-            latency['errno'] = -ret
+            fd_event['errno'] = -ret
         else:
             if name in ['sys_splice', 'sys_sendfile64']:
-                latency['read'] = ret
-                latency['write'] = ret
+                fd_event['read'] = ret
+                fd_event['write'] = ret
             elif name in Syscalls.READ_SYSCALLS:
-                latency['read'] = ret
+                fd_event['read'] = ret
             elif name in Syscalls.WRITE_SYSCALLS:
-                latency['write'] = ret
+                fd_event['write'] = ret
 
-        self.latencies.append(latency)
+        self.fd_events.append(fd_event)
 
     def track_thread(self, tid, pid, comm):
         # Dealing with plain old process
@@ -438,9 +438,9 @@ if __name__ == '__main__':
     parser.add_argument('--no-color', action='store_true',
                         help='Disable color output')
     parser.add_argument('--json', type=str, default=None,
-                        help='Store latencies as JSON in specified directory')
+                        help='Store FD events as JSON in specified directory')
     parser.add_argument('--mongo', type=str, default=None,
-                        help='Store latencies into MongoDB at specified ip\
+                        help='Store FD events into MongoDB at specified ip\
                         and port')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Don\'t output fd events to stdout')
