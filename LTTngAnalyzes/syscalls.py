@@ -18,21 +18,31 @@ class Syscalls():
     INET_FAMILIES = [socket.AF_INET, socket.AF_INET6]
     DISK_FAMILIES = [socket.AF_UNIX]
     # list nof syscalls that open a FD on disk (in the exit_syscall event)
-    DISK_OPEN_SYSCALLS = ["sys_open", "sys_openat"]
+    DISK_OPEN_SYSCALLS = ["sys_open", "syscall_entry_open",
+            "sys_openat", "syscall_entry_openat"]
     # list of syscalls that open a FD on the network (in the exit_syscall event)
-    NET_OPEN_SYSCALLS = ["sys_accept", "sys_socket"]
+    NET_OPEN_SYSCALLS = ["sys_accept", "syscall_entry_accept",
+            "sys_socket", "syscall_entry_socket"]
     # list of syscalls that can duplicate a FD
-    DUP_OPEN_SYSCALLS = ["sys_fcntl", "sys_dup2"]
+    DUP_OPEN_SYSCALLS = ["sys_fcntl", "syscall_entry_fcntl",
+            "sys_dup2", "syscall_entry_dup2"]
     # merge the 3 open lists
     OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + \
             NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
     # list of syscalls that close a FD (in the "fd =" field)
-    CLOSE_SYSCALLS = ["sys_close"]
+    CLOSE_SYSCALLS = ["sys_close", "syscall_entry_close"]
     # list of syscall that read on a FD, value in the exit_syscall following
-    READ_SYSCALLS = ["sys_read", "sys_recvmsg", "sys_recvfrom",
-                          "sys_splice", "sys_readv", "sys_sendfile64"]
+    READ_SYSCALLS = ["sys_read", "syscall_entry_read",
+            "sys_recvmsg", "syscall_entry_recvmsg",
+            "sys_recvfrom", "syscall_entry_recvfrom",
+            "sys_splice", "syscall_entry_splice",
+            "sys_readv", "syscall_entry_readv",
+            "sys_sendfile64", "syscall_entry_sendfile64"]
     # list of syscall that write on a FD, value in the exit_syscall following
-    WRITE_SYSCALLS = ["sys_write", "sys_sendmsg", "sys_sendto", "sys_writev"]
+    WRITE_SYSCALLS = ["sys_write", "syscall_entry_write",
+            "sys_sendmsg", "syscall_entry_sendmsg",
+            "sys_sendto", "syscall_entry_sendto",
+            "sys_writev", "syscall_entry_writev"]
     # generic names assigned to special FDs, don't try to match these in the
     # closed_fds dict
     GENERIC_NAMES = ["unknown", "socket"]
@@ -109,7 +119,7 @@ class Syscalls():
             current_syscall["filename"] = event["filename"]
             if event["flags"] & O_CLOEXEC == O_CLOEXEC:
                 current_syscall["cloexec"] = 1
-        elif name in ["sys_accept"] and "family" in event.keys():
+        elif name in ["sys_accept", "syscall_entry_accept"] and "family" in event.keys():
             if event["family"] == socket.AF_INET:
                 ipport = "%s:%d" % (int_to_ipv4(event["v4addr"]), event["sport"])
                 current_syscall["filename"] = ipport
@@ -117,7 +127,7 @@ class Syscalls():
                 current_syscall["filename"] = "socket"
         elif name in Syscalls.NET_OPEN_SYSCALLS:
             current_syscall["filename"] = "socket"
-        elif name == "sys_dup2":
+        elif name in ["sys_dup2", "syscall_entry_dup2"]:
             newfd = event["newfd"]
             oldfd = event["oldfd"]
             if newfd in proc.fds.keys():
@@ -127,7 +137,7 @@ class Syscalls():
                 current_syscall["fdtype"] = proc.fds[oldfd].fdtype
             else:
                 current_syscall["filename"] = ""
-        elif name == "sys_fcntl":
+        elif name in ["sys_fcntl", "syscall_entry_fcntl"]:
             # F_DUPFD
             if event["cmd"] != 0:
                 return
@@ -201,7 +211,7 @@ class Syscalls():
             self.track_close(name, t, event, c)
         # when a connect occurs, no new FD is returned, but we can fix
         # the "filename" if we have the destination info
-        elif name in ["sys_connect"] and "family" in event.keys():
+        elif name in ["sys_connect", "syscall_entry_connect"] and "family" in event.keys():
             if event["family"] == socket.AF_INET:
                 fd = self.get_fd(t, event["fd"])
                 ipport = "%s:%d" % (int_to_ipv4(event["v4addr"]), event["dport"])
@@ -232,13 +242,13 @@ class Syscalls():
         current_syscall = self.tids[c.current_tid].current_syscall
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
-        if name == "sys_splice":
+        if name in ["sys_splice", "syscall_entry_splice"]:
             current_syscall["fd_in"] = self.get_fd(t, event["fd_in"])
             current_syscall["fd_out"] = self.get_fd(t, event["fd_out"])
             current_syscall["count"] = event["len"]
             current_syscall["filename"] = current_syscall["fd_in"].filename
             return
-        elif name == "sys_sendfile64":
+        elif name in ["sys_sendfile64", "syscall_entry_sendfile64"]:
             current_syscall["fd_in"] = self.get_fd(t, event["in_fd"])
             current_syscall["fd_out"] = self.get_fd(t, event["out_fd"])
             current_syscall["count"] = event["count"]
@@ -247,13 +257,14 @@ class Syscalls():
         fd = event["fd"]
         f = self.get_fd(t, fd)
         current_syscall["fd"] = f
-        if name in ["sys_writev"]:
+        if name in ["sys_writev", "syscall_entry_writev"]:
             current_syscall["count"] = event["vlen"]
-        elif name in ["sys_recvfrom"]:
+        elif name in ["sys_recvfrom", "syscall_entry_recvfrom"]:
             current_syscall["count"] = event["size"]
-        elif name in ["sys_recvmsg", "sys_sendmsg"]:
+        elif name in ["sys_recvmsg", "syscall_entry_recvmsg",
+                "sys_sendmsg", "syscall_entry_sendmsg"]:
             current_syscall["count"] = ""
-        elif name in ["sys_sendto"]:
+        elif name in ["sys_sendto", "syscall_entry_sendto"]:
             current_syscall["count"] = event["len"]
         else:
             current_syscall["count"] = event["count"]
@@ -329,7 +340,8 @@ class Syscalls():
         if proc.pid != -1 and proc.tid != proc.pid:
             proc = self.tids[proc.pid]
         current_syscall = self.tids[cpu.current_tid].current_syscall
-        if name in ["sys_splice", "sys_sendfile64"]:
+        if name in ["sys_splice", "syscall_entry_splice",
+                "sys_sendfile64", "syscall_entry_sendfile64"]:
             self.read_append(current_syscall["fd_in"], proc, ret)
             self.write_append(current_syscall["fd_out"], proc, ret)
         elif name in Syscalls.READ_SYSCALLS:
@@ -363,7 +375,7 @@ class Syscalls():
             ts_start = ns_to_hour_nsec(current_syscall["start"])
             ts_end = ns_to_hour_nsec(ts)
         procname = self.tids[c.current_tid].comm
-        if name in ["sys_recvmsg"]:
+        if name in ["sys_recvmsg", "syscall_entry_recvmsg"]:
             count = ""
         else:
             count = ", count = %s" % (current_syscall["count"])

@@ -59,7 +59,7 @@ class IOTop():
             sched.switch(event)
         if event.name in ["sched_wakeup", "sched_wakeup_new"]:
             sched.wakeup(event)
-        elif event.name[0:4] == "sys_":
+        elif event.name[0:4] == "sys_" or event.name[0:14] == "syscall_entry_":
             syscall.entry(event)
         elif event.name == "writeback_pages_written":
             syscall.wb_pages(event)
@@ -67,7 +67,7 @@ class IOTop():
             syscall.wakeup_kswapd(event)
         elif event.name == "mm_page_free":
             syscall.page_free(event)
-        elif event.name == "exit_syscall":
+        elif event.name == "exit_syscall" or event.name[0:13] == "syscall_exit_":
             syscall.exit(event, started)
         elif event.name == "block_rq_complete":
             block.complete(event)
