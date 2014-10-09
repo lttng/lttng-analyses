@@ -21,6 +21,7 @@ from LTTngAnalyzes.syscalls import *
 from LTTngAnalyzes.block import *
 from LTTngAnalyzes.net import *
 from LTTngAnalyzes.statedump import *
+from LTTngAnalyzes.mm import *
 from analyzes import *
 from ascii_graph import Pyasciigraph
 
@@ -46,7 +47,7 @@ class IOTop():
         self.random["write_queue"] = 0
 
     def process_event(self, event, sched, syscall, block, net, statedump,
-            started):
+            mm, started):
         if self.start_ns == 0:
             self.start_ns = event.timestamp
         if self.trace_start_ts == 0:
@@ -65,8 +66,15 @@ class IOTop():
             syscall.wb_pages(event)
         elif event.name == "mm_vmscan_wakeup_kswapd":
             syscall.wakeup_kswapd(event)
+#        elif event.name == "writeback_global_dirty_state":
+#            mm.writeback_global_dirty_state(event)
+        elif event.name == "block_dirty_buffer":
+            mm.block_dirty_buffer(event)
         elif event.name == "mm_page_free":
             syscall.page_free(event)
+            mm.page_free(event)
+        elif event.name == "mm_page_alloc":
+            mm.page_alloc(event)
         elif event.name == "exit_syscall" or event.name[0:13] == "syscall_exit_":
             syscall.exit(event, started)
         elif event.name == "block_rq_complete":
@@ -118,6 +126,7 @@ class IOTop():
         block = Block(self.cpus, self.disks, self.tids)
         net = Net(self.ifaces, self.cpus, self.tids)
         statedump = Statedump(self.tids, self.disks)
+        mm = Mm(self.cpus, self.tids)
 
         event_count = 0
         if not args.begin:
@@ -138,7 +147,7 @@ class IOTop():
             if args.end and event.timestamp > args.end:
                 break
             self.process_event(event, sched, syscall, block, net, \
-                    statedump, started)
+                    statedump, mm, started)
         if not args.no_progress:
             pbar.finish()
             print

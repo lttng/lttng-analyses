@@ -46,6 +46,7 @@ class Process():
         self.closed_fds = {}
         self.current_syscall = {}
         self.perf = {}
+        self.dirty = 0
 
 class CPU():
     def __init__(self):

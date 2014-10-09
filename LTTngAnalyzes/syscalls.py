@@ -391,10 +391,22 @@ class Syscalls():
                 if not procname in self.latency_hist.keys():
                     self.latency_hist[procname] = []
                 self.latency_hist[procname].append((ts_start, ms))
+            # pages written
             if "pages_written" in current_syscall.keys():
                 pages = "%d pages written on disk, " % current_syscall["pages_written"]
             else:
                 pages = ""
+            # dirty buffers
+            if "dirty" in current_syscall.keys():
+                dirty = "%d buffers dirtied, " % current_syscall["dirty"]
+            else:
+                dirty = ""
+            # alloc
+            if "alloc" in current_syscall.keys():
+                alloc = "%d pages allocated, " % current_syscall["alloc"]
+            else:
+                alloc = ""
+            # wakeup_kswapd
             if "wakeup_kswapd" in current_syscall.keys():
                 kswapd = "woke up kswapd"
                 if "page_free" in current_syscall.keys():
@@ -403,9 +415,9 @@ class Syscalls():
                     kswapd += ", "
             else:
                 kswapd = ""
-            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s%s%s" % \
+            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s%s%s%s%s" % \
                     (ts_start, ts_end, procname, c.current_tid, name,
-                        fd, filename, count, ret, kswapd, pages,
+                        fd, filename, count, ret, kswapd, pages, dirty, alloc,
                         latency))
 
     def entry(self, event):
