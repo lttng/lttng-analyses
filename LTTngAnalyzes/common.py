@@ -170,5 +170,5 @@ def getFolderSize(folder):
             total_size += getFolderSize(itempath)
     return total_size
 
-def int_to_ipv4(ip):
-    return socket.inet_ntoa(struct.pack("!I", ip))
+def seq_to_ipv4(ip):
+    return "{}.{}.{}.{}".format(ip[0], ip[1], ip[2], ip[3])

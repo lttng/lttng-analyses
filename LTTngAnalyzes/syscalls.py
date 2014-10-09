@@ -121,7 +121,7 @@ class Syscalls():
                 current_syscall["cloexec"] = 1
         elif name in ["sys_accept", "syscall_entry_accept"] and "family" in event.keys():
             if event["family"] == socket.AF_INET:
-                ipport = "%s:%d" % (int_to_ipv4(event["v4addr"]), event["sport"])
+                ipport = "%s:%d" % (seq_to_ipv4(event["v4addr"]), event["sport"])
                 current_syscall["filename"] = ipport
             else:
                 current_syscall["filename"] = "socket"
@@ -214,7 +214,7 @@ class Syscalls():
         elif name in ["sys_connect", "syscall_entry_connect"] and "family" in event.keys():
             if event["family"] == socket.AF_INET:
                 fd = self.get_fd(t, event["fd"])
-                ipport = "%s:%d" % (int_to_ipv4(event["v4addr"]), event["dport"])
+                ipport = "%s:%d" % (seq_to_ipv4(event["v4addr"]), event["dport"])
                 fd.filename = ipport
         return ret_string
 
