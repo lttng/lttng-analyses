@@ -43,7 +43,7 @@ class Mm():
         if len(current_syscall.keys()) == 0:
             return
         if "fd" in current_syscall.keys():
-            self.dirty_pages.append((p, current_syscall["name"],
+            self.dirty_pages["pages"].append((p, current_syscall["name"],
                 current_syscall["fd"].filename))
         return
 

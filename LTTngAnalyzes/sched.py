@@ -2,12 +2,10 @@ from babeltrace import CTFScope
 from LTTngAnalyzes.common import *
 
 class Sched():
-    def __init__(self, cpus, tids, dirty_pages = []):
+    def __init__(self, cpus, tids, dirty_pages = {}):
         self.cpus = cpus
         self.tids = tids
         self.dirty_pages = dirty_pages
-        self.global_nr_dirty = -1
-        self.base_nr_dirty = -1
 
     def sched_switch_per_cpu(self, cpu_id, ts, next_tid, event):
         """Compute per-cpu usage"""
@@ -83,42 +81,60 @@ class Sched():
                 c.wakeup_queue.remove(q)
         return ret
 
+    def clear_dirty_pages(self, to_clean, reason):
+        cleaned = []
+#        print("%s Cleaning nr : %d, current : %d, base : %d, cleaning %d, global %d" % \
+#                (ns_to_hour_nsec(event.timestamp), nr, current,
+#                    self.dirty_pages["base_nr_dirty"],
+#                    to_clean, self.dirty_pages["global_nr_dirty"]))
+        for i in range(to_clean):
+            a = self.dirty_pages["pages"].pop(0)
+            cleaned.append(a)
+
+        # don't account background kernel threads emptying the
+        # page cache
+        if reason == "counter":
+            return
+
+        # flag all processes with a syscall in progress
+        for p in self.tids.values():
+            if len(p.current_syscall.keys()) == 0:
+                continue
+            p.current_syscall["pages_cleared"] = cleaned
+        return
+
     def track_dirty_pages(self, event):
         if not "nr_dirty" in event.keys():
             # if the context is not available, only keep the
             # last 1000 pages inserted (arbitrary)
-            if len(self.dirty_pages) > 1000:
-                for i in range(len(self.dirty_pages) - 1000):
-                    self.dirty_pages.pop(0)
+            if len(self.dirty_pages["pages"]) > 1000:
+                for i in range(len(self.dirty_pages["pages"]) - 1000):
+                    self.dirty_pages["pages"].pop(0)
             return
         nr = event["nr_dirty"]
-        current = len(self.dirty_pages)
+        current = len(self.dirty_pages["pages"])
 
-        if self.global_nr_dirty == -1:
-            self.global_nr_dirty = nr
-            self.base_nr_dirty = nr
+        if self.dirty_pages["global_nr_dirty"] == -1:
+            self.dirty_pages["global_nr_dirty"] = nr
+            self.dirty_pages["base_nr_dirty"] = nr
             return
 
         # only cleanup when the counter goes down
-        if nr >= self.global_nr_dirty:
-            self.global_nr_dirty = nr
+        if nr >= self.dirty_pages["global_nr_dirty"]:
+            self.dirty_pages["global_nr_dirty"] = nr
             return
 
-        if nr <= self.base_nr_dirty:
+        if nr <= self.dirty_pages["base_nr_dirty"]:
             to_clean = current
-            self.base_nr_dirty = nr
-            self.global_nr_dirty = nr
-        elif (self.global_nr_dirty - nr) < 0:
+            self.dirty_pages["base_nr_dirty"] = nr
+            self.dirty_pages["global_nr_dirty"] = nr
+        elif (self.dirty_pages["global_nr_dirty"] - nr) < 0:
             to_clean = current
         else:
-            to_clean = self.global_nr_dirty - nr
+            to_clean = self.dirty_pages["global_nr_dirty"] - nr
         if to_clean > 0:
-#            print("%s Cleaning nr : %d, current : %d, base : %d, cleaning %d, global %d" % \
-#                    (ns_to_hour_nsec(event.timestamp), nr, current,
-#                        self.base_nr_dirty, to_clean, self.global_nr_dirty))
-            for i in range(to_clean):
-                self.dirty_pages.pop(0)
-        self.global_nr_dirty = nr
+            self.clear_dirty_pages(to_clean, "counter")
+        self.dirty_pages["global_nr_dirty"] = nr
 
     def switch(self, event):
         """Handle sched_switch event, returns a dict of changed values"""

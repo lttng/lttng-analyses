@@ -27,6 +27,10 @@ class Syscalls():
     # list of syscalls that can duplicate a FD
     DUP_OPEN_SYSCALLS = ["sys_fcntl", "syscall_entry_fcntl",
             "sys_dup2", "syscall_entry_dup2"]
+    SYNC_SYSCALLS = ["sys_sync", "syscall_entry_sync",
+            "sys_sync_file_range", "syscall_entry_sync_file_range",
+            "sys_fsync", "syscall_entry_fsync",
+            "sys_fdatasync", "syscall_entry_fdatasync"]
     # merge the 3 open lists
     OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + \
             NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
@@ -77,7 +81,7 @@ class Syscalls():
 
         return FDType.unknown
 
-    def __init__(self, cpus, tids, syscalls, dirty_pages=[], names=None, latency=-1,
+    def __init__(self, cpus, tids, syscalls, dirty_pages={}, names=None, latency=-1,
             latency_hist=None, seconds=False):
         self.cpus = cpus
         self.tids = tids
@@ -353,9 +357,9 @@ class Syscalls():
             if ret > 0:
                 self.write_append(current_syscall["fd"], proc, ret)
 
-    def get_page_queue_stats(self):
+    def get_page_queue_stats(self, page_list):
         processes = {}
-        for i in self.dirty_pages:
+        for i in page_list:
             procname = i[0].comm
             tid = i[0].tid
             syscall = i[1]
@@ -373,6 +377,17 @@ class Syscalls():
                 else:
                     processes[tid]["files"][filename] += 1
         return processes
+
+    def print_page_table(self, event, pages):
+        spaces = (41 + 6) * " "
+        for i in pages.keys():
+            p = pages[i]
+            print("%s %s (%d): %d pages" % (spaces, p["procname"],
+                i, p["count"]))
+            files = sorted(p["files"].items(), key=operator.itemgetter(1), \
+                    reverse=True)
+            for f in files:
+                print("%s  - %s : %d pages" % (spaces, f[0], f[1]))
 
     def track_rw_latency(self, name, ret, c, ts, started, event):
         if not self.names and self.latency < 0:
@@ -414,8 +429,6 @@ class Syscalls():
                 if not procname in self.latency_hist.keys():
                     self.latency_hist[procname] = []
                 self.latency_hist[procname].append((ts_start, ms))
-            # dirty pages up-to now
-            page_cache = self.get_page_queue_stats()
             # pages written during the latency
             if "pages_written" in current_syscall.keys():
                 pages = current_syscall["pages_written"]
@@ -437,6 +450,7 @@ class Syscalls():
             base = "[%s - %s] %s (%d)" % (ts_start, ts_end, procname, \
                     c.current_tid)
             spaces = (41) * " "
+            page_cache = {}
             print("%s %s(fd = %d <%s>%s) = %d, %s" % \
                     (base, name, fd, filename, count, ret, latency))
             if alloc > 0:
@@ -445,27 +459,30 @@ class Syscalls():
                 print("%s %d buffers dirtied during the period" % (spaces, dirty))
             if "wakeup_kswapd" in current_syscall.keys():
                 print("%s woke up kswapd during the period" % (spaces))
+                # dirty pages up-to now
+                page_cache = self.get_page_queue_stats(self.dirty_pages["pages"])
             if "pages_written" in current_syscall.keys():
                 print("%s %d pages written on disk" % (spaces, pages))
             if freed > 0:
                 print("%s freed %d pages from the cache during the period" % \
                         (spaces, freed))
-            if len(page_cache) > 0:
-                if not "nr_dirty" in event.keys():
-                    print("%s %d last dirtied filesystem pages:" % \
-                            (spaces, len(self.dirty_pages)))
-                else:
-                    print("%s %d dirty filesystem pages (known):" % \
-                            (spaces, len(self.dirty_pages)))
-                spaces = (41 + 6) * " "
-                for i in page_cache.keys():
-                    p = page_cache[i]
-                    print("%s %s (%d): %d pages" % (spaces, p["procname"],
-                        i, p["count"]))
-                    files = sorted(p["files"].items(), key=operator.itemgetter(1), \
-                            reverse=True)
-                    for f in files:
-                        print("%s  - %s : %d pages" % (spaces, f[0], f[1]))
+            if "pages_cleared" in current_syscall.keys():
+                print("%s %d dirty page(s) were flushed (assuming FIFO):" % (spaces,
+                    len(current_syscall["pages_cleared"])))
+                cleared_pages = self.get_page_queue_stats(current_syscall["pages_cleared"])
+                self.print_page_table(event, cleared_pages)
+                page_cache = self.get_page_queue_stats(self.dirty_pages["pages"])
+#            page_cache = self.get_page_queue_stats()
+
+            if len(page_cache) <= 0:
+                return
+            if not "nr_dirty" in event.keys():
+                print("%s %d last dirtied filesystem page(s):" % \
+                        (spaces, len(self.dirty_pages["pages"])))
+            else:
+                print("%s %d active dirty filesystem page(s) (known):" % \
+                        (spaces, len(self.dirty_pages["pages"])))
+            self.print_page_table(event, page_cache)
 
     def entry(self, event):
         name = event.name

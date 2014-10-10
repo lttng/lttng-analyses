@@ -45,7 +45,10 @@ class IOTop():
         # prototyping stuff
         self.random = {}
         self.random["write_queue"] = 0
-        self.dirty_pages = []
+        self.dirty_pages = {}
+        self.dirty_pages["pages"] = []
+        self.dirty_pages["global_nr_dirty"] = -1
+        self.dirty_pages["base_nr_dirty"] = -1
 
     def process_event(self, event, sched, syscall, block, net, statedump,
             mm, started):
