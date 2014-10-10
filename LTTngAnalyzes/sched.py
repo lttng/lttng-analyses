@@ -106,9 +106,9 @@ class Sched():
         return
 
     def track_dirty_pages(self, event):
+        if not "pages" in self.dirty_pages.keys():
+            return
         if not "nr_dirty" in event.keys():
-            if not "pages" in self.dirty_pages.keys():
-                return
             # if the context is not available, only keep the
             # last 1000 pages inserted (arbitrary)
             if len(self.dirty_pages["pages"]) > 1000:
