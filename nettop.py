@@ -60,9 +60,9 @@ class NetTop():
             sched.switch(event)
         elif event.name == 'sched_process_fork':
             sched.process_fork(event)
-        elif event.name[0:4] == 'sys_':
+        elif event.name[0:4] == 'sys_' or event.name[0:14] == "syscall_entry_":
             syscall.entry(event)
-        elif event.name == 'exit_syscall':
+        elif event.name == 'exit_syscall' or event.name[0:13] == "syscall_exit_":
             syscall.exit(event, False)
 
     def run(self, args):
