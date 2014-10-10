@@ -54,7 +54,7 @@ lttng create -U net://<remote-host>
 
 ## Run the analysis
 Once you have collected your trace, you can run iotop.py on it. In this
-example, we want to extract all the I/O requests that took more than 100ms to
+example, we want to extract all the I/O requests that took more than 50ms to
 complete and also display the general statistics. The use-case in this example
 is concurrent read and writes in a postgresql database. Here is some extracts
 from the output of the script :
