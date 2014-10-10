@@ -1,10 +1,11 @@
 from LTTngAnalyzes.common import *
 
 class Mm():
-    def __init__(self, cpus, tids):
+    def __init__(self, cpus, tids, dirty_pages):
         self.mm = {}
         self.cpus = cpus
         self.tids = tids
+        self.dirty_pages = dirty_pages
         self.mm["count"] = 0
         self.mm["dirty"] = 0
 
@@ -34,13 +35,17 @@ class Mm():
 
     def block_dirty_buffer(self, event):
         self.mm["dirty"] += 1
-        for p in self.tids.values():
-            if len(p.current_syscall.keys()) == 0:
-                continue
-            if not "dirty" in p.current_syscall.keys():
-                p.current_syscall["dirty"] = 1
-            else:
-                p.current_syscall["dirty"] += 1
+        c = self.cpus[event["cpu_id"]]
+        if c.current_tid <= 0:
+            return
+        p = self.tids[c.current_tid]
+        current_syscall = self.tids[c.current_tid].current_syscall
+        if len(current_syscall.keys()) == 0:
+            return
+        if "fd" in current_syscall.keys():
+            self.dirty_pages.append((p, current_syscall["name"],
+                current_syscall["fd"].filename))
+        return
 
     def writeback_global_dirty_state(self, event):
         print("%s count : %d, count dirty : %d, nr_dirty : %d, nr_writeback : %d, nr_dirtied : %d, nr_written : %d" %

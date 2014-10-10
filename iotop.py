@@ -45,6 +45,7 @@ class IOTop():
         # prototyping stuff
         self.random = {}
         self.random["write_queue"] = 0
+        self.dirty_pages = []
 
     def process_event(self, event, sched, syscall, block, net, statedump,
             mm, started):
@@ -119,14 +120,15 @@ class IOTop():
                     file=sys.stderr)
                 args.no_progress = True
 
-        sched = Sched(self.cpus, self.tids)
+        sched = Sched(self.cpus, self.tids, self.dirty_pages)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls,
+                self.dirty_pages,
                 names=args.names, latency=args.latency,
                 latency_hist=self.latency_hist, seconds=args.seconds)
         block = Block(self.cpus, self.disks, self.tids)
         net = Net(self.ifaces, self.cpus, self.tids)
         statedump = Statedump(self.tids, self.disks)
-        mm = Mm(self.cpus, self.tids)
+        mm = Mm(self.cpus, self.tids, self.dirty_pages)
 
         event_count = 0
         if not args.begin:

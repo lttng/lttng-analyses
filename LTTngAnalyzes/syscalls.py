@@ -1,5 +1,6 @@
 from LTTngAnalyzes.common import *
 import socket
+import operator
 
 class IOCategory():
     """Defines an enumeration mapping IO categories to integer values.
@@ -76,11 +77,12 @@ class Syscalls():
 
         return FDType.unknown
 
-    def __init__(self, cpus, tids, syscalls, names=None, latency=-1,
+    def __init__(self, cpus, tids, syscalls, dirty_pages=[], names=None, latency=-1,
             latency_hist=None, seconds=False):
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
+        self.dirty_pages = dirty_pages
         self.names = names
         self.latency = latency
         self.latency_hist = latency_hist
@@ -351,7 +353,28 @@ class Syscalls():
             if ret > 0:
                 self.write_append(current_syscall["fd"], proc, ret)
 
-    def track_rw_latency(self, name, ret, c, ts, started):
+    def get_page_queue_stats(self):
+        processes = {}
+        for i in self.dirty_pages:
+            procname = i[0].comm
+            tid = i[0].tid
+            syscall = i[1]
+            filename = i[2]
+            if not tid in processes.keys():
+                processes[tid] = {}
+                processes[tid]["procname"] = procname
+                processes[tid]["count"] = 1
+                processes[tid]["files"] = {}
+                processes[tid]["files"][filename] = 1
+            else:
+                processes[tid]["count"] += 1
+                if not filename in processes[tid]["files"].keys():
+                    processes[tid]["files"][filename] = 1
+                else:
+                    processes[tid]["files"][filename] += 1
+        return processes
+
+    def track_rw_latency(self, name, ret, c, ts, started, event):
         if not self.names and self.latency < 0:
             return
         current_syscall = self.tids[c.current_tid].current_syscall
@@ -391,34 +414,58 @@ class Syscalls():
                 if not procname in self.latency_hist.keys():
                     self.latency_hist[procname] = []
                 self.latency_hist[procname].append((ts_start, ms))
-            # pages written
+            # dirty pages up-to now
+            page_cache = self.get_page_queue_stats()
+            # pages written during the latency
             if "pages_written" in current_syscall.keys():
-                pages = "%d pages written on disk, " % current_syscall["pages_written"]
-            else:
-                pages = ""
-            # dirty buffers
+                pages = current_syscall["pages_written"]
+            # dirty buffers during the latency
             if "dirty" in current_syscall.keys():
-                dirty = "%d buffers dirtied, " % current_syscall["dirty"]
+                dirty = current_syscall["dirty"]
             else:
-                dirty = ""
-            # alloc
+                dirty = 0
+            # alloc pages during the latency
             if "alloc" in current_syscall.keys():
-                alloc = "%d pages allocated, " % current_syscall["alloc"]
+                alloc = current_syscall["alloc"]
             else:
-                alloc = ""
-            # wakeup_kswapd
+                alloc = 0
+            # wakeup_kswapd during the latency
+            if "page_free" in current_syscall.keys():
+                freed = current_syscall["page_free"]
+            else:
+                freed = 0
+            base = "[%s - %s] %s (%d)" % (ts_start, ts_end, procname, \
+                    c.current_tid)
+            spaces = (41) * " "
+            print("%s %s(fd = %d <%s>%s) = %d, %s" % \
+                    (base, name, fd, filename, count, ret, latency))
+            if alloc > 0:
+                print("%s %d pages allocated during the period" % (spaces, alloc))
+            if dirty > 0:
+                print("%s %d buffers dirtied during the period" % (spaces, dirty))
             if "wakeup_kswapd" in current_syscall.keys():
-                kswapd = "woke up kswapd"
-                if "page_free" in current_syscall.keys():
-                    kswapd += " (%d pages freed from cache), " % current_syscall["page_free"]
+                print("%s woke up kswapd during the period" % (spaces))
+            if "pages_written" in current_syscall.keys():
+                print("%s %d pages written on disk" % (spaces, pages))
+            if freed > 0:
+                print("%s freed %d pages from the cache during the period" % \
+                        (spaces, freed))
+            if len(page_cache) > 0:
+                if not "nr_dirty" in event.keys():
+                    print("%s %d last dirtied filesystem pages:" % \
+                            (spaces, len(self.dirty_pages)))
                 else:
-                    kswapd += ", "
-            else:
-                kswapd = ""
-            print("[%s - %s] %s (%d) %s(fd = %d <%s>%s) = %d, %s%s%s%s%s" % \
-                    (ts_start, ts_end, procname, c.current_tid, name,
-                        fd, filename, count, ret, kswapd, pages, dirty, alloc,
-                        latency))
+                    print("%s %d dirty filesystem pages (known):" % \
+                            (spaces, len(self.dirty_pages)))
+                spaces = (41 + 6) * " "
+                for i in page_cache.keys():
+                    p = page_cache[i]
+                    print("%s %s (%d): %d pages" % (spaces, p["procname"],
+                        i, p["count"]))
+                    files = sorted(p["files"].items(), key=operator.itemgetter(1), \
+                            reverse=True)
+                    for f in files:
+                        print("%s  - %s : %d pages" % (spaces, f[0], f[1]))
 
     def entry(self, event):
         name = event.name
@@ -453,10 +500,10 @@ class Syscalls():
             current_syscall["fd"] = self.get_fd(t, ret)
             current_syscall["count"]= 0
             current_syscall["fd"].fdtype = current_syscall["fdtype"]
-            self.track_rw_latency(name, ret, c, event.timestamp, started)
+            self.track_rw_latency(name, ret, c, event.timestamp, started, event)
         elif name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
             self.track_read_write_return(name, ret, c)
-            self.track_rw_latency(name, ret, c, event.timestamp, started)
+            self.track_rw_latency(name, ret, c, event.timestamp, started, event)
         self.tids[c.current_tid].current_syscall = {}
         return ret_string
 
