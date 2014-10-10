@@ -23,10 +23,10 @@ a list of processes (see `--name` parameter).
 
 ## Install on Ubuntu (12.04 and 14.04 at least)
 ```
-# apt-get install -y software-properties-common (or python-software-properties on 12.04)
-# apt-add-repository -y ppa:lttng/ppa
-# apt-get update
-# apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar
+apt-get install -y software-properties-common (or python-software-properties on 12.04)
+apt-add-repository -y ppa:lttng/ppa
+apt-get update
+apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar
 ```
 
 (If your user is part of the tracing group, you can avoid needing to be root
@@ -34,14 +34,14 @@ next, after a fresh install it requires to logout and login)
 
 ## Trace creation
 ```
-# lttng create
-# lttng enable-channel -k bla --subbuf-size=4M
-# lttng enable-event -k sched_switch,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device,writeback_pages_written,mm_vmscan_wakeup_kswapd,mm_page_free,mm_page_alloc,block_dirty_buffer -c bla
-# lttng enable-event -k --syscall -a -c bla
-# lttng start
-...do stuff...
-# lttng stop
-# lttng destroy
+lttng create
+lttng enable-channel -k bla --subbuf-size=4M
+lttng enable-event -k sched_switch,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device,writeback_pages_written,mm_vmscan_wakeup_kswapd,mm_page_free,mm_page_alloc,block_dirty_buffer -c bla
+lttng enable-event -k --syscall -a -c bla
+lttng start
+..do stuff...
+lttng stop
+lttng destroy
 ```
 
 ## Remote trace creation
@@ -49,7 +49,7 @@ You can also create a trace on a server and send it to a remote host. The
 remote host only need to run `lttng-relayd -d` and be reachable by network.
 The only difference with the above commands is the trace session creation :
 ```
-# lttng create -U net://<remote-host>
+lttng create -U net://<remote-host>
 ```
 
 ## Run the analysis
