@@ -234,6 +234,26 @@ class Syscalls():
             f = proc.fds[fd]
         return f
 
+    def track_sync(self, name, event, cpu_id):
+        # we don't know which process is currently on this CPU
+        if not cpu_id in self.cpus:
+            return
+        c = self.cpus[cpu_id]
+        if c.current_tid == -1:
+            return
+        t = self.tids[c.current_tid]
+        # if it's a thread, we want the parent
+        if t.pid != -1 and t.tid != t.pid:
+            t = self.tids[t.pid]
+        current_syscall = self.tids[c.current_tid].current_syscall
+        current_syscall["name"] = name
+        current_syscall["start"] = event.timestamp
+        if name not in ["sys_sync", "syscall_entry_sync"]:
+            fd = event["fd"]
+            f = self.get_fd(t, fd)
+            current_syscall["fd"] = f
+            current_syscall["filename"] = f.filename
+
     def track_read_write(self, name, event, cpu_id):
         # we don't know which process is currently on this CPU
         if not cpu_id in self.cpus:
@@ -364,6 +384,7 @@ class Syscalls():
             tid = i[0].tid
             syscall = i[1]
             filename = i[2]
+            fd = i[3]
             if not tid in processes.keys():
                 processes[tid] = {}
                 processes[tid]["procname"] = procname
@@ -389,6 +410,25 @@ class Syscalls():
             for f in files:
                 print("%s  - %s : %d pages" % (spaces, f[0], f[1]))
 
+    def syscall_clear_pages(self, event, name, fd, current_syscall, tid):
+        cleaned = []
+        if name in ["sys_sync", "syscall_entry_sync"]:
+            # remove all the pages
+            for i in range(len(self.dirty_pages["pages"])):
+                cleaned.append(self.dirty_pages["pages"].pop(0))
+        else:
+            # remove only the pages that belong to a specific proc/fd
+            for i in range(len(self.dirty_pages["pages"])):
+                proc = self.dirty_pages["pages"][i][0]
+                page_fd = self.dirty_pages["pages"][i][3]
+                if page_fd == fd and (tid.tid == proc.tid or
+                        tid.pid == proc.pid):
+                    cleaned.append(self.dirty_pages["pages"][i])
+            for i in cleaned:
+                self.dirty_pages["pages"].remove(i)
+        if len(cleaned) > 0:
+            current_syscall["pages_cleared"] = cleaned
+
     def track_rw_latency(self, name, ret, c, ts, started, event):
         if not self.names and self.latency < 0:
             return
@@ -403,6 +443,7 @@ class Syscalls():
             fd = current_syscall["fd_in"].fd
         else:
             filename = "unknown"
+            fd = ""
         ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
         latency = "%0.03f ms" % ms
 
@@ -414,6 +455,8 @@ class Syscalls():
             ts_end = ns_to_hour_nsec(ts)
         procname = self.tids[c.current_tid].comm
         if name in ["sys_recvmsg", "syscall_entry_recvmsg"]:
+            count = ""
+        elif name in Syscalls.SYNC_SYSCALLS:
             count = ""
         else:
             count = ", count = %s" % (current_syscall["count"])
@@ -451,7 +494,7 @@ class Syscalls():
                     c.current_tid)
             spaces = (41) * " "
             page_cache = {}
-            print("%s %s(fd = %d <%s>%s) = %d, %s" % \
+            print("%s %s(fd = %s <%s>%s) = %d, %s" % \
                     (base, name, fd, filename, count, ret, latency))
             if alloc > 0:
                 print("%s %d pages allocated during the period" % (spaces, alloc))
@@ -466,6 +509,9 @@ class Syscalls():
             if freed > 0:
                 print("%s freed %d pages from the cache during the period" % \
                         (spaces, freed))
+            if name in Syscalls.SYNC_SYSCALLS:
+                self.syscall_clear_pages(event, name, fd, current_syscall,
+                        self.tids[c.current_tid])
             if "pages_cleared" in current_syscall.keys():
                 print("%s %d dirty page(s) were flushed (assuming FIFO):" % (spaces,
                     len(current_syscall["pages_cleared"])))
@@ -493,6 +539,8 @@ class Syscalls():
         ret_string = self.track_fds(name, event, cpu_id)
         if name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
             self.track_read_write(name, event, cpu_id)
+        if name in Syscalls.SYNC_SYSCALLS:
+            self.track_sync(name, event, cpu_id)
         return ret_string
 
     def exit(self, event, started):
@@ -520,6 +568,8 @@ class Syscalls():
             self.track_rw_latency(name, ret, c, event.timestamp, started, event)
         elif name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
             self.track_read_write_return(name, ret, c)
+            self.track_rw_latency(name, ret, c, event.timestamp, started, event)
+        elif name in Syscalls.SYNC_SYSCALLS:
             self.track_rw_latency(name, ret, c, event.timestamp, started, event)
         self.tids[c.current_tid].current_syscall = {}
         return ret_string

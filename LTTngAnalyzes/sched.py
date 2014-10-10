@@ -87,6 +87,8 @@ class Sched():
 #                (ns_to_hour_nsec(event.timestamp), nr, current,
 #                    self.dirty_pages["base_nr_dirty"],
 #                    to_clean, self.dirty_pages["global_nr_dirty"]))
+        if to_clean > len(self.dirty_pages["pages"]):
+            to_clean = len(self.dirty_pages["pages"])
         for i in range(to_clean):
             a = self.dirty_pages["pages"].pop(0)
             cleaned.append(a)
@@ -132,8 +134,8 @@ class Sched():
             to_clean = current
         else:
             to_clean = self.dirty_pages["global_nr_dirty"] - nr
-        if to_clean > 0:
-            self.clear_dirty_pages(to_clean, "counter")
+#        if to_clean > 0:
+#            self.clear_dirty_pages(to_clean, "counter")
         self.dirty_pages["global_nr_dirty"] = nr
 
     def switch(self, event):

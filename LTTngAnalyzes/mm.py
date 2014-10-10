@@ -44,7 +44,7 @@ class Mm():
             return
         if "fd" in current_syscall.keys():
             self.dirty_pages["pages"].append((p, current_syscall["name"],
-                current_syscall["fd"].filename))
+                current_syscall["fd"].filename, current_syscall["fd"].fd))
         return
 
     def writeback_global_dirty_state(self, event):
