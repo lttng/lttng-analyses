@@ -71,14 +71,14 @@ class Pyasciigraph:
         unicode_type = type(self._u('t'))
         input_type = type(string)
         if input_type is str:
-            if sys.version < '3':
+            if sys.version_info.major < 3:  # pragma: no cover
                 info = unicode(string)
             else:
                 info = string
         elif input_type is unicode_type:
             info = string
         elif input_type is int or input_type is float:
-            if sys.version < '3':
+            if sys.version_info.major < 3:  # pragma: no cover
                 info = unicode(string)
             else:
                 info = str(string)
