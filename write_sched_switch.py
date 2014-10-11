@@ -2,7 +2,7 @@
 
 import sys
 import tempfile
-from babeltrace import *
+from babeltrace import CTFWriter, CTFStringEncoding
 
 trace_path = tempfile.mkdtemp()
 
@@ -51,6 +51,7 @@ sched_switch.add_field(uint32_type, "_cpu_id")
 stream_class.add_event_class(sched_switch)
 stream = writer.create_stream(stream_class)
 
+
 def set_char_array(event, string):
     if len(string) > 16:
         string = string[0:16]
@@ -61,11 +62,14 @@ def set_char_array(event, string):
         a = event.field(i)
         a.value = ord(string[i])
 
+
 def set_int(event, value):
     event.value = value
 
-def write_sched_switch(time_ms, cpu_id, prev_comm, prev_tid, next_comm, \
-        next_tid, prev_prio = 20, prev_state = 1, next_prio = 20):
+
+def write_sched_switch(time_ms, cpu_id, prev_comm, prev_tid, next_comm,
+                       next_tid, prev_prio=20, prev_state=1,
+                       next_prio=20):
     event = CTFWriter.Event(sched_switch)
     clock.time = time_ms * 1000000
     set_char_array(event.payload("_prev_comm"), prev_comm)
@@ -79,8 +83,9 @@ def write_sched_switch(time_ms, cpu_id, prev_comm, prev_tid, next_comm, \
     stream.append_event(event)
     stream.flush()
 
-def sched_switch_50pc(start_time_ms, end_time_ms, cpu_id, period, \
-        comm1, tid1, comm2, tid2):
+
+def sched_switch_50pc(start_time_ms, end_time_ms, cpu_id, period,
+                      comm1, tid1, comm2, tid2):
     current = start_time_ms
     while current < end_time_ms:
         write_sched_switch(current, cpu_id, comm1, tid1, comm2, tid2)
@@ -88,28 +93,29 @@ def sched_switch_50pc(start_time_ms, end_time_ms, cpu_id, period, \
         write_sched_switch(current, cpu_id, comm2, tid2, comm1, tid1)
         current += period
 
+
 def sched_switch_rr(start_time_ms, end_time_ms, cpu_id, period, task_list):
     current = start_time_ms
     while current < end_time_ms:
         current_task = task_list[len(task_list) - 1]
         for i in task_list:
             write_sched_switch(current, cpu_id, current_task[0],
-                    current_task[1], i[0], i[1])
+                               current_task[1], i[0], i[1])
             current_task = i
             current += period
 
 write_sched_switch(1393345613900, 5, "swapper/5", 0, "prog100pc-cpu5", 42)
-sched_switch_50pc(1393345614000, 1393345615000, 0, 100, \
-        "swapper/0", 0, "prog50pc-cpu0", 30664)
-sched_switch_50pc(1393345615000, 1393345616000, 1, 100, \
-        "swapper/1", 0, "prog50pc-cpu1", 30665)
-sched_switch_50pc(1393345616000, 1393345617000, 2, 100, \
-        "swapper/2", 0, "prog50pc-cpu2", 30666)
-sched_switch_50pc(1393345617000, 1393345618000, 3, 100, \
-        "swapper/3", 0, "prog50pc-cpu3", 30667)
-sched_switch_50pc(1393345618000, 1393345619000, 0, 100, \
-        "swapper/0", 0, "prog50pc-cpu0", 30664)
+sched_switch_50pc(1393345614000, 1393345615000, 0, 100,
+                  "swapper/0", 0, "prog50pc-cpu0", 30664)
+sched_switch_50pc(1393345615000, 1393345616000, 1, 100,
+                  "swapper/1", 0, "prog50pc-cpu1", 30665)
+sched_switch_50pc(1393345616000, 1393345617000, 2, 100,
+                  "swapper/2", 0, "prog50pc-cpu2", 30666)
+sched_switch_50pc(1393345617000, 1393345618000, 3, 100,
+                  "swapper/3", 0, "prog50pc-cpu3", 30667)
+sched_switch_50pc(1393345618000, 1393345619000, 0, 100,
+                  "swapper/0", 0, "prog50pc-cpu0", 30664)
 
-proc_list = [ ("prog1", 10), ("prog2", 11), ("prog3", 12), ("prog4", 13) ]
+proc_list = [("prog1", 10), ("prog2", 11), ("prog3", 12), ("prog4", 13)]
 sched_switch_rr(1393345619000, 1393345622000, 4, 100, proc_list)
 write_sched_switch(1393345622300, 5, "prog100pc-cpu5", 42, "swapper/5", 0)
