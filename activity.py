@@ -12,14 +12,13 @@
 
 import sys
 import argparse
-import shutil
-import time
 import os
 import sqlite3
-from babeltrace import *
-from LTTngAnalyzes.common import *
+from babeltrace import TraceCollection
+from LTTngAnalyzes.common import CPU, Process, Syscall
 
 DB_NAME = "proc.db"
+
 
 class Analyzes():
     def __init__(self, traces):
@@ -36,52 +35,56 @@ class Analyzes():
         self.cur.execute("DROP TABLE IF EXISTS processes")
         self.cur.execute("CREATE TABLE processes (name TEXT)")
         self.cur.execute("DROP TABLE IF EXISTS syscalls")
-        self.cur.execute("CREATE TABLE syscalls (proc_name TEXT, syscall_name TEXT)")
+        self.cur.execute("CREATE TABLE syscalls "
+                         "(proc_name TEXT, syscall_name TEXT)")
 
         self.cur.execute("DROP TABLE IF EXISTS staging_processes")
         self.cur.execute("CREATE TABLE staging_processes (name TEXT)")
         self.cur.execute("DROP TABLE IF EXISTS staging_syscalls")
-        self.cur.execute("CREATE TABLE staging_syscalls (proc_name TEST, syscall_name TEXT)")
+        self.cur.execute("CREATE TABLE staging_syscalls "
+                         "(proc_name TEST, syscall_name TEXT)")
 
     def check_process(self, proc):
         self.cur.execute("SELECT * FROM processes WHERE name=:name",
-                {"name": proc})
+                         {"name": proc})
         p = self.cur.fetchall()
         if p:
             return
         self.cur.execute("SELECT * FROM staging_processes WHERE name=:name",
-                {"name": proc})
+                         {"name": proc})
         p = self.cur.fetchall()
         if not p:
             self.cur.execute("INSERT INTO staging_processes VALUES (:proc)",
-                    {"proc": proc})
+                             {"proc": proc})
 
     def check_syscall(self, proc, syscall):
-        self.cur.execute("SELECT * FROM syscalls WHERE proc_name=:proc_name " \
-                "AND syscall_name=:syscall_name",
-                {"proc_name": proc, "syscall_name": syscall})
+        self.cur.execute("SELECT * FROM syscalls WHERE proc_name=:proc_name "
+                         "AND syscall_name=:syscall_name",
+                         {"proc_name": proc, "syscall_name": syscall})
         p = self.cur.fetchall()
         if p:
             return
-        self.cur.execute("SELECT * FROM staging_syscalls WHERE proc_name=:proc_name " \
-                "AND syscall_name=:syscall_name",
-                {"proc_name": proc, "syscall_name": syscall})
+        self.cur.execute("SELECT * FROM staging_syscalls "
+                         "WHERE proc_name=:proc_name "
+                         "AND syscall_name=:syscall_name",
+                         {"proc_name": proc, "syscall_name": syscall})
         p = self.cur.fetchall()
         if not p:
             self.cur.execute("INSERT INTO staging_syscalls VALUES(?,?)",
-                    (proc, syscall))
+                             (proc, syscall))
 
     def add_proc(self, p):
         self.cur.execute("INSERT INTO processes VALUES (:proc)",
-                {"proc": p})
+                         {"proc": p})
         self.cur.execute("DELETE FROM staging_processes WHERE name=:proc",
-                {"proc": p})
+                         {"proc": p})
 
     def add_syscall(self, p, s):
         self.cur.execute("INSERT INTO syscalls VALUES (:proc, :syscall)",
-                {"proc": p, "syscall": s})
-        self.cur.execute("DELETE FROM staging_syscalls WHERE proc_name=:proc " \
-                "AND syscall_name=:syscall", {"proc": p, "syscall": s})
+                         {"proc": p, "syscall": s})
+        self.cur.execute("DELETE FROM staging_syscalls WHERE proc_name=:proc "
+                         "AND syscall_name=:syscall",
+                         {"proc": p, "syscall": s})
 
     def review_processes(self):
         self.cur.execute("SELECT * FROM staging_processes")
@@ -95,8 +98,8 @@ class Analyzes():
                 self.add_proc(p[0])
                 continue
 
-            print("Found new process running : %s, add it to the DB (Y/n/a/q) ?" %
-                    (p))
+            print("Found new process running: %s, "
+                  "add it to the DB (Y/n/a/q) ?" % (p))
             a = sys.stdin.readline().strip()
             if a in ["y", "Y", ""]:
                 self.add_proc(p[0])
@@ -120,8 +123,9 @@ class Analyzes():
                 self.add_syscall(p[0], p[1])
                 continue
 
-            print("Found new syscall %s for proc %s, add it to the DB (Y/n/a/q) ?" %
-                    (p[1], p[0]))
+            print("Found new syscall %s for proc %s, "
+                  "add it to the DB (Y/n/a/q) ?" %
+                  (p[1], p[0]))
             a = sys.stdin.readline().strip()
             if a in ["y", "Y", ""]:
                 self.add_syscall(p[0], p[1])
@@ -135,23 +139,23 @@ class Analyzes():
 
     def lttng_statedump_process_state(self, event):
         name = event["name"]
-        if not name in self.processes.keys():
+        if name not in self.processes.keys():
             self.processes[name] = Process()
             self.check_process(name)
 
     def sched_switch(self, event):
         next_comm = event["next_comm"]
         cpu_id = event["cpu_id"]
-        if not cpu_id in self.cpus.keys():
+        if cpu_id not in self.cpus.keys():
             self.cpus[cpu_id] = CPU()
         self.cpus[cpu_id].current_comm = next_comm
-        if not next_comm in self.processes.keys():
+        if next_comm not in self.processes.keys():
             self.processes[next_comm] = Process()
             self.check_process(next_comm)
 
     def syscall_entry(self, event):
         cpu_id = event["cpu_id"]
-        if not cpu_id in self.cpus.keys():
+        if cpu_id not in self.cpus.keys():
             return
         p = self.processes[self.cpus[cpu_id].current_comm]
         p.syscalls[event.name] = Syscall()
@@ -180,11 +184,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Activity tracker')
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('--reset', action="store_true",
-            help='Destroy and init the database')
+                        help='Destroy and init the database')
     parser.add_argument('--accept', action="store_true",
-            help='Accept all (non-interactive)')
+                        help='Accept all (non-interactive)')
     parser.add_argument('--report', action="store_true",
-            help='Report the difference between the DB (non-interactive)')
+                        help='Report the difference between the DB '
+                             '(non-interactive)')
     args = parser.parse_args()
 
     traces = TraceCollection()
@@ -203,6 +208,5 @@ if __name__ == "__main__":
         c.connect_db()
 
     c.run(args)
-    #c.report()
 
     traces.remove_trace(handle)
