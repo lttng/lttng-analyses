@@ -10,15 +10,14 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys
 import argparse
-import shutil
-import time
-from babeltrace import *
-from LTTngAnalyzes.common import *
-from LTTngAnalyzes.sched import *
-from analyzes import *
+import operator
+import sys
+from babeltrace import TraceCollection
+from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime
+from LTTngAnalyzes.sched import Sched
 from ascii_graph import Pyasciigraph
+
 
 class CPUTop():
     def __init__(self, traces):
@@ -54,7 +53,7 @@ class CPUTop():
             # stats only for the last segment
             self.compute_stats()
             self.output(args, self.start_ns, self.trace_end_ts,
-                    final=1)
+                        final=1)
 
     def check_refresh(self, args, event):
         """Check if we need to output something"""
@@ -91,7 +90,7 @@ class CPUTop():
         values = []
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         for tid in sorted(self.tids.values(),
-                key=operator.attrgetter('cpu_ns'), reverse=True):
+                          key=operator.attrgetter('cpu_ns'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
             pc = float("%0.02f" % ((tid.cpu_ns * 100) / total_ns))
@@ -99,17 +98,15 @@ class CPUTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in  graph.graph("Per-TID CPU Usage", values):
+        for line in graph.graph("Per-TID CPU Usage", values):
             print(line)
 
         values = []
-        nb_cpu = len(self.cpus.keys())
         for cpu in sorted(self.cpus.values(),
-                key=operator.attrgetter('cpu_ns'), reverse=True):
-            cpu_total_ns = cpu.cpu_ns
+                          key=operator.attrgetter('cpu_ns'), reverse=True):
             cpu_pc = float("%0.02f" % cpu.cpu_pc)
             values.append(("CPU %d" % cpu.cpu_id, cpu_pc))
-        for line in  graph.graph("Per-CPU Usage", values):
+        for line in graph.graph("Per-CPU Usage", values):
             print(line)
 
     def reset_total(self, start_ts):
@@ -132,9 +129,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CPU usage analysis')
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('-r', '--refresh', type=int,
-            help='Refresh period in seconds', default=0)
+                        help='Refresh period in seconds', default=0)
     parser.add_argument('--top', type=int, default=10,
-            help='Limit to top X TIDs (default = 10)')
+                        help='Limit to top X TIDs (default = 10)')
     args = parser.parse_args()
     args.proc_list = []
 
