@@ -100,9 +100,11 @@ class FDInfo():
     def process_event(self, event, sched, syscall, statedump):
         if event.name == 'sched_switch':
             sched.switch(event)
-        elif event.name.startswith('sys_'):
+        elif event.name.startswith('sys_') or \
+                event.name.startswith('syscall_entry_'):
             syscall.entry(event)
-        elif event.name == 'exit_syscall':
+        elif event.name == 'exit_syscall' or \
+                event.name.startswith('syscall_exit_'):
             self.handle_syscall_exit(event, syscall)
         elif event.name == 'sched_process_fork':
             sched.process_fork(event)
