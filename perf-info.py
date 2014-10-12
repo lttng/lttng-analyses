@@ -10,12 +10,15 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys, argparse, errno, json, os.path, socket
-from babeltrace import *
-from LTTngAnalyzes.common import *
-from LTTngAnalyzes.sched import *
-from LTTngAnalyzes.statedump import *
-from LTTngAnalyzes.syscalls import *
+import argparse
+import json
+import os.path
+import socket
+import sys
+from babeltrace import TraceCollection
+from LTTngAnalyzes.common import ns_to_hour_nsec
+from LTTngAnalyzes.sched import Sched
+from LTTngAnalyzes.statedump import Statedump
 from pymongo import MongoClient
 from pymongo.errors import CollectionInvalid
 
@@ -85,8 +88,6 @@ class Perf():
         json.dump(self.perf, f)
         f.close()
 
-        metadata_name = 'metadata_' + self.session_name + '.json'
-        metadata_path = os.path.join(self.args.json, metadata_name)
         f = open(os.path.join(self.args.json, 'metadata.json'), 'w')
         json.dump(self.json_metadata, f)
         f.close()
@@ -173,12 +174,12 @@ class Perf():
     def log_perf_event_json(self, ts, comm, tid, pid, ret):
         if pid == tid:
             if pid not in self.json_metadata:
-                self.json_metadata[pid] = {'pname': comm, 'threads': {} }
+                self.json_metadata[pid] = {'pname': comm, 'threads': {}}
             elif self.json_metadata[pid]['pname'] != comm:
                 self.json_metadata[pid]['pname'] = comm
         else:
             if pid not in self.json_metadata:
-                self.json_metadata[pid] = {'pname': 'unknown', 'threads': {} }
+                self.json_metadata[pid] = {'pname': 'unknown', 'threads': {}}
 
             tid_str = str(tid)
             if tid_str not in self.json_metadata[pid]['threads']:
@@ -186,7 +187,8 @@ class Perf():
                     'pname': comm
                 }
             else:
-                if self.json_metadata[pid]['threads'][tid_str]['pname'] != comm:
+                if self.json_metadata[pid]['threads'][tid_str]['pname'] \
+                        != comm:
                     self.json_metadata[pid]['threads'][tid_str]['pname'] = comm
 
         self.perf.append(ret)

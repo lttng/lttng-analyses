@@ -10,26 +10,27 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys
 import argparse
-import shutil
-import time
-from babeltrace import *
-from LTTngAnalyzes.common import *
-from LTTngAnalyzes.sched import *
-from LTTngAnalyzes.syscalls import *
-from LTTngAnalyzes.block import *
-from LTTngAnalyzes.net import *
-from LTTngAnalyzes.statedump import *
-from LTTngAnalyzes.mm import *
-from analyzes import *
+import operator
+import sys
+from LTTngAnalyzes.block import Block
+from LTTngAnalyzes.net import Net
+from LTTngAnalyzes.statedump import Statedump
+from LTTngAnalyzes.mm import Mm
+from babeltrace import TraceCollection
+from LTTngAnalyzes.common import convert_size, getFolderSize, \
+    BYTES_PER_EVENT, MSEC_PER_NSEC, NSEC_PER_SEC, ns_to_asctime, \
+    sec_to_nsec
+from LTTngAnalyzes.sched import Sched
+from LTTngAnalyzes.syscalls import Syscalls
 from ascii_graph import Pyasciigraph
 
 try:
-    from progressbar import *
+    from progressbar import ETA, Bar, Percentage, ProgressBar
     progressbar_available = True
 except ImportError:
     progressbar_available = False
+
 
 class IOTop():
     def __init__(self, traces):
@@ -51,7 +52,7 @@ class IOTop():
         self.dirty_pages["base_nr_dirty"] = -1
 
     def process_event(self, event, sched, syscall, block, net, statedump,
-            mm, started):
+                      mm, started):
         if self.start_ns == 0:
             self.start_ns = event.timestamp
         if self.trace_start_ts == 0:
@@ -79,7 +80,8 @@ class IOTop():
             mm.page_free(event)
         elif event.name == "mm_page_alloc":
             mm.page_alloc(event)
-        elif event.name == "exit_syscall" or event.name[0:13] == "syscall_exit_":
+        elif event.name == "exit_syscall" or \
+                event.name[0:13] == "syscall_exit_":
             syscall.exit(event, started)
         elif event.name == "block_rq_complete":
             block.complete(event)
@@ -114,20 +116,22 @@ class IOTop():
             if progressbar_available:
                 size = getFolderSize(args.path)
                 widgets = ['Processing the trace: ', Percentage(), ' ',
-                    Bar(marker='#',left='[',right=']'),
-                    ' ', ETA(), ' '] #see docs for other options
-                pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+                           Bar(marker='#', left='[', right=']'),
+                           ' ', ETA(), ' ']  # see docs for other options
+                pbar = ProgressBar(widgets=widgets,
+                                   maxval=size/BYTES_PER_EVENT)
                 pbar.start()
             else:
-                print("Warning: progressbar module not available, using --no-progress.",
-                    file=sys.stderr)
+                print("Warning: progressbar module not available, "
+                      "using --no-progress.", file=sys.stderr)
                 args.no_progress = True
 
         sched = Sched(self.cpus, self.tids, self.dirty_pages)
         syscall = Syscalls(self.cpus, self.tids, self.syscalls,
-                self.dirty_pages,
-                names=args.names, latency=args.latency,
-                latency_hist=self.latency_hist, seconds=args.seconds)
+                           self.dirty_pages,
+                           names=args.names, latency=args.latency,
+                           latency_hist=self.latency_hist,
+                           seconds=args.seconds)
         block = Block(self.cpus, self.disks, self.tids)
         net = Net(self.ifaces, self.cpus, self.tids)
         statedump = Statedump(self.tids, self.disks)
@@ -151,8 +155,8 @@ class IOTop():
                 self.reset_total(event.timestamp)
             if args.end and event.timestamp > args.end:
                 break
-            self.process_event(event, sched, syscall, block, net, \
-                    statedump, mm, started)
+            self.process_event(event, sched, syscall, block, net,
+                               statedump, mm, started)
         if not args.no_progress:
             pbar.finish()
             print
@@ -161,10 +165,9 @@ class IOTop():
             self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
         else:
             # stats only for the last segment
-            self.output(args, self.start_ns, self.trace_end_ts,
-                    final=1)
+            self.output(args, self.start_ns, self.trace_end_ts, final=1)
         # XXX : debug
-        #block.dump_orphan_requests()
+        # block.dump_orphan_requests()
 
     def check_refresh(self, args, event):
         """Check if we need to output something"""
@@ -188,14 +191,15 @@ class IOTop():
         files = {}
         for tid in self.tids.values():
             for fd in tid.fds.values():
-                if not fd.filename in files.keys():
+                if fd.filename not in files.keys():
                     files[fd.filename] = {}
                     files[fd.filename]["read"] = fd.read
                     files[fd.filename]["write"] = fd.write
                     if fd.filename.startswith("pipe") or \
                             fd.filename.startswith("socket") or \
                             fd.filename.startswith("anon_inode"):
-                        files[fd.filename]["name"] = "%s (%s)" % (fd.filename, tid.comm)
+                        files[fd.filename]["name"] = "%s (%s)" % (fd.filename,
+                                                                  tid.comm)
                     else:
                         files[fd.filename]["name"] = fd.filename
                     files[fd.filename]["other"] = "(%d %d)" % (fd.fd, tid.tid)
@@ -206,7 +210,7 @@ class IOTop():
             if f["read"] == 0:
                 continue
             values.append(("%s %s %s" % (f["name"],
-                convert_size(f["read"]), f["other"]), f["read"]))
+                           convert_size(f["read"]), f["other"]), f["read"]))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -216,7 +220,7 @@ class IOTop():
             if f["write"] == 0:
                 continue
             values.append(("%s %s %s" % (f["name"],
-                convert_size(f["write"]), f["other"]), f["write"]))
+                           convert_size(f["write"]), f["other"]), f["write"]))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -229,14 +233,16 @@ class IOTop():
         graph = Pyasciigraph()
         values = []
         for tid in sorted(self.tids.values(),
-                key=operator.attrgetter('read'), reverse=True):
+                          key=operator.attrgetter('read'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d), %s disk, %s net, %s block, %s unknown" % \
-                    (convert_size(tid.read), tid.comm, \
-                    tid.tid, convert_size(tid.disk_read),
-                    convert_size(tid.net_read), convert_size(tid.block_read),
-                    convert_size(tid.unk_read)), tid.read))
+            values.append(("%s %s (%d), %s disk, %s net, %s block, "
+                           "%s unknown" %
+                           (convert_size(tid.read), tid.comm,
+                            tid.tid, convert_size(tid.disk_read),
+                            convert_size(tid.net_read),
+                            convert_size(tid.block_read),
+                            convert_size(tid.unk_read)), tid.read))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -249,14 +255,16 @@ class IOTop():
         graph = Pyasciigraph()
         values = []
         for tid in sorted(self.tids.values(),
-                key=operator.attrgetter('write'), reverse=True):
+                          key=operator.attrgetter('write'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d), %s disk, %s net, %s block, %s unknown" % \
-                    (convert_size(tid.write), tid.comm, \
-                    tid.tid, convert_size(tid.disk_write),
-                    convert_size(tid.net_write), convert_size(tid.block_write),
-                    convert_size(tid.unk_write)), tid.write))
+            values.append(("%s %s (%d), %s disk, %s net, %s block, "
+                           "%s unknown" %
+                           (convert_size(tid.write), tid.comm,
+                            tid.tid, convert_size(tid.disk_write),
+                            convert_size(tid.net_write),
+                            convert_size(tid.block_write),
+                            convert_size(tid.unk_write)), tid.write))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -269,11 +277,11 @@ class IOTop():
         graph = Pyasciigraph()
         values = []
         for tid in sorted(self.tids.values(),
-                key=operator.attrgetter('block_read'), reverse=True):
+                          key=operator.attrgetter('block_read'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d)" % (convert_size(tid.block_read), tid.comm, \
-                    tid.tid), tid.block_read))
+            values.append(("%s %s (%d)" % (convert_size(tid.block_read),
+                                           tid.comm, tid.tid), tid.block_read))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -286,11 +294,13 @@ class IOTop():
         graph = Pyasciigraph()
         values = []
         for tid in sorted(self.tids.values(),
-                key=operator.attrgetter('block_write'), reverse=True):
+                          key=operator.attrgetter('block_write'),
+                          reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d)" % (convert_size(tid.block_write), tid.comm, \
-                    tid.tid), tid.block_write))
+            values.append(("%s %s (%d)" % (convert_size(tid.block_write),
+                                           tid.comm,
+                                           tid.tid), tid.block_write))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -298,11 +308,10 @@ class IOTop():
             print(line)
 
     def output_nr_sector(self, args):
-        count = 0
         graph = Pyasciigraph()
         values = []
         for disk in sorted(self.disks.values(),
-                key=operator.attrgetter('nr_sector'), reverse=True):
+                           key=operator.attrgetter('nr_sector'), reverse=True):
             if disk.nr_sector == 0:
                 continue
             values.append((disk.prettyname, disk.nr_sector))
@@ -310,11 +319,11 @@ class IOTop():
             print(line)
 
     def output_nr_requests(self, args):
-        count = 0
         graph = Pyasciigraph()
         values = []
         for disk in sorted(self.disks.values(),
-                key=operator.attrgetter('nr_requests'), reverse=True):
+                           key=operator.attrgetter('nr_requests'),
+                           reverse=True):
             if disk.nr_sector == 0:
                 continue
             values.append((disk.prettyname, disk.nr_requests))
@@ -322,42 +331,43 @@ class IOTop():
             print(line)
 
     def output_dev_latency(self, args):
-        count = 0
         graph = Pyasciigraph()
         values = []
         for disk in self.disks.values():
             if disk.completed_requests == 0:
                 continue
-            total = (disk.request_time / disk.completed_requests) / MSEC_PER_NSEC
+            total = (disk.request_time / disk.completed_requests) \
+                / MSEC_PER_NSEC
             total = float("%0.03f" % total)
             values.append(("ms %s" % disk.prettyname, total))
         for line in graph.graph('Disk request time/sector', values, sort=2):
             print(line)
 
     def output_net_recv_bytes(self, args):
-        count = 0
         graph = Pyasciigraph()
         values = []
         for iface in sorted(self.ifaces.values(),
-                key=operator.attrgetter('recv_bytes'), reverse=True):
-            values.append(("%s %s" % (convert_size(iface.recv_bytes), iface.name),
-                iface.recv_bytes))
+                            key=operator.attrgetter('recv_bytes'),
+                            reverse=True):
+            values.append(("%s %s" % (convert_size(iface.recv_bytes),
+                                      iface.name),
+                          iface.recv_bytes))
         for line in graph.graph('Network recv_bytes', values):
             print(line)
 
     def output_net_sent_bytes(self, args):
-        count = 0
         graph = Pyasciigraph()
         values = []
         for iface in sorted(self.ifaces.values(),
-                key=operator.attrgetter('send_bytes'), reverse=True):
-            values.append(("%s %s" % (convert_size(iface.send_bytes), iface.name),
-                iface.send_bytes))
+                            key=operator.attrgetter('send_bytes'),
+                            reverse=True):
+            values.append(("%s %s" % (convert_size(iface.send_bytes),
+                                      iface.name),
+                          iface.send_bytes))
         for line in graph.graph('Network sent_bytes', values):
             print(line)
 
     def output_latencies(self, args):
-        count = 0
         graph = Pyasciigraph()
         for proc in self.latency_hist.keys():
             values = []
@@ -406,23 +416,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='I/O usage analysis')
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('-r', '--refresh', type=int,
-            help='Refresh period in seconds', default=0)
+                        help='Refresh period in seconds', default=0)
     parser.add_argument('--top', type=int, default=10,
-            help='Limit to top X TIDs (default = 10)')
+                        help='Limit to top X TIDs (default = 10)')
     parser.add_argument('--name', type=str, default=0,
-            help='Show the I/O latency for this list of processes ' \
-                '("all" accepted)')
+                        help='Show the I/O latency for this list of processes '
+                             '("all" accepted)')
     parser.add_argument('--latency', type=int, default=-1,
-            help='Only show I/O requests with a latency above this ' \
-                'threshold (ms)')
+                        help='Only show I/O requests with a latency above '
+                             'this threshold (ms)')
     parser.add_argument('--no-progress', action="store_true",
-            help='Don\'t display the progress bar')
+                        help='Don\'t display the progress bar')
     parser.add_argument('--begin', type=float,
-            help='start time in seconds from epoch (ex: 1394643671.032202563)')
+                        help='start time in seconds from epoch '
+                             '(e.g. 1394643671.032202563)')
     parser.add_argument('--end', type=float,
-            help='end time in seconds from epoch (ex: 1394643671.032202563)')
+                        help='end time in seconds from epoch '
+                             '(e.g.: 1394643671.032202563)')
     parser.add_argument('--seconds', action="store_true",
-            help='display time in seconds since epoch')
+                        help='display time in seconds since epoch')
     args = parser.parse_args()
     args.proc_list = []
 

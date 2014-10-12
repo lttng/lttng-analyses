@@ -10,13 +10,18 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys, argparse, errno, json, os.path, socket
+import argparse
+import errno
+import json
+import os.path
+import socket
+import sys
 from collections import OrderedDict
-from babeltrace import *
-from LTTngAnalyzes.common import *
-from LTTngAnalyzes.sched import *
-from LTTngAnalyzes.statedump import *
-from LTTngAnalyzes.syscalls import *
+from babeltrace import TraceCollection
+from LTTngAnalyzes.common import FDType, ns_to_hour_nsec
+from LTTngAnalyzes.sched import Sched
+from LTTngAnalyzes.statedump import Statedump
+from LTTngAnalyzes.syscalls import Syscalls
 from pymongo import MongoClient
 from pymongo.errors import CollectionInvalid
 
@@ -153,8 +158,6 @@ class FDInfo():
         json.dump(self.fd_events, f)
         f.close()
 
-        metadata_name = 'metadata_' + self.session_name + '.json'
-        metadata_path = os.path.join(self.args.json, metadata_name)
         f = open(os.path.join(self.args.json, 'metadata.json'), 'w')
         json.dump(self.json_metadata, f)
         f.close()
@@ -330,10 +333,10 @@ class FDInfo():
         category = Syscalls.get_syscall_category(name)
 
         fd_event = {'ts_start': entry['start'],
-                   'duration': duration_ns,
-                   'tid': tid,
-                   'pid': pid,
-                   'category': category}
+                    'duration': duration_ns,
+                    'tid': tid,
+                    'pid': pid,
+                    'category': category}
 
         if fd is not None:
             fd_event['fd'] = fd
@@ -381,7 +384,8 @@ class FDInfo():
                     'pname': comm
                 }
             else:
-                if self.json_metadata[pid]['threads'][tid_str]['pname'] != comm:
+                if self.json_metadata[pid]['threads'][tid_str]['pname'] \
+                        != comm:
                     self.json_metadata[pid]['threads'][tid_str]['pname'] = comm
 
     def track_fd(self, fd, filename, tid, pid, entry):
