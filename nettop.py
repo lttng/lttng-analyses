@@ -16,16 +16,18 @@
 import sys
 import argparse
 import socket
-from babeltrace import *
-from LTTngAnalyzes.common import *
-from LTTngAnalyzes.sched import *
-from LTTngAnalyzes.syscalls import *
+from babeltrace import TraceCollection
+from LTTngAnalyzes.common import convert_size, getFolderSize, \
+    BYTES_PER_EVENT, FDType
+from LTTngAnalyzes.sched import Sched
+from LTTngAnalyzes.syscalls import Syscalls
 
 try:
-    from progressbar import *
+    from progressbar import ETA, Bar, Percentage, ProgressBar
     progressbar_available = True
 except ImportError:
     progressbar_available = False
+
 
 class NetTop():
     TOTAL_FORMAT = '{0:20} {1:<10} total: {2:10}'
@@ -62,7 +64,8 @@ class NetTop():
             sched.process_fork(event)
         elif event.name[0:4] == 'sys_' or event.name[0:14] == "syscall_entry_":
             syscall.entry(event)
-        elif event.name == 'exit_syscall' or event.name[0:13] == "syscall_exit_":
+        elif event.name == 'exit_syscall' or \
+                event.name[0:13] == "syscall_exit_":
             syscall.exit(event, False)
 
     def run(self, args):
@@ -73,13 +76,15 @@ class NetTop():
             if progressbar_available:
                 size = getFolderSize(args.path)
                 widgets = ['Processing the trace: ', Percentage(), ' ',
-                    Bar(marker='#',left='[',right=']'),
-                    ' ', ETA(), ' '] #see docs for other options
-                pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+                           Bar(marker='#', left='[', right=']'),
+                           ' ', ETA(), ' ']  # see docs for other options
+                pbar = ProgressBar(widgets=widgets,
+                                   maxval=size/BYTES_PER_EVENT)
                 pbar.start()
             else:
-                print("Warning: progressbar module not available, using --no-progress.",
-                    file=sys.stderr)
+                print("Warning: progressbar module not available, "
+                      "using --no-progress.",
+                      file=sys.stderr)
                 args.no_progress = True
 
         event_count = 0
@@ -94,7 +99,6 @@ class NetTop():
             self.process_event(event, sched, syscall)
             event_count += 1
 
-
         if not args.no_progress:
             pbar.finish()
             print
@@ -107,8 +111,8 @@ class NetTop():
         for tid in self.tids.keys():
             transferred[tid] = {'ipv4': {}, 'ipv6': {}}
 
-            transferred[tid]['ipv4'] = {'up': 0, 'down': 0};
-            transferred[tid]['ipv6'] = {'up': 0, 'down': 0};
+            transferred[tid]['ipv4'] = {'up': 0, 'down': 0}
+            transferred[tid]['ipv6'] = {'up': 0, 'down': 0}
 
             for fd in self.tids[tid].fds.values():
                 if fd.fdtype is FDType.net:
@@ -122,9 +126,9 @@ class NetTop():
         print('Processes by Network I/O')
         print('#' * 80)
 
-        for tid in sorted(transferred, key = lambda tid:
+        for tid in sorted(transferred, key=lambda tid:
                           self.get_total_transfer(transferred[tid]),
-                          reverse = True)[:self.number]:
+                          reverse=True)[:self.number]:
 
             total = self.get_total_transfer(transferred[tid])
 
@@ -139,11 +143,11 @@ if __name__ == '__main__':
     analysis by process')
     parser.add_argument('path', metavar='<path/to/trace>', help='Trace path')
     parser.add_argument('-t', '--type', type=str, default='all',
-                        help='Types of network IO to measure. Possible values:\
-                        all, up, down')
+                        help='Types of network IO to measure. '
+                             'Possible values: all, up, down')
     parser.add_argument('-c', '--connection', type=str, default='all',
-                        help='Types of connections to measure. Possible values:\
-                        all, ipv4, ipv6')
+                        help='Types of connections to measure.'
+                             ' Possible values: all, ipv4, ipv6')
     parser.add_argument('-n', '--number', type=int, default=10,
                         help='Number of processes to display')
     parser.add_argument('--no-progress', action="store_true",
@@ -155,9 +159,9 @@ if __name__ == '__main__':
     possible_io_types = ['up', 'down']
 
     if 'all' in io_types:
-        is_io_measured = { x: True for x in possible_io_types }
+        is_io_measured = {x: True for x in possible_io_types}
     else:
-        is_io_measured = { x: False for x in possible_io_types }
+        is_io_measured = {x: False for x in possible_io_types}
         for type in io_types:
             if type in possible_io_types:
                 is_io_measured[type] = True
@@ -170,9 +174,9 @@ if __name__ == '__main__':
     possible_connection_types = ['ipv4', 'ipv6']
 
     if 'all' in connection_types:
-        is_connection_measured = { x: True for x in possible_connection_types }
+        is_connection_measured = {x: True for x in possible_connection_types}
     else:
-        is_connection_measured = { x: False for x in possible_connection_types }
+        is_connection_measured = {x: False for x in possible_connection_types}
         for type in connection_types:
             if type in possible_connection_types:
                 is_connection_measured[type] = True
