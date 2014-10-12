@@ -2,7 +2,13 @@
 
 import sys
 import tempfile
-from babeltrace import CTFWriter, CTFStringEncoding
+try:
+    from babeltrace import CTFWriter, CTFStringEncoding
+except ImportError:
+    # quick fix for debian-based distros
+    sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
+                   (sys.version_info.major, sys.version_info.minor))
+    from babeltrace import CTFWriter, CTFStringEncoding
 
 trace_path = tempfile.mkdtemp()
 

@@ -14,7 +14,13 @@ import sys
 import argparse
 import shutil
 import time
-from babeltrace import *
+try:
+    from babeltrace import TraceCollection
+except ImportError:
+    # quick fix for debian-based distros
+    sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
+                   (sys.version_info.major, sys.version_info.minor))
+    from babeltrace import TraceCollection
 from LTTngAnalyzes.common import *
 from LTTngAnalyzes.jsonreport import *
 from LTTngAnalyzes.textreport import *
