@@ -12,11 +12,12 @@
 
 import argparse
 import sys
-from babeltrace import *
-from LTTngAnalyzes.common import *
+from babeltrace import TraceCollection
+from LTTngAnalyzes.common import getFolderSize, BYTES_PER_EVENT
+from babeltrace import CTFWriter, CTFScope, CTFStringEncoding
 
 try:
-    from progressbar import *
+    from progressbar import ETA, Bar, Percentage, ProgressBar
     progressbar_available = True
 except ImportError:
     progressbar_available = False
@@ -62,6 +63,7 @@ uint64_type.alignment = 8
 
 string_type = CTFWriter.StringFieldDeclaration()
 
+
 class CTFFilter():
     def __init__(self, args, handle, traces):
         self.args = args
@@ -96,13 +98,13 @@ class CTFFilter():
     def add_field(self, event_class, field):
         field_type = type(field)
 
-        if field_type is IntegerFieldDeclaration:
+        if field_type is CTFWriter.IntegerFieldDeclaration:
             self.add_int_field(event_class, field)
-        elif field_type is StringFieldDeclaration:
+        elif field_type is CTFWriter.StringFieldDeclaration:
             self.add_string_field(event_class, field)
-        elif field_type is ArrayFieldDeclaration:
+        elif field_type is CTFWriter.ArrayFieldDeclaration:
             self.add_array_field(event_class, field)
-        elif field_type is SequenceFieldDeclaration:
+        elif field_type is CTFWriter.SequenceFieldDeclaration:
             self.add_sequence_field(event_class, field)
         else:
             raise RuntimeError('Unsupported field type: '
@@ -159,7 +161,8 @@ class CTFFilter():
             return
 
         if event.name in ['lttng_statedump_start', 'lttng_statedump_end',
-                          'sys_unknown', 'sys_geteuid', 'sys_getuid', 'sys_getegid']:
+                          'sys_unknown', 'sys_geteuid', 'sys_getuid',
+                          'sys_getegid']:
             return
 
         self.clock.time = event.timestamp
@@ -180,7 +183,8 @@ class CTFFilter():
         field_type = type(value)
 
         if field_type is str:
-            self.set_char_array(writeable_event.payload('_' + field_name), value)
+            self.set_char_array(writeable_event.payload('_' + field_name),
+                                value)
         elif field_type is int:
             self.set_int(writeable_event.payload('_' + field_name), value)
         elif field_type is list:
@@ -207,13 +211,14 @@ class CTFFilter():
             if progressbar_available:
                 size = getFolderSize(args.path)
                 widgets = ['Processing the trace: ', Percentage(), ' ',
-                    Bar(marker='#',left='[',right=']'),
-                    ' ', ETA(), ' '] #see docs for other options
-                pbar = ProgressBar(widgets=widgets, maxval=size/BYTES_PER_EVENT)
+                           Bar(marker='#', left='[', right=']'),
+                           ' ', ETA(), ' ']  # see docs for other options
+                pbar = ProgressBar(widgets=widgets,
+                                   maxval=size/BYTES_PER_EVENT)
                 pbar.start()
             else:
-                print("Warning: progressbar module not available, using --no-progress.",
-                    file=sys.stderr)
+                print("Warning: progressbar module not available, "
+                      "using --no-progress.", file=sys.stderr)
                 args.no_progress = True
 
         event_count = 0
