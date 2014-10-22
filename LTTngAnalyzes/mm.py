@@ -35,6 +35,8 @@ class Mm():
 
     def block_dirty_buffer(self, event):
         self.mm["dirty"] += 1
+        if not event["cpu_id"] in self.cpus.keys():
+            return
         c = self.cpus[event["cpu_id"]]
         if c.current_tid <= 0:
             return
