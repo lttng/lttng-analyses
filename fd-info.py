@@ -24,10 +24,10 @@ except ImportError:
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
                    (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import FDType, ns_to_hour_nsec
+from LTTngAnalyzes.common import FDType, ns_to_hour_nsec, NSEC_PER_SEC, MSEC_PER_NSEC
 from LTTngAnalyzes.sched import Sched
 from LTTngAnalyzes.statedump import Statedump
-from LTTngAnalyzes.syscalls import Syscalls
+from LTTngAnalyzes.syscalls import Syscalls, IOCategory
 from pymongo import MongoClient
 from pymongo.errors import CollectionInvalid
 
@@ -159,6 +159,9 @@ class FDInfo():
         if self.args.mongo:
             self.store_mongo()
 
+        if self.args.graphite:
+            self.store_graphite()
+
     def output_json(self):
         fd_events_name = 'fd_events_' + self.session_name + '.json'
         fd_events_path = os.path.join(self.args.json, fd_events_name)
@@ -169,6 +172,33 @@ class FDInfo():
         f = open(os.path.join(self.args.json, 'metadata.json'), 'w')
         json.dump(self.json_metadata, f)
         f.close()
+
+    def store_graphite(self):
+        sock = None
+        try:
+            sock = socket.create_connection((self.args.graphite_host,
+                self.args.graphite_port))
+        except:
+            print("Couldn't connect to %(server)s on port %(port)d, is " \
+                  "carbon-agent.py running?" % { 'server':self.args.graphite_host,
+                          'port':self.args.graphite_port })
+            sys.exit(1)
+
+        lines = []
+        for event in self.fd_events:
+            ts = event["ts_start"]/NSEC_PER_SEC
+            if event["category"] == IOCategory.write:
+                l = "hosts.test.latencies.write %d %lu" % \
+                        (event["duration"]/(MSEC_PER_NSEC), ts)
+            elif event["category"] == IOCategory.read:
+                l = "hosts.test.latencies.read %d %lu" % \
+                        (event["duration"]/(MSEC_PER_NSEC), ts)
+            else:
+                continue
+            lines.append(l)
+        message = '\n'.join(lines) + '\n' #all lines must end in a newline
+        sock.sendall(message.encode())
+
 
     def store_mongo(self):
         client = MongoClient(self.args.mongo_host, self.args.mongo_port)
@@ -295,7 +325,7 @@ class FDInfo():
 
         duration = duration_ns / NS_IN_S
 
-        if self.args.json or self.args.mongo:
+        if self.args.json or self.args.mongo or self.args.graphite:
             self.log_fd_event_json(tid, pid, comm, entry, name, duration_ns,
                                    filename, ret)
 
@@ -454,6 +484,9 @@ if __name__ == '__main__':
     parser.add_argument('--mongo', type=str, default=None,
                         help='Store FD events into MongoDB at specified ip\
                         and port')
+    parser.add_argument('--graphite', type=str, default=None,
+            help='Store FD events into graphite at specified ip\
+                    and port')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Don\'t output fd events to stdout')
 
@@ -508,6 +541,19 @@ if __name__ == '__main__':
             sys.exit(1)
         except socket.error:
             print('Invalid MongoDB ip ', args.mongo_host)
+            sys.exit(1)
+
+    if args.graphite:
+        try:
+            (args.graphite_host, args.graphite_port) = args.graphite.split(':')
+            socket.inet_aton(args.graphite_host)
+            args.graphite_port = int(args.graphite_port)
+        except ValueError:
+            print('Invalid graphite address format: ', args.graphite)
+            print('Expected format: IPV4:PORT')
+            sys.exit(1)
+        except socket.error:
+            print('Invalid graphite ip ', args.graphite_host)
             sys.exit(1)
 
     analyser = FDInfo(args, traces, output_enabled, err_number)
