@@ -28,8 +28,11 @@ from LTTngAnalyzes.common import FDType, ns_to_hour_nsec, NSEC_PER_SEC, MSEC_PER
 from LTTngAnalyzes.sched import Sched
 from LTTngAnalyzes.statedump import Statedump
 from LTTngAnalyzes.syscalls import Syscalls, IOCategory
-from pymongo import MongoClient
-from pymongo.errors import CollectionInvalid
+try:
+    from pymongo import MongoClient
+    from pymongo.errors import CollectionInvalid
+except ImportError:
+    nomongolibs = 1
 
 NS_IN_S = 1000000000
 NS_IN_MS = 1000000
@@ -162,14 +165,17 @@ class FDInfo():
         if self.args.graphite:
             self.store_graphite()
 
+        if self.args.localfile:
+            self.store_localfile()
+
     def output_json(self):
         fd_events_name = 'fd_events_' + self.session_name + '.json'
-        fd_events_path = os.path.join(self.args.json, fd_events_name)
+        fd_events_path = join(self.args.json, fd_events_name)
         f = open(fd_events_path, 'w')
         json.dump(self.fd_events, f)
         f.close()
 
-        f = open(os.path.join(self.args.json, 'metadata.json'), 'w')
+        f = open(join(self.args.json, 'metadata.json'), 'w')
         json.dump(self.json_metadata, f)
         f.close()
 
@@ -189,16 +195,38 @@ class FDInfo():
             ts = event["ts_start"]/NSEC_PER_SEC
             if event["category"] == IOCategory.write:
                 l = "hosts.test.latencies.write %d %lu" % \
-                        (event["duration"]/(MSEC_PER_NSEC), ts)
+                        (event["duration"]/(NSEC_PER_SEC), ts)
             elif event["category"] == IOCategory.read:
                 l = "hosts.test.latencies.read %d %lu" % \
-                        (event["duration"]/(MSEC_PER_NSEC), ts)
+                        (event["duration"]/(NSEC_PER_SEC), ts)
             else:
                 continue
             lines.append(l)
         message = '\n'.join(lines) + '\n' #all lines must end in a newline
         sock.sendall(message.encode())
 
+    def store_localfile(self):
+        nb_read = 0
+        total_read = 0
+        nb_write = 0
+        total_write = 0
+        for event in self.fd_events:
+            ts = event["ts_start"]/NSEC_PER_SEC
+            if event["category"] == IOCategory.write:
+                total_write += event["duration"]
+                nb_write += 1
+            elif event["category"] == IOCategory.read:
+                total_read += event["duration"]
+                nb_read += 1
+            else:
+                continue
+        f = open(os.path.join(args.localfile, "avg_w_latency"), "w")
+        f.write("%f\n" % ((total_write/nb_write) / (NSEC_PER_SEC / 1000000)))
+        f.close()
+
+        f = open(os.path.join(args.localfile, "avg_r_latency"), "w")
+        f.write("%f\n" % ((total_read/nb_read) / (NSEC_PER_SEC / 1000000)))
+        f.close()
 
     def store_mongo(self):
         client = MongoClient(self.args.mongo_host, self.args.mongo_port)
@@ -325,7 +353,7 @@ class FDInfo():
 
         duration = duration_ns / NS_IN_S
 
-        if self.args.json or self.args.mongo or self.args.graphite:
+        if self.args.json or self.args.mongo or self.args.graphite or self.args.localfile:
             self.log_fd_event_json(tid, pid, comm, entry, name, duration_ns,
                                    filename, ret)
 
@@ -487,6 +515,8 @@ if __name__ == '__main__':
     parser.add_argument('--graphite', type=str, default=None,
             help='Store FD events into graphite at specified ip\
                     and port')
+    parser.add_argument('--localfile', type=str, default=None,
+            help='Store average latencies in local files (one file per metric)')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Don\'t output fd events to stdout')
 
@@ -531,6 +561,9 @@ if __name__ == '__main__':
     args.duration = parse_duration(args.duration)
 
     if args.mongo:
+        if nomongolib == 1:
+            print("Missing pymongo library")
+            sys.exit(1)
         try:
             (args.mongo_host, args.mongo_port) = args.mongo.split(':')
             socket.inet_aton(args.mongo_host)
