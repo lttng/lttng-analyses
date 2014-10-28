@@ -212,13 +212,30 @@ class FDInfo():
         total_read = 0
         nb_write = 0
         total_write = 0
+        pid_latencies = {}
         for event in self.fd_events:
+            if args.pid_latency_list and str(event["pid"]) in \
+                    args.pid_latency_list:
+                if not event["pid"] in pid_latencies.keys():
+                    pid_latencies[event["pid"]] = {}
+                    pid_latencies[event["pid"]]["r"] = 0
+                    pid_latencies[event["pid"]]["nb_r"] = 0
+                    pid_latencies[event["pid"]]["w"] = 0
+                    pid_latencies[event["pid"]]["nb_w"] = 0
             if event["category"] == IOCategory.write:
                 total_write += event["duration"]
                 nb_write += 1
+                if args.pid_latency_list and str(event["pid"]) in \
+                        args.pid_latency_list:
+                    pid_latencies[event["pid"]]["w"] += event["duration"]
+                    pid_latencies[event["pid"]]["nb_w"] += 1
             elif event["category"] == IOCategory.read:
                 total_read += event["duration"]
                 nb_read += 1
+                if args.pid_latency_list and str(event["pid"]) in \
+                        args.pid_latency_list:
+                    pid_latencies[event["pid"]]["r"] += event["duration"]
+                    pid_latencies[event["pid"]]["nb_r"] += 1
             else:
                 continue
         f = open(join(args.localfile, "avg_w_latency"), "w")
@@ -228,6 +245,20 @@ class FDInfo():
         f = open(join(args.localfile, "avg_r_latency"), "w")
         f.write("%f\n" % ((total_read/nb_read) / (NSEC_PER_SEC / 1000000)))
         f.close()
+
+        for p in pid_latencies.keys():
+            r = pid_latencies[p]["r"]
+            nb_r = pid_latencies[p]["nb_r"]
+            w = pid_latencies[p]["w"]
+            nb_w = pid_latencies[p]["nb_w"]
+            if nb_r > 0:
+                f = open(join(args.localfile, "%d_r_latency" % (p)), "w")
+                f.write("%f\n" % ((r/nb_r) / (NSEC_PER_SEC / 1000000)))
+                f.close()
+            if nb_w > 0:
+                f = open(join(args.localfile, "%d_w_latency" % (p)), "w")
+                f.write("%f\n" % ((w/nb_w) / (NSEC_PER_SEC / 1000000)))
+                f.close()
 
     def store_mongo(self):
         client = MongoClient(self.args.mongo_host, self.args.mongo_port)
@@ -520,6 +551,9 @@ if __name__ == '__main__':
     parser.add_argument('--localfile', type=str, default=None,
                         help='Store average latencies in local files '
                         '(one file per metric)')
+    parser.add_argument('--pidlatencies', type=str, default=None,
+                        help='Compute R/W latencies for these processes for '
+                             'localfile mode')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Don\'t output fd events to stdout')
 
@@ -591,6 +625,11 @@ if __name__ == '__main__':
         except socket.error:
             print('Invalid graphite ip ', args.graphite_host)
             sys.exit(1)
+
+    if args.pidlatencies:
+        args.pid_latency_list = args.pidlatencies.split(",")
+    else:
+        args.pid_latency_list = None
 
     analyser = FDInfo(args, traces, output_enabled, err_number)
 
