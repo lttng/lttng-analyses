@@ -206,6 +206,13 @@ class Syscalls():
         if c.current_tid == -1:
             return
         t = self.tids[c.current_tid]
+        # check if we can fix the pid from a context
+        if t.pid == -1 and "pid" in event.keys():
+            t.pid = event["pid"]
+            p = Process()
+            p.pid = t.pid
+            p.comm = t.comm
+            self.tids[p.pid] = p
         # if it's a thread, we want the parent
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
