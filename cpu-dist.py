@@ -12,19 +12,17 @@
 
 import sys
 import argparse
-import shutil
-import time
 try:
     from babeltrace import TraceCollection
 except ImportError:
     # quick fix for debian-based distros
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
-                   (sys.version_info.major, sys.version_info.minor))
+                    (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import *
-from LTTngAnalyzes.sched import *
-from analyzes import *
+from LTTngAnalyzes.common import NSEC_PER_SEC, sec_to_hour
+from LTTngAnalyzes.sched import Sched
 from ascii_graph import Pyasciigraph
+
 
 class CPUTop():
     def __init__(self, traces):
@@ -55,8 +53,9 @@ class CPUTop():
                 sched.switch(event)
         # stats for the whole trace
         self.compute_stats()
-        #self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
-        self.graph_output(args, self.trace_start_ts, self.trace_end_ts, final=1)
+        # self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
+        self.graph_output(args, self.trace_start_ts,
+                          self.trace_end_ts, final=1)
 
     def update_history(self, args, sec):
         self.history[sec] = {}
@@ -64,9 +63,9 @@ class CPUTop():
         self.history[sec]["proc"] = {}
         h = self.history[sec]["proc"]
         for tid in self.tids.values():
-            if not tid.comm in args.proc_list:
+            if tid.comm not in args.proc_list:
                 continue
-            if not tid.comm in h.keys():
+            if tid.comm not in h.keys():
                 h[tid.comm] = tid.cpu_ns
             else:
                 h[tid.comm] += tid.cpu_ns
@@ -115,11 +114,11 @@ class CPUTop():
             graph = Pyasciigraph()
             values = []
             for sec in sorted(self.history.keys()):
-                if not comm in self.history[sec]["proc"].keys():
+                if comm not in self.history[sec]["proc"].keys():
                     break
                 pc = float("%0.02f" % (
                     (self.history[sec]["proc"][comm] * 100) /
-                        self.history[sec]["total_ns"]))
+                    self.history[sec]["total_ns"]))
                 values.append(("%s" % sec_to_hour(sec), pc))
             for line in graph.graph("%s CPU Usage" % comm, values):
                 print(line)
@@ -151,9 +150,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CPU usage analysis')
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('-r', '--refresh', type=int,
-            help='Aggregate period in seconds (default = 1)', default=1)
+                        help='Aggregate period in seconds (default = 1)',
+                        default=1)
     parser.add_argument('--names', type=str, default=0,
-            help='Only this coma-separated list of process names')
+                        help='Only this coma-separated list of process names')
     args = parser.parse_args()
     args.proc_list = []
     if args.names:

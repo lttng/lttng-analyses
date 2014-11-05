@@ -20,7 +20,7 @@ try:
 except ImportError:
     # quick fix for debian-based distros
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
-                   (sys.version_info.major, sys.version_info.minor))
+                    (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import ns_to_hour_nsec
 from LTTngAnalyzes.sched import Sched

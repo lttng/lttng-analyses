@@ -17,7 +17,7 @@ try:
 except ImportError:
     # quick fix for debian-based distros
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
-                   (sys.version_info.major, sys.version_info.minor))
+                    (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import getFolderSize, BYTES_PER_EVENT
 from babeltrace import CTFWriter, CTFScope, CTFStringEncoding
