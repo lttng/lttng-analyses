@@ -1,4 +1,5 @@
-from LTTngAnalyzes.common import *
+from LTTngAnalyzes.common import ns_to_hour_nsec
+
 
 class Mm():
     def __init__(self, cpus, tids, dirty_pages):
@@ -11,7 +12,7 @@ class Mm():
 
     def get_current_proc(self, event):
         cpu_id = event["cpu_id"]
-        if not cpu_id in self.cpus:
+        if cpu_id not in self.cpus:
             return None
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
@@ -23,7 +24,7 @@ class Mm():
         for p in self.tids.values():
             if len(p.current_syscall.keys()) == 0:
                 continue
-            if not "alloc" in p.current_syscall.keys():
+            if "alloc" not in p.current_syscall.keys():
                 p.current_syscall["alloc"] = 1
             else:
                 p.current_syscall["alloc"] += 1
@@ -35,7 +36,7 @@ class Mm():
 
     def block_dirty_buffer(self, event):
         self.mm["dirty"] += 1
-        if not event["cpu_id"] in self.cpus.keys():
+        if event["cpu_id"] not in self.cpus.keys():
             return
         c = self.cpus[event["cpu_id"]]
         if c.current_tid <= 0:
@@ -46,13 +47,15 @@ class Mm():
             return
         if "fd" in current_syscall.keys():
             self.dirty_pages["pages"].append((p, current_syscall["name"],
-                current_syscall["fd"].filename, current_syscall["fd"].fd))
+                                              current_syscall["fd"].filename,
+                                              current_syscall["fd"].fd))
         return
 
     def writeback_global_dirty_state(self, event):
-        print("%s count : %d, count dirty : %d, nr_dirty : %d, nr_writeback : %d, nr_dirtied : %d, nr_written : %d" %
-                (ns_to_hour_nsec(event.timestamp), self.mm["count"],
-                    self.mm["dirty"], event["nr_dirty"],
-                    event["nr_writeback"], event["nr_dirtied"],
-                    event["nr_written"]))
+        print("%s count : %d, count dirty : %d, nr_dirty : %d, "
+              "nr_writeback : %d, nr_dirtied : %d, nr_written : %d" %
+              (ns_to_hour_nsec(event.timestamp), self.mm["count"],
+               self.mm["dirty"], event["nr_dirty"],
+               event["nr_writeback"], event["nr_dirtied"],
+               event["nr_written"]))
         self.mm["dirty"] = 0

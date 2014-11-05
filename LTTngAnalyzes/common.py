@@ -2,7 +2,6 @@ import math
 import time
 import os
 import socket
-import struct
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
@@ -11,6 +10,7 @@ O_CLOEXEC = 0o2000000
 
 # approximation for the progress bar
 BYTES_PER_EVENT = 30
+
 
 class Process():
     def __init__(self):
@@ -48,6 +48,7 @@ class Process():
         self.perf = {}
         self.dirty = 0
 
+
 class CPU():
     def __init__(self):
         self.cpu_id = -1
@@ -57,10 +58,12 @@ class CPU():
         self.perf = {}
         self.wakeup_queue = []
 
+
 class Syscall():
     def __init__(self):
         self.name = ""
         self.count = 0
+
 
 class Disk():
     def __init__(self):
@@ -72,6 +75,7 @@ class Disk():
         self.request_time = 0
         self.pending_requests = {}
 
+
 class Iface():
     def __init__(self):
         self.name = ""
@@ -80,6 +84,7 @@ class Iface():
         self.send_bytes = 0
         self.send_packets = 0
 
+
 class FDType():
     unknown = 0
     disk = 1
@@ -87,6 +92,7 @@ class FDType():
     # not 100% sure they are network FDs (assumed when net_dev_xmit is
     # called during a write syscall and the type in unknown).
     maybe_net = 3
+
 
 class FD():
     def __init__(self):
@@ -113,8 +119,9 @@ class FD():
         # if FD was inherited, parent PID
         self.parent = -1
 
+
 def get_disk(dev, disks):
-    if not dev in disks:
+    if dev not in disks:
         d = Disk()
         d.name = "%d" % dev
         d.prettyname = "%d" % dev
@@ -123,42 +130,51 @@ def get_disk(dev, disks):
         d = disks[dev]
     return d
 
+
 def convert_size(size):
-   if size <= 0:
-       return "0 B"
-   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
-   i = int(math.floor(math.log(size, 1024)))
-   p = math.pow(1024, i)
-   s = round(size/p, 2)
-   if (s > 0):
-       try:
-           return '%s %s' % (s, size_name[i])
-       except:
-           print(i, size_name)
-           raise Exception("Too big to be true")
-   else:
-       return '0 B'
+    if size <= 0:
+        return "0 B"
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    i = int(math.floor(math.log(size, 1024)))
+    p = math.pow(1024, i)
+    s = round(size/p, 2)
+    if (s > 0):
+        try:
+            return '%s %s' % (s, size_name[i])
+        except:
+            print(i, size_name)
+            raise Exception("Too big to be true")
+    else:
+        return '0 B'
+
 
 def ns_to_asctime(ns):
     return time.asctime(time.localtime(ns/NSEC_PER_SEC))
+
 
 def ns_to_hour(ns):
     d = time.localtime(ns/NSEC_PER_SEC)
     return "%02d:%02d:%02d" % (d.tm_hour, d.tm_min, d.tm_sec)
 
+
 def ns_to_hour_nsec(ns):
     d = time.localtime(ns/NSEC_PER_SEC)
-    return "%02d:%02d:%02d.%09d" % (d.tm_hour, d.tm_min, d.tm_sec, ns % NSEC_PER_SEC)
+    return "%02d:%02d:%02d.%09d" % (d.tm_hour, d.tm_min, d.tm_sec,
+                                    ns % NSEC_PER_SEC)
+
 
 def ns_to_sec(ns):
     return "%lu.%09u" % (ns/NSEC_PER_SEC, ns % NSEC_PER_SEC)
+
 
 def sec_to_hour(ns):
     d = time.localtime(ns)
     return "%02d:%02d:%02d" % (d.tm_hour, d.tm_min, d.tm_sec)
 
+
 def sec_to_nsec(sec):
     return sec * NSEC_PER_SEC
+
 
 def getFolderSize(folder):
     total_size = os.path.getsize(folder)
@@ -169,6 +185,7 @@ def getFolderSize(folder):
         elif os.path.isdir(itempath):
             total_size += getFolderSize(itempath)
     return total_size
+
 
 def seq_to_ipv4(ip):
     return "{}.{}.{}.{}".format(ip[0], ip[1], ip[2], ip[3])

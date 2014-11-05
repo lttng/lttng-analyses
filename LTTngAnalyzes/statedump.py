@@ -1,4 +1,5 @@
-from LTTngAnalyzes.common import *
+from LTTngAnalyzes.common import Process, FD, get_disk
+
 
 class Statedump():
     def __init__(self, tids, disks):
@@ -44,7 +45,7 @@ class Statedump():
         tid = event["tid"]
         pid = event["pid"]
         name = event["name"]
-        if not tid in self.tids:
+        if tid not in self.tids:
             p = Process()
             p.tid = tid
             self.tids[tid] = p
@@ -57,7 +58,7 @@ class Statedump():
 
         if pid != tid:
             # create the parent
-            if not pid in self.tids:
+            if pid not in self.tids:
                 parent = Process()
                 parent.tid = pid
                 parent.pid = pid
@@ -74,7 +75,7 @@ class Statedump():
         fd = event["fd"]
         filename = event["filename"]
 
-        if not pid in self.tids:
+        if pid not in self.tids:
             p = Process()
             p.pid = pid
             p.tid = pid
@@ -82,7 +83,7 @@ class Statedump():
         else:
             p = self.tids[pid]
 
-        if not fd in p.fds.keys():
+        if fd not in p.fds.keys():
             newfile = FD()
             newfile.filename = filename
             newfile.fd = fd

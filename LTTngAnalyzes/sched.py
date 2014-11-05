@@ -1,8 +1,9 @@
 from babeltrace import CTFScope
-from LTTngAnalyzes.common import *
+from LTTngAnalyzes.common import Process, CPU, FD
+
 
 class Sched():
-    def __init__(self, cpus, tids, dirty_pages = {}):
+    def __init__(self, cpus, tids, dirty_pages={}):
         self.cpus = cpus
         self.tids = tids
         self.dirty_pages = dirty_pages
@@ -36,10 +37,11 @@ class Sched():
         self.cpus[cpu_id] = c
         self.cpus[cpu_id].total_per_cpu_pc_list = []
 
-    def sched_switch_per_tid(self, ts, prev_tid, next_tid, next_comm, cpu_id, event, ret):
+    def sched_switch_per_tid(self, ts, prev_tid, next_tid,
+                             next_comm, cpu_id, event, ret):
         """Compute per-tid usage"""
         # if we don't know yet the CPU, skip this
-        if not cpu_id in self.cpus.keys():
+        if cpu_id not in self.cpus.keys():
             self.add_cpu(cpu_id, ts, next_tid)
         c = self.cpus[cpu_id]
         # per-tid usage
@@ -47,14 +49,15 @@ class Sched():
             p = self.tids[prev_tid]
             p.cpu_ns += (ts - p.last_sched)
             # perf PMU counters checks
-            for context in event.field_list_with_scope(CTFScope.STREAM_EVENT_CONTEXT):
+            for context in event.field_list_with_scope(
+                    CTFScope.STREAM_EVENT_CONTEXT):
                 if context.startswith("perf_"):
-                    if not context in c.perf.keys():
+                    if context not in c.perf.keys():
                         c.perf[context] = event[context]
                     # add the difference between the last known value
                     # for this counter on the current CPU
                     diff = event[context] - c.perf[context]
-                    if not context in p.perf.keys():
+                    if context not in p.perf.keys():
                         p.perf[context] = diff
                     else:
                         p.perf[context] += diff
@@ -65,7 +68,7 @@ class Sched():
         if next_tid == 0:
             return ret
 
-        if not next_tid in self.tids:
+        if next_tid not in self.tids:
             p = Process()
             p.tid = next_tid
             p.comm = next_comm
@@ -83,7 +86,8 @@ class Sched():
 
     def clear_dirty_pages(self, to_clean, reason):
         cleaned = []
-#        print("%s Cleaning nr : %d, current : %d, base : %d, cleaning %d, global %d" % \
+#        print("%s Cleaning nr : %d, current : %d, base : %d,
+#              " cleaning %d, global %d" % \
 #                (ns_to_hour_nsec(event.timestamp), nr, current,
 #                    self.dirty_pages["base_nr_dirty"],
 #                    to_clean, self.dirty_pages["global_nr_dirty"]))
@@ -106,9 +110,9 @@ class Sched():
         return
 
     def track_dirty_pages(self, event):
-        if not "pages" in self.dirty_pages.keys():
+        if "pages" not in self.dirty_pages.keys():
             return
-        if not "nr_dirty" in event.keys():
+        if "nr_dirty" not in event.keys():
             # if the context is not available, only keep the
             # last 1000 pages inserted (arbitrary)
             if len(self.dirty_pages["pages"]) > 1000:
@@ -116,7 +120,7 @@ class Sched():
                     self.dirty_pages["pages"].pop(0)
             return
         nr = event["nr_dirty"]
-        current = len(self.dirty_pages["pages"])
+#        current = len(self.dirty_pages["pages"])
 
         if self.dirty_pages["global_nr_dirty"] == -1:
             self.dirty_pages["global_nr_dirty"] = nr
@@ -129,13 +133,13 @@ class Sched():
             return
 
         if nr <= self.dirty_pages["base_nr_dirty"]:
-            to_clean = current
             self.dirty_pages["base_nr_dirty"] = nr
             self.dirty_pages["global_nr_dirty"] = nr
-        elif (self.dirty_pages["global_nr_dirty"] - nr) < 0:
-            to_clean = current
-        else:
-            to_clean = self.dirty_pages["global_nr_dirty"] - nr
+#            to_clean = current
+#        elif (self.dirty_pages["global_nr_dirty"] - nr) < 0:
+#            to_clean = current
+#        else:
+#            to_clean = self.dirty_pages["global_nr_dirty"] - nr
 #        if to_clean > 0:
 #            self.clear_dirty_pages(to_clean, "counter")
         self.dirty_pages["global_nr_dirty"] = nr
@@ -148,8 +152,9 @@ class Sched():
         cpu_id = event["cpu_id"]
         ret = {}
 
-        self.sched_switch_per_tid(event.timestamp, prev_tid, next_tid, next_comm,
-                cpu_id, event, ret)
+        self.sched_switch_per_tid(event.timestamp, prev_tid,
+                                  next_tid, next_comm,
+                                  cpu_id, event, ret)
         # because of perf events check, we need to do the CPU analysis after
         # the per-tid analysis
         self.sched_switch_per_cpu(cpu_id, event.timestamp, next_tid, event)
@@ -161,7 +166,7 @@ class Sched():
 
     def migrate_task(self, event):
         tid = event["tid"]
-        if not tid in self.tids:
+        if tid not in self.tids:
             p = Process()
             p.tid = tid
             p.comm = event["comm"]
@@ -174,14 +179,14 @@ class Sched():
         """Stores the sched_wakeup infos to compute scheduling latencies"""
         target_cpu = event["target_cpu"]
         tid = event["tid"]
-        if not target_cpu in self.cpus.keys():
+        if target_cpu not in self.cpus.keys():
             c = CPU()
             c.cpu_id = target_cpu
             self.cpus[target_cpu] = c
         else:
             c = self.cpus[target_cpu]
 
-        if not tid in self.tids:
+        if tid not in self.tids:
             p = Process()
             p.tid = tid
             self.tids[tid] = p
@@ -190,7 +195,7 @@ class Sched():
         c.wakeup_queue.append({"ts": event.timestamp, "task": p})
 
     def fix_process(self, name, tid, pid):
-        if not tid in self.tids:
+        if tid not in self.tids:
             p = Process()
             p.tid = tid
             self.tids[tid] = p
@@ -199,7 +204,7 @@ class Sched():
         p.pid = pid
         p.comm = name
 
-        if not pid in self.tids:
+        if pid not in self.tids:
             p = Process()
             p.tid = pid
             self.tids[pid] = p
@@ -238,7 +243,7 @@ class Sched():
 
     def process_exec(self, event):
         tid = event["tid"]
-        if not tid in self.tids:
+        if tid not in self.tids:
             p = Process()
             p.tid = tid
             self.tids[tid] = p
