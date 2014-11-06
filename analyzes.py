@@ -10,26 +10,27 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-import sys
 import argparse
-import shutil
+import os
+import sys
 import time
 try:
     from babeltrace import TraceCollection
 except ImportError:
     # quick fix for debian-based distros
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
-                   (sys.version_info.major, sys.version_info.minor))
+                    (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import *
-from LTTngAnalyzes.jsonreport import *
-from LTTngAnalyzes.textreport import *
-from LTTngAnalyzes.graphitereport import *
-from LTTngAnalyzes.sched import *
-from LTTngAnalyzes.syscalls import *
-from LTTngAnalyzes.block import *
-from LTTngAnalyzes.net import *
-from LTTngAnalyzes.statedump import *
+from LTTngAnalyzes.common import NSEC_PER_SEC
+from LTTngAnalyzes.jsonreport import JsonReport
+from LTTngAnalyzes.textreport import TextReport
+from LTTngAnalyzes.graphitereport import GraphiteReport
+from LTTngAnalyzes.sched import Sched
+from LTTngAnalyzes.syscalls import Syscalls
+from LTTngAnalyzes.block import Block
+from LTTngAnalyzes.net import Net
+from LTTngAnalyzes.statedump import Statedump
+
 
 class Analyzes():
     def __init__(self, traces):
@@ -45,18 +46,19 @@ class Analyzes():
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
             r = TextReport(self.trace_start_ts, self.trace_end_ts,
-                    self.cpus, self.tids, self.syscalls, self.disks,
-                    self.ifaces)
+                           self.cpus, self.tids, self.syscalls, self.disks,
+                           self.ifaces)
             r.report(begin_ns, end_ns, final, args)
             if not final and (args.cpu or args.tid or args.disk or args.net):
                 print("")
         if args.json:
             r = JsonReport(self.trace_start_ts, self.trace_end_ts,
-                self.cpus, self.tids)
+                           self.cpus, self.tids)
             r.report(begin_ns, end_ns, final, args)
         if args.graphite:
             r = GraphiteReport(self.trace_start_ts, self.trace_end_ts,
-                    self.cpus, self.tids, self.syscalls, self.disks, self.ifaces)
+                               self.cpus, self.tids, self.syscalls,
+                               self.disks, self.ifaces)
             r.report(begin_ns, end_ns, final, args)
 
     def check_refresh(self, args, event):
@@ -159,11 +161,11 @@ class Analyzes():
                 sched.process_exec(event)
             elif event.name[0:4] == "sys_" and \
                     (args.global_syscalls or args.tid_syscalls or
-                            args.fds):
+                     args.fds):
                 syscall.entry(event)
             elif event.name == "exit_syscall" and \
                     (args.global_syscalls or args.tid_syscalls or
-                            args.fds):
+                     args.fds):
                 syscall.exit(event, 1)
             elif event.name == "block_rq_complete":
                 block.complete(event)
@@ -185,41 +187,41 @@ class Analyzes():
             # stats only for the last segment
             self.compute_stats()
             self.output(args, self.start_ns, self.trace_end_ts,
-                    final=1)
+                        final=1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CPU usage analysis')
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('-r', '--refresh', type=int,
-            help='Refresh period in seconds', default=0)
+                        help='Refresh period in seconds', default=0)
     parser.add_argument('--text', action="store_true",
-            help='Output in text (default)')
+                        help='Output in text (default)')
     parser.add_argument('--json', action="store_true",
-            help='Output in JSON')
+                        help='Output in JSON')
     parser.add_argument('--graphite', action="store_true",
-            help='Output to graphite')
+                        help='Output to graphite')
     parser.add_argument('--cpu', action="store_true",
-            help='Per-CPU stats (default)')
+                        help='Per-CPU stats (default)')
     parser.add_argument('--disk', action="store_true",
-            help='Per-Disk stats (default)')
+                        help='Per-Disk stats (default)')
     parser.add_argument('--tid', action="store_true",
-            help='Per-TID stats (default)')
+                        help='Per-TID stats (default)')
     parser.add_argument('--net', action="store_true",
-            help='Per-interface network stats (default)')
+                        help='Per-interface network stats (default)')
     parser.add_argument('--global-syscalls', action="store_true",
-            help='Global syscalls (default)')
+                        help='Global syscalls (default)')
     parser.add_argument('--tid-syscalls', action="store_true",
-            help='Per-TID syscalls (default)')
+                        help='Per-TID syscalls (default)')
     parser.add_argument('--fds', action="store_true",
-            help='Per-PID FD stats (default)')
+                        help='Per-PID FD stats (default)')
     parser.add_argument('--overall', action="store_true",
-            help='Overall CPU Usage (default)')
+                        help='Overall CPU Usage (default)')
     parser.add_argument('--info', action="store_true",
-            help='Trace info (default)')
+                        help='Trace info (default)')
     parser.add_argument('--top', type=int, default=0,
-            help='Limit to top X TIDs')
+                        help='Limit to top X TIDs')
     parser.add_argument('--name', type=str, default=0,
-            help='Show results only for the list of processes')
+                        help='Show results only for the list of processes')
     args = parser.parse_args()
 
     if not args.json and not args.graphite:
@@ -227,8 +229,9 @@ if __name__ == "__main__":
 
     if args.tid_syscalls or args.fds:
         args.tid = True
-    if not (args.cpu or args.tid or args.overall or args.info or \
-            args.global_syscalls or args.tid_syscalls or args.disk \
+
+    if not (args.cpu or args.tid or args.overall or args.info or
+            args.global_syscalls or args.tid_syscalls or args.disk
             or args.net or args.fds):
         args.cpu = True
         args.tid = True
@@ -247,10 +250,11 @@ if __name__ == "__main__":
 
     while True:
         if args.graphite:
-            events="sched_switch,block_rq_complete,block_rq_issue," \
-                    "netif_receive_skb,net_dev_xmit"
+            events = "sched_switch,block_rq_complete,block_rq_issue," \
+                     "netif_receive_skb,net_dev_xmit"
             os.system("lttng create graphite -o graphite-live >/dev/null")
-            os.system("lttng enable-event -k %s -s graphite >/dev/null" % events)
+            os.system("lttng enable-event -k %s -s graphite >/dev/null"
+                      % events)
             os.system("lttng start graphite >/dev/null")
             time.sleep(2)
             os.system("lttng stop graphite >/dev/null")

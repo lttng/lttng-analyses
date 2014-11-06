@@ -1,5 +1,6 @@
-from LTTngAnalyzes.common import *
-from LTTngAnalyzes.syscalls import *
+from LTTngAnalyzes.common import Iface, FDType
+from LTTngAnalyzes.syscalls import Syscalls
+
 
 class Net():
     def __init__(self, ifaces, cpus, tids):
@@ -8,7 +9,7 @@ class Net():
         self.tids = tids
 
     def get_dev(self, dev):
-        if not dev in self.ifaces:
+        if dev not in self.ifaces:
             d = Iface()
             d.name = dev
             self.ifaces[dev] = d
@@ -25,7 +26,7 @@ class Net():
         d.send_packets += 1
         d.send_bytes += sent_len
 
-        if not cpu_id in self.cpus.keys():
+        if cpu_id not in self.cpus.keys():
             return
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
@@ -36,7 +37,6 @@ class Net():
         if t.current_syscall["name"] in Syscalls.WRITE_SYSCALLS:
             if t.current_syscall["fd"].fdtype == FDType.unknown:
                 t.current_syscall["fd"].fdtype = FDType.maybe_net
-
 
     def recv(self, event):
         dev = event["name"]

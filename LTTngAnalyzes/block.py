@@ -1,4 +1,5 @@
-from LTTngAnalyzes.common import *
+from LTTngAnalyzes.common import Process, get_disk
+
 
 class Block():
     def __init__(self, cpus, disks, tids):
@@ -56,7 +57,7 @@ class Block():
 
         if "tid" in event.keys():
             tid = event["tid"]
-            if not tid in self.tids:
+            if tid not in self.tids:
                 p = Process()
                 p.tid = tid
                 self.tids[tid] = p
@@ -87,7 +88,7 @@ class Block():
 
         # ignore the completion of requests we didn't see the issue
         # because it would mess up the latency totals
-        if not sector in d.pending_requests.keys():
+        if sector not in d.pending_requests.keys():
             return
 
         rq = d.pending_requests[sector]
@@ -104,4 +105,5 @@ class Block():
 
     def dump_orphan_requests(self):
         for req in self.remap_requests:
-            print("Orphan : %d : %d %d" % (req["orig_dev"], req["dev"], req["sector"]))
+            print("Orphan : %d : %d %d" % (req["orig_dev"], req["dev"],
+                                           req["sector"]))

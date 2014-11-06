@@ -1,6 +1,8 @@
-from LTTngAnalyzes.common import *
+from LTTngAnalyzes.common import FDType, FD, MSEC_PER_NSEC, \
+    ns_to_hour_nsec, ns_to_sec, Syscall, O_CLOEXEC, seq_to_ipv4, Process
 import socket
 import operator
+
 
 class IOCategory():
     """Defines an enumeration mapping IO categories to integer values.
@@ -14,40 +16,41 @@ class IOCategory():
     read = 3
     write = 4
 
+
 class Syscalls():
     # TODO: decouple socket/family logic from this class
     INET_FAMILIES = [socket.AF_INET, socket.AF_INET6]
     DISK_FAMILIES = [socket.AF_UNIX]
     # list nof syscalls that open a FD on disk (in the exit_syscall event)
     DISK_OPEN_SYSCALLS = ["sys_open", "syscall_entry_open",
-            "sys_openat", "syscall_entry_openat"]
-    # list of syscalls that open a FD on the network (in the exit_syscall event)
+                          "sys_openat", "syscall_entry_openat"]
+    # list of syscalls that open a FD on the network
+    # (in the exit_syscall event)
     NET_OPEN_SYSCALLS = ["sys_accept", "syscall_entry_accept",
-            "sys_socket", "syscall_entry_socket"]
+                         "sys_socket", "syscall_entry_socket"]
     # list of syscalls that can duplicate a FD
     DUP_OPEN_SYSCALLS = ["sys_fcntl", "syscall_entry_fcntl",
-            "sys_dup2", "syscall_entry_dup2"]
+                         "sys_dup2", "syscall_entry_dup2"]
     SYNC_SYSCALLS = ["sys_sync", "syscall_entry_sync",
-            "sys_sync_file_range", "syscall_entry_sync_file_range",
-            "sys_fsync", "syscall_entry_fsync",
-            "sys_fdatasync", "syscall_entry_fdatasync"]
+                     "sys_sync_file_range", "syscall_entry_sync_file_range",
+                     "sys_fsync", "syscall_entry_fsync",
+                     "sys_fdatasync", "syscall_entry_fdatasync"]
     # merge the 3 open lists
-    OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + \
-            NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
+    OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
     # list of syscalls that close a FD (in the "fd =" field)
     CLOSE_SYSCALLS = ["sys_close", "syscall_entry_close"]
     # list of syscall that read on a FD, value in the exit_syscall following
     READ_SYSCALLS = ["sys_read", "syscall_entry_read",
-            "sys_recvmsg", "syscall_entry_recvmsg",
-            "sys_recvfrom", "syscall_entry_recvfrom",
-            "sys_splice", "syscall_entry_splice",
-            "sys_readv", "syscall_entry_readv",
-            "sys_sendfile64", "syscall_entry_sendfile64"]
+                     "sys_recvmsg", "syscall_entry_recvmsg",
+                     "sys_recvfrom", "syscall_entry_recvfrom",
+                     "sys_splice", "syscall_entry_splice",
+                     "sys_readv", "syscall_entry_readv",
+                     "sys_sendfile64", "syscall_entry_sendfile64"]
     # list of syscall that write on a FD, value in the exit_syscall following
     WRITE_SYSCALLS = ["sys_write", "syscall_entry_write",
-            "sys_sendmsg", "syscall_entry_sendmsg",
-            "sys_sendto", "syscall_entry_sendto",
-            "sys_writev", "syscall_entry_writev"]
+                      "sys_sendmsg", "syscall_entry_sendmsg",
+                      "sys_sendto", "syscall_entry_sendto",
+                      "sys_writev", "syscall_entry_writev"]
     # generic names assigned to special FDs, don't try to match these in the
     # closed_fds dict
     GENERIC_NAMES = ["unknown", "socket"]
@@ -81,8 +84,8 @@ class Syscalls():
 
         return FDType.unknown
 
-    def __init__(self, cpus, tids, syscalls, dirty_pages={}, names=None, latency=-1,
-            latency_hist=None, seconds=False):
+    def __init__(self, cpus, tids, syscalls, dirty_pages={}, names=None,
+                 latency=-1, latency_hist=None, seconds=False):
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
@@ -93,7 +96,7 @@ class Syscalls():
         self.seconds = seconds
 
     def global_syscall_entry(self, name):
-        if not name in self.syscalls:
+        if name not in self.syscalls:
             s = Syscall()
             s.name = name
             s.count = 0
@@ -104,13 +107,13 @@ class Syscalls():
 
     def per_tid_syscall_entry(self, name, cpu_id):
         # we don't know which process is currently on this CPU
-        if not cpu_id in self.cpus:
+        if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
             return
         t = self.tids[c.current_tid]
-        if not name in t.syscalls:
+        if name not in t.syscalls:
             s = Syscall()
             s.name = name
             t.syscalls[name] = s
@@ -125,9 +128,11 @@ class Syscalls():
             current_syscall["filename"] = event["filename"]
             if event["flags"] & O_CLOEXEC == O_CLOEXEC:
                 current_syscall["cloexec"] = 1
-        elif name in ["sys_accept", "syscall_entry_accept"] and "family" in event.keys():
+        elif name in ["sys_accept", "syscall_entry_accept"] \
+                and "family" in event.keys():
             if event["family"] == socket.AF_INET:
-                ipport = "%s:%d" % (seq_to_ipv4(event["v4addr"]), event["sport"])
+                ipport = "%s:%d" % (seq_to_ipv4(event["v4addr"]),
+                                    event["sport"])
                 current_syscall["filename"] = ipport
             else:
                 current_syscall["filename"] = "socket"
@@ -185,7 +190,7 @@ class Syscalls():
 
     def track_close(self, name, proc, event, cpu):
         fd = event["fd"]
-        if not fd in proc.fds.keys():
+        if fd not in proc.fds.keys():
             return
 
         tid = self.tids[cpu.current_tid]
@@ -200,7 +205,7 @@ class Syscalls():
     def track_fds(self, name, event, cpu_id):
         # we don't know which process is currently on this CPU
         ret_string = ""
-        if not cpu_id in self.cpus:
+        if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
@@ -219,15 +224,17 @@ class Syscalls():
         if name in Syscalls.OPEN_SYSCALLS:
             self.track_open(name, t, event, c)
         elif name in Syscalls.CLOSE_SYSCALLS:
-            ret_string =  "%s %s(%d)" % (ns_to_hour_nsec(event.timestamp),
-                    name, event["fd"])
+            ret_string = "%s %s(%d)" % (ns_to_hour_nsec(event.timestamp),
+                                        name, event["fd"])
             self.track_close(name, t, event, c)
         # when a connect occurs, no new FD is returned, but we can fix
         # the "filename" if we have the destination info
-        elif name in ["sys_connect", "syscall_entry_connect"] and "family" in event.keys():
+        elif name in ["sys_connect", "syscall_entry_connect"] \
+                and "family" in event.keys():
             if event["family"] == socket.AF_INET:
                 fd = self.get_fd(t, event["fd"])
-                ipport = "%s:%d" % (seq_to_ipv4(event["v4addr"]), event["dport"])
+                ipport = "%s:%d" % (seq_to_ipv4(event["v4addr"]),
+                                    event["dport"])
                 fd.filename = ipport
         return ret_string
 
@@ -243,7 +250,7 @@ class Syscalls():
 
     def track_sync(self, name, event, cpu_id):
         # we don't know which process is currently on this CPU
-        if not cpu_id in self.cpus:
+        if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
@@ -263,7 +270,7 @@ class Syscalls():
 
     def track_read_write(self, name, event, cpu_id):
         # we don't know which process is currently on this CPU
-        if not cpu_id in self.cpus:
+        if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
@@ -295,7 +302,7 @@ class Syscalls():
         elif name in ["sys_recvfrom", "syscall_entry_recvfrom"]:
             current_syscall["count"] = event["size"]
         elif name in ["sys_recvmsg", "syscall_entry_recvmsg",
-                "sys_sendmsg", "syscall_entry_sendmsg"]:
+                      "sys_sendmsg", "syscall_entry_sendmsg"]:
             current_syscall["count"] = ""
         elif name in ["sys_sendto", "syscall_entry_sendto"]:
             current_syscall["count"] = event["len"]
@@ -335,8 +342,8 @@ class Syscalls():
         if "cloexec" in current_syscall.keys():
             fd.cloexec = 1
         t.fds[fd.fd] = fd
-        #print("%lu : %s opened %s (%d times)" % (event.timestamp, t.comm,
-        #    fd.filename, fd.open))
+        # print("%lu : %s opened %s (%d times)" % (event.timestamp, t.comm,
+        #     fd.filename, fd.open))
 
     def read_append(self, fd, proc, count):
         if fd.fdtype in [FDType.net, FDType.maybe_net]:
@@ -374,7 +381,7 @@ class Syscalls():
             proc = self.tids[proc.pid]
         current_syscall = self.tids[cpu.current_tid].current_syscall
         if name in ["sys_splice", "syscall_entry_splice",
-                "sys_sendfile64", "syscall_entry_sendfile64"]:
+                    "sys_sendfile64", "syscall_entry_sendfile64"]:
             self.read_append(current_syscall["fd_in"], proc, ret)
             self.write_append(current_syscall["fd_out"], proc, ret)
         elif name in Syscalls.READ_SYSCALLS:
@@ -389,10 +396,8 @@ class Syscalls():
         for i in page_list:
             procname = i[0].comm
             tid = i[0].tid
-            syscall = i[1]
             filename = i[2]
-            fd = i[3]
-            if not tid in processes.keys():
+            if tid not in processes.keys():
                 processes[tid] = {}
                 processes[tid]["procname"] = procname
                 processes[tid]["count"] = 1
@@ -400,7 +405,7 @@ class Syscalls():
                 processes[tid]["files"][filename] = 1
             else:
                 processes[tid]["count"] += 1
-                if not filename in processes[tid]["files"].keys():
+                if filename not in processes[tid]["files"].keys():
                     processes[tid]["files"][filename] = 1
                 else:
                     processes[tid]["files"][filename] += 1
@@ -411,9 +416,9 @@ class Syscalls():
         for i in pages.keys():
             p = pages[i]
             print("%s %s (%d): %d pages" % (spaces, p["procname"],
-                i, p["count"]))
-            files = sorted(p["files"].items(), key=operator.itemgetter(1), \
-                    reverse=True)
+                                            i, p["count"]))
+            files = sorted(p["files"].items(), key=operator.itemgetter(1),
+                           reverse=True)
             for f in files:
                 print("%s  - %s : %d pages" % (spaces, f[0], f[1]))
 
@@ -429,7 +434,7 @@ class Syscalls():
                 proc = self.dirty_pages["pages"][i][0]
                 page_fd = self.dirty_pages["pages"][i][3]
                 if page_fd == fd and (tid.tid == proc.tid or
-                        tid.pid == proc.pid):
+                                      tid.pid == proc.pid):
                     cleaned.append(self.dirty_pages["pages"][i])
             for i in cleaned:
                 self.dirty_pages["pages"].remove(i)
@@ -440,7 +445,7 @@ class Syscalls():
         if not self.names and self.latency < 0:
             return
         current_syscall = self.tids[c.current_tid].current_syscall
-        if not "start" in current_syscall.keys():
+        if "start" not in current_syscall.keys():
             return
         if "fd" in current_syscall.keys():
             filename = current_syscall["fd"].filename
@@ -471,12 +476,12 @@ class Syscalls():
             self.latency = 0
         if self.latency >= 0 and ms > self.latency:
             if self.names and "all" not in self.names and \
-                    not procname in self.names:
+                    procname not in self.names:
                 return
             if not started:
                 return
-            if self.latency_hist != None:
-                if not procname in self.latency_hist.keys():
+            if self.latency_hist is not None:
+                if procname not in self.latency_hist.keys():
                     self.latency_hist[procname] = []
                 self.latency_hist[procname].append((ts_start, ms))
             # pages written during the latency
@@ -497,44 +502,49 @@ class Syscalls():
                 freed = current_syscall["page_free"]
             else:
                 freed = 0
-            base = "[%s - %s] %s (%d)" % (ts_start, ts_end, procname, \
-                    c.current_tid)
+            base = "[%s - %s] %s (%d)" % (ts_start, ts_end,
+                                          procname, c.current_tid)
             spaces = (41) * " "
             page_cache = {}
-            print("%s %s(fd = %s <%s>%s) = %d, %s" % \
-                    (base, name, fd, filename, count, ret, latency))
+            print("%s %s(fd = %s <%s>%s) = %d, %s" %
+                  (base, name, fd, filename, count, ret, latency))
             if alloc > 0:
-                print("%s %d pages allocated during the period" % (spaces, alloc))
+                print("%s %d pages allocated during the period" % (spaces,
+                                                                   alloc))
             if dirty > 0:
-                print("%s %d buffers dirtied during the period" % (spaces, dirty))
+                print("%s %d buffers dirtied during the period" % (spaces,
+                                                                   dirty))
             if "wakeup_kswapd" in current_syscall.keys():
                 print("%s woke up kswapd during the period" % (spaces))
                 # dirty pages up-to now
-                page_cache = self.get_page_queue_stats(self.dirty_pages["pages"])
+                page_cache = self.get_page_queue_stats(
+                    self.dirty_pages["pages"])
             if "pages_written" in current_syscall.keys():
                 print("%s %d pages written on disk" % (spaces, pages))
             if freed > 0:
-                print("%s freed %d pages from the cache during the period" % \
-                        (spaces, freed))
+                print("%s freed %d pages from the cache during the period" %
+                      (spaces, freed))
             if name in Syscalls.SYNC_SYSCALLS:
                 self.syscall_clear_pages(event, name, fd, current_syscall,
-                        self.tids[c.current_tid])
+                                         self.tids[c.current_tid])
             if "pages_cleared" in current_syscall.keys():
-                print("%s %d dirty page(s) were flushed (assuming FIFO):" % (spaces,
-                    len(current_syscall["pages_cleared"])))
-                cleared_pages = self.get_page_queue_stats(current_syscall["pages_cleared"])
+                print("%s %d dirty page(s) were flushed (assuming FIFO):" %
+                      (spaces, len(current_syscall["pages_cleared"])))
+                cleared_pages = self.get_page_queue_stats(
+                    current_syscall["pages_cleared"])
                 self.print_page_table(event, cleared_pages)
-                page_cache = self.get_page_queue_stats(self.dirty_pages["pages"])
+                page_cache = self.get_page_queue_stats(
+                    self.dirty_pages["pages"])
 #            page_cache = self.get_page_queue_stats()
 
             if len(page_cache) <= 0:
                 return
-            if not "nr_dirty" in event.keys():
-                print("%s %d last dirtied filesystem page(s):" % \
-                        (spaces, len(self.dirty_pages["pages"])))
+            if "nr_dirty" not in event.keys():
+                print("%s %d last dirtied filesystem page(s):" %
+                      (spaces, len(self.dirty_pages["pages"])))
             else:
-                print("%s %d active dirty filesystem page(s) (known):" % \
-                        (spaces, len(self.dirty_pages["pages"])))
+                print("%s %d active dirty filesystem page(s) (known):" %
+                      (spaces, len(self.dirty_pages["pages"])))
             self.print_page_table(event, page_cache)
 
     def entry(self, event):
@@ -553,7 +563,7 @@ class Syscalls():
     def exit(self, event, started):
         cpu_id = event["cpu_id"]
         ret_string = ""
-        if not cpu_id in self.cpus:
+        if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
@@ -565,19 +575,22 @@ class Syscalls():
         ret = event["ret"]
         if name in Syscalls.OPEN_SYSCALLS:
             self.add_tid_fd(event, c)
-            ret_string =  "%s %s(%s, fd = %d)" % (
-                    ns_to_hour_nsec(current_syscall["start"]),
-                    name, current_syscall["filename"], ret)
+            ret_string = "%s %s(%s, fd = %d)" % (
+                ns_to_hour_nsec(current_syscall["start"]),
+                name, current_syscall["filename"], ret)
             t = self.tids[c.current_tid]
             current_syscall["fd"] = self.get_fd(t, ret)
-            current_syscall["count"]= 0
+            current_syscall["count"] = 0
             current_syscall["fd"].fdtype = current_syscall["fdtype"]
-            self.track_rw_latency(name, ret, c, event.timestamp, started, event)
+            self.track_rw_latency(name, ret, c,
+                                  event.timestamp, started, event)
         elif name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
             self.track_read_write_return(name, ret, c)
-            self.track_rw_latency(name, ret, c, event.timestamp, started, event)
+            self.track_rw_latency(name, ret, c, event.timestamp,
+                                  started, event)
         elif name in Syscalls.SYNC_SYSCALLS:
-            self.track_rw_latency(name, ret, c, event.timestamp, started, event)
+            self.track_rw_latency(name, ret, c, event.timestamp,
+                                  started, event)
         self.tids[c.current_tid].current_syscall = {}
         return ret_string
 
@@ -594,8 +607,7 @@ class Syscalls():
     def wakeup_kswapd(self, event):
         """mm_vmscan_wakeup_kswapd"""
         cpu_id = event["cpu_id"]
-        ret_string = ""
-        if not cpu_id in self.cpus:
+        if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
         if c.current_tid == -1:
