@@ -49,6 +49,7 @@ class IOTop():
         self.ifaces = {}
         self.syscalls = {}
         self.latency_hist = {}
+        self.mm = {}
         # prototyping stuff
         self.random = {}
         self.random["write_queue"] = 0
@@ -141,7 +142,7 @@ class IOTop():
         block = Block(self.cpus, self.disks, self.tids)
         net = Net(self.ifaces, self.cpus, self.tids)
         statedump = Statedump(self.tids, self.disks)
-        mm = Mm(self.cpus, self.tids, self.dirty_pages)
+        mm = Mm(self.mm, self.cpus, self.tids, self.dirty_pages)
 
         event_count = 0
         if not args.begin:

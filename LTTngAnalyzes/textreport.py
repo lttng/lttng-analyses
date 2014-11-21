@@ -11,7 +11,7 @@ import operator
 
 class TextReport():
     def __init__(self, trace_start_ts, trace_end_ts, cpus, tids, syscalls,
-                 disks, ifaces):
+                 disks, ifaces, mm):
         self.trace_start_ts = trace_start_ts
         self.trace_end_ts = trace_end_ts
         self.cpus = cpus
@@ -19,6 +19,7 @@ class TextReport():
         self.syscalls = syscalls
         self.disks = disks
         self.ifaces = ifaces
+        self.mm = mm
 
     def text_trace_info(self):
         total_ns = self.trace_end_ts - self.trace_start_ts
@@ -31,10 +32,12 @@ class TextReport():
 
     def report(self, begin_ns, end_ns, final, args):
         if not (args.info or args.cpu or args.tid or args.global_syscalls
-                or args.tid_syscalls or args.disk or args.fds or args.net):
+                or args.tid_syscalls or args.disk or args.fds or args.net or
+                args.mem):
             return
         if args.cpu or args.tid or args.global_syscalls \
-                or args.tid_syscalls or args.disk or args.fds or args.net:
+                or args.tid_syscalls or args.disk or args.fds or args.net \
+                or args.mem:
             print("[%lu:%lu]" % (begin_ns/NSEC_PER_SEC, end_ns/NSEC_PER_SEC))
 
         total_ns = end_ns - begin_ns
@@ -48,7 +51,8 @@ class TextReport():
         if args.tid:
             self.text_per_tid_report(total_ns, args.display_proc_list,
                                      limit=args.top,
-                                     syscalls=args.tid_syscalls, fds=args.fds)
+                                     syscalls=args.tid_syscalls, fds=args.fds,
+                                     mem=args.mem)
             print("")
         if args.global_syscalls:
             self.text_global_syscall_report()
@@ -58,6 +62,9 @@ class TextReport():
             print("")
         if args.net:
             self.text_net_report(total_ns)
+            print("")
+        if args.mem:
+            self.text_global_mm_report(self.mm)
             print("")
 
     def text_disks_report(self, total_ns):
@@ -83,6 +90,11 @@ class TextReport():
                   (iface, dev.recv_bytes, dev.recv_packets, dev.send_bytes,
                    dev.send_packets))
 
+    def text_global_mm_report(self, mm):
+        print("### Global memory usage ###")
+        print("%d allocated pages" % (mm["allocated_pages"]))
+        print("%d freed pages" % (mm["freed_pages"]))
+
     def text_global_syscall_report(self):
         print("### Global syscall ###")
         for syscall in sorted(self.syscalls.values(),
@@ -92,7 +104,7 @@ class TextReport():
             print("%s : %d" % (syscall.name[4:], syscall.count))
 
     def text_per_tid_report(self, total_ns, proc_list, limit=0, syscalls=0,
-                            fds=0):
+                            fds=0, mem=0):
         print("### Per-TID Usage ###")
         count = 0
         for tid in sorted(self.tids.values(),
@@ -144,6 +156,10 @@ class TextReport():
                     if syscall.count == 0:
                         continue
                     print(" - %s : %d" % (syscall.name[4:], syscall.count))
+            if mem:
+                print("- Memory")
+                print(" - Allocated %d pages" % tid.allocated_pages)
+                print(" - Freed %d pages" % tid.freed_pages)
             if limit > 0 and count >= limit:
                 break
 

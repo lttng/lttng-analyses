@@ -30,6 +30,7 @@ from LTTngAnalyzes.syscalls import Syscalls
 from LTTngAnalyzes.block import Block
 from LTTngAnalyzes.net import Net
 from LTTngAnalyzes.statedump import Statedump
+from LTTngAnalyzes.mm import Mm
 
 
 class Analyzes():
@@ -42,12 +43,13 @@ class Analyzes():
         self.syscalls = {}
         self.disks = {}
         self.ifaces = {}
+        self.mm = {}
 
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
             r = TextReport(self.trace_start_ts, self.trace_end_ts,
                            self.cpus, self.tids, self.syscalls, self.disks,
-                           self.ifaces)
+                           self.ifaces, self.mm)
             r.report(begin_ns, end_ns, final, args)
             if not final and (args.cpu or args.tid or args.disk or args.net):
                 print("")
@@ -90,6 +92,8 @@ class Analyzes():
             self.tids[tid].migrate_count = 0
             self.tids[tid].read = 0
             self.tids[tid].write = 0
+            self.tids[tid].allocated_pages = 0
+            self.tids[tid].freed_pages = 0
             for syscall in self.tids[tid].syscalls.keys():
                 self.tids[tid].syscalls[syscall].count = 0
 
@@ -141,6 +145,7 @@ class Analyzes():
         block = Block(self.cpus, self.disks, self.tids)
         net = Net(self.ifaces, self.cpus, self.tids)
         statedump = Statedump(self.tids, self.disks)
+        mm = Mm(self.mm, self.cpus, self.tids, None)
 
         for event in self.traces.events:
             if self.start_ns == 0:
@@ -179,6 +184,10 @@ class Analyzes():
                 statedump.process_state(event)
             elif event.name == "lttng_statedump_file_descriptor":
                 statedump.file_descriptor(event)
+            elif event.name == "mm_page_alloc":
+                mm.page_alloc(event)
+            elif event.name == "mm_page_free":
+                mm.page_free(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()
@@ -202,6 +211,8 @@ if __name__ == "__main__":
                         help='Output to graphite')
     parser.add_argument('--cpu', action="store_true",
                         help='Per-CPU stats (default)')
+    parser.add_argument('--mem', action="store_true",
+                        help='Memory usage stats (default)')
     parser.add_argument('--disk', action="store_true",
                         help='Per-Disk stats (default)')
     parser.add_argument('--tid', action="store_true",
@@ -232,7 +243,7 @@ if __name__ == "__main__":
 
     if not (args.cpu or args.tid or args.overall or args.info or
             args.global_syscalls or args.tid_syscalls or args.disk
-            or args.net or args.fds):
+            or args.net or args.fds or args.mem):
         args.cpu = True
         args.tid = True
         args.overall = True
@@ -242,6 +253,7 @@ if __name__ == "__main__":
         args.tid_syscalls = True
         args.net = True
         args.fds = True
+        args.mem = True
     if args.name:
         args.global_syscalls = False
     args.display_proc_list = []

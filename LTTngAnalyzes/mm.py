@@ -2,11 +2,13 @@ from LTTngAnalyzes.common import ns_to_hour_nsec
 
 
 class Mm():
-    def __init__(self, cpus, tids, dirty_pages):
-        self.mm = {}
+    def __init__(self, mm, cpus, tids, dirty_pages):
+        self.mm = mm
         self.cpus = cpus
         self.tids = tids
         self.dirty_pages = dirty_pages
+        self.mm["allocated_pages"] = 0
+        self.mm["freed_pages"] = 0
         self.mm["count"] = 0
         self.mm["dirty"] = 0
 
@@ -21,6 +23,7 @@ class Mm():
 
     def page_alloc(self, event):
         self.mm["count"] += 1
+        self.mm["allocated_pages"] += 1
         for p in self.tids.values():
             if len(p.current_syscall.keys()) == 0:
                 continue
@@ -28,11 +31,20 @@ class Mm():
                 p.current_syscall["alloc"] = 1
             else:
                 p.current_syscall["alloc"] += 1
+        t = self.get_current_proc(event)
+        if t is None:
+            return
+        t.allocated_pages += 1
 
     def page_free(self, event):
+        self.mm["freed_pages"] += 1
         if self.mm["count"] == 0:
             return
         self.mm["count"] -= 1
+        t = self.get_current_proc(event)
+        if t is None:
+            return
+        t.freed_pages += 1
 
     def block_dirty_buffer(self, event):
         self.mm["dirty"] += 1
@@ -44,6 +56,8 @@ class Mm():
         p = self.tids[c.current_tid]
         current_syscall = self.tids[c.current_tid].current_syscall
         if len(current_syscall.keys()) == 0:
+            return
+        if self.dirty_pages is None:
             return
         if "fd" in current_syscall.keys():
             self.dirty_pages["pages"].append((p, current_syscall["name"],
