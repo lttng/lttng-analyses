@@ -297,7 +297,8 @@ class Syscalls():
         fd = event["fd"]
         f = self.get_fd(t, fd)
         current_syscall["fd"] = f
-        if name in ["sys_writev", "syscall_entry_writev"]:
+        if name in ["sys_writev", "syscall_entry_writev",
+                    "sys_readv", "syscall_entry_readv"]:
             current_syscall["count"] = event["vlen"]
         elif name in ["sys_recvfrom", "syscall_entry_recvfrom"]:
             current_syscall["count"] = event["size"]
@@ -307,7 +308,12 @@ class Syscalls():
         elif name in ["sys_sendto", "syscall_entry_sendto"]:
             current_syscall["count"] = event["len"]
         else:
-            current_syscall["count"] = event["count"]
+            try:
+                current_syscall["count"] = event["count"]
+            except:
+                print("Missing count argument for syscall",
+                      current_syscall["name"])
+                current_syscall["count"] = 0
 
         current_syscall["filename"] = f.filename
 
