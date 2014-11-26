@@ -101,7 +101,7 @@ class TextReport():
                               key=operator.attrgetter("count"), reverse=True):
             if syscall.count == 0:
                 continue
-            print("%s : %d" % (syscall.name[4:], syscall.count))
+            print("%s : %d" % (syscall.name, syscall.count))
 
     def text_per_tid_report(self, total_ns, proc_list, limit=0, syscalls=0,
                             fds=0, mem=0):
@@ -155,7 +155,7 @@ class TextReport():
                                       reverse=True):
                     if syscall.count == 0:
                         continue
-                    print(" - %s : %d" % (syscall.name[4:], syscall.count))
+                    print(" - %s : %d" % (syscall.name, syscall.count))
             if mem:
                 print("- Memory")
                 print(" - Allocated %d pages" % tid.allocated_pages)
