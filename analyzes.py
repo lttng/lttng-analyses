@@ -164,13 +164,15 @@ class Analyzes():
                 sched.process_fork(event)
             elif event.name == "sched_process_exec":
                 sched.process_exec(event)
-            elif event.name[0:4] == "sys_" and \
-                    (args.global_syscalls or args.tid_syscalls or
-                     args.fds):
+            elif (event.name[0:4] == "sys_" or event.name[0:14] ==
+                  "syscall_entry_") and (args.global_syscalls or
+                                         args.tid_syscalls or
+                                         args.fds):
                 syscall.entry(event)
-            elif event.name == "exit_syscall" and \
-                    (args.global_syscalls or args.tid_syscalls or
-                     args.fds):
+            elif (event.name == "exit_syscall" or event.name[0:13] ==
+                  "syscall_exit_") and (args.global_syscalls or
+                                        args.tid_syscalls or
+                                        args.fds):
                 syscall.exit(event, 1)
             elif event.name == "block_rq_complete":
                 block.complete(event)
