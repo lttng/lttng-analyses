@@ -209,7 +209,8 @@ class IOTop():
                                                                   tid.comm)
                     else:
                         files[fd.filename]["name"] = fd.filename
-                    files[fd.filename]["other"] = "(%d %d)" % (fd.fd, tid.tid)
+                    files[fd.filename]["other"] = "(fd=%d, tid=%d)" % (fd.fd,
+                                                                       tid.tid)
                 else:
                     files[fd.filename]["read"] += fd.read
                     files[fd.filename]["write"] += fd.write
@@ -224,6 +225,8 @@ class IOTop():
         for line in graph.graph('Files Read', values, sort=2,
                                 with_value=False):
             print(line)
+
+        values = []
         for f in files.values():
             if f["write"] == 0:
                 continue
@@ -289,8 +292,9 @@ class IOTop():
                           key=operator.attrgetter('block_read'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d)" % (convert_size(tid.block_read),
-                                           tid.comm, tid.tid), tid.block_read))
+            values.append(("%s %s (tid=%d)" % (convert_size(tid.block_read),
+                                               tid.comm, tid.tid),
+                           tid.block_read))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -307,9 +311,9 @@ class IOTop():
                           reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
-            values.append(("%s %s (%d)" % (convert_size(tid.block_write),
-                                           tid.comm,
-                                           tid.tid), tid.block_write))
+            values.append(("%s %s (tid=%d)" % (convert_size(tid.block_write),
+                                               tid.comm,
+                                               tid.tid), tid.block_write))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
