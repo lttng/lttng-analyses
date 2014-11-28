@@ -104,7 +104,7 @@ class CPUTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph("Per-TID CPU Usage", values):
+        for line in graph.graph("Per-TID CPU Usage", values, unit=" %"):
             print(line)
 
         values = []
@@ -112,7 +112,7 @@ class CPUTop():
                           key=operator.attrgetter('cpu_ns'), reverse=True):
             cpu_pc = float("%0.02f" % cpu.cpu_pc)
             values.append(("CPU %d" % cpu.cpu_id, cpu_pc))
-        for line in graph.graph("Per-CPU Usage", values):
+        for line in graph.graph("Per-CPU Usage", values, unit=" %"):
             print(line)
 
     def reset_total(self, start_ts):

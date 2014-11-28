@@ -120,14 +120,14 @@ class CPUTop():
                     (self.history[sec]["proc"][comm] * 100) /
                     self.history[sec]["total_ns"]))
                 values.append(("%s" % sec_to_hour(sec), pc))
-            for line in graph.graph("%s CPU Usage" % comm, values):
+            for line in graph.graph("%s CPU Usage" % comm, values, unit=" %"):
                 print(line)
         graph = Pyasciigraph()
         values = []
         for sec in sorted(self.history.keys()):
             pc = float("%0.02f" % (self.history[sec]["cpu"]))
             values.append(("%s" % sec_to_hour(sec), pc))
-        for line in graph.graph("Total CPU Usage", values):
+        for line in graph.graph("Total CPU Usage", values, unit=" %"):
             print(line)
 
     def reset_total(self, start_ts):

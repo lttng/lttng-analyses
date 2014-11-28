@@ -216,22 +216,24 @@ class IOTop():
         for f in files.values():
             if f["read"] == 0:
                 continue
-            values.append(("%s %s %s" % (f["name"],
-                           convert_size(f["read"]), f["other"]), f["read"]))
+            values.append(("%s %s %s" % (convert_size(f["read"]), f["name"],
+                           f["other"]), f["read"]))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('Files Read', values, sort=2):
+        for line in graph.graph('Files Read', values, sort=2,
+                                with_value=False):
             print(line)
         for f in files.values():
             if f["write"] == 0:
                 continue
-            values.append(("%s %s %s" % (f["name"],
-                           convert_size(f["write"]), f["other"]), f["write"]))
+            values.append(("%s %s %s" % (convert_size(f["write"]), f["name"],
+                           f["other"]), f["write"]))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('Files Write', values, sort=2):
+        for line in graph.graph('Files Write', values, sort=2,
+                                with_value=False):
             print(line)
 
     def output_read(self, args):
@@ -253,7 +255,7 @@ class IOTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('Syscall I/O Read', values):
+        for line in graph.graph('Syscall I/O Read', values, with_value=False):
             print(line)
 
     def output_write(self, args):
@@ -275,7 +277,7 @@ class IOTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('Syscall I/O Write', values):
+        for line in graph.graph('Syscall I/O Write', values, with_value=False):
             print(line)
 
     def disk_output_read(self, args):
@@ -292,7 +294,7 @@ class IOTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('Block I/O Read', values):
+        for line in graph.graph('Block I/O Read', values, with_value=False):
             print(line)
 
     def disk_output_write(self, args):
@@ -311,7 +313,7 @@ class IOTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('Block I/O Write', values):
+        for line in graph.graph('Block I/O Write', values, with_value=False):
             print(line)
 
     def output_nr_sector(self, args):
@@ -322,7 +324,7 @@ class IOTop():
             if disk.nr_sector == 0:
                 continue
             values.append((disk.prettyname, disk.nr_sector))
-        for line in graph.graph('Disk nr_sector', values):
+        for line in graph.graph('Disk nr_sector', values, unit=" sectors"):
             print(line)
 
     def output_nr_requests(self, args):
@@ -334,7 +336,7 @@ class IOTop():
             if disk.nr_sector == 0:
                 continue
             values.append((disk.prettyname, disk.nr_requests))
-        for line in graph.graph('Disk nr_requests', values):
+        for line in graph.graph('Disk nr_requests', values, unit=" requests"):
             print(line)
 
     def output_dev_latency(self, args):
@@ -346,8 +348,9 @@ class IOTop():
             total = (disk.request_time / disk.completed_requests) \
                 / MSEC_PER_NSEC
             total = float("%0.03f" % total)
-            values.append(("ms %s" % disk.prettyname, total))
-        for line in graph.graph('Disk request time/sector', values, sort=2):
+            values.append(("%s" % disk.prettyname, total))
+        for line in graph.graph('Disk request time/sector', values, sort=2,
+                                unit=" ms"):
             print(line)
 
     def output_net_recv_bytes(self, args):
@@ -359,7 +362,8 @@ class IOTop():
             values.append(("%s %s" % (convert_size(iface.recv_bytes),
                                       iface.name),
                           iface.recv_bytes))
-        for line in graph.graph('Network recv_bytes', values):
+        for line in graph.graph('Network recv_bytes', values,
+                                with_value=False):
             print(line)
 
     def output_net_sent_bytes(self, args):
@@ -371,7 +375,8 @@ class IOTop():
             values.append(("%s %s" % (convert_size(iface.send_bytes),
                                       iface.name),
                           iface.send_bytes))
-        for line in graph.graph('Network sent_bytes', values):
+        for line in graph.graph('Network sent_bytes', values,
+                                with_value=False):
             print(line)
 
     def output_latencies(self, args):
@@ -380,7 +385,8 @@ class IOTop():
             values = []
             for v in self.latency_hist[proc]:
                 values.append(("%s" % (v[0]), v[1]))
-            for line in graph.graph('%s requests latency (ms)' % proc, values):
+            for line in graph.graph('%s requests latency (ms)' % proc, values,
+                                    unit=" ms"):
                 print(line)
 
     def output(self, args, begin_ns, end_ns, final=0):
