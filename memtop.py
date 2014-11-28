@@ -144,11 +144,15 @@ class MemTop():
         for line in graph.graph("Per-TID Memory Deallocation", values,
                                 unit=" pages"):
             print(line)
+        print("\nTotal memory usage:\n- %d pages allocated\n- %d pages freed" %
+              (self.mm["allocated_pages"], self.mm["freed_pages"]))
 
     def reset_total(self, start_ts):
         for tid in self.tids.keys():
             self.tids[tid].allocated_pages = 0
             self.tids[tid].freed_pages = 0
+        self.mm["allocated_pages"] = 0
+        self.mm["freed_pages"] = 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Memory usage analysis')
