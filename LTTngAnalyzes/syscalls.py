@@ -215,6 +215,7 @@ class Syscalls():
         if t.pid == -1 and "pid" in event.keys():
             t.pid = event["pid"]
             p = Process()
+            p.tid = t.pid
             p.pid = t.pid
             p.comm = t.comm
             self.tids[p.pid] = p

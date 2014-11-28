@@ -190,35 +190,56 @@ class IOTop():
             self.current_sec = event_sec
             self.start_ns = event.timestamp
 
-    def output_file_read_write(self, args):
+    def create_files_dict(self):
+        files = {}
+        for tid in self.tids.values():
+            for fd in tid.fds.values():
+                if fd.read == 0 and fd.write == 0:
+                    continue
+                if fd.filename.startswith("pipe") or \
+                        fd.filename.startswith("socket") or \
+                        fd.filename.startswith("anon_inode") or \
+                        fd.filename.startswith("unknown"):
+                    filename = "%s (%s)" % (fd.filename, tid.comm)
+                    files[filename] = {}
+                    files[filename]["read"] = fd.read
+                    files[filename]["write"] = fd.write
+                    files[filename]["name"] = filename
+                    files[filename]["other"] = ["(fd %d in %s (%d))" % (fd.fd,
+                                                tid.comm, tid.tid)]
+                else:
+                    # merge counters of shared files
+                    filename = fd.filename
+                    if filename not in files.keys():
+                        files[filename] = {}
+                        files[filename]["read"] = fd.read
+                        files[filename]["write"] = fd.write
+                        files[filename]["name"] = filename
+                        files[filename]["other"] = ["(fd %d in %s (%d)" %
+                                                    (fd.fd, tid.comm, tid.tid)]
+                        files[filename]["tids"] = [tid.tid]
+                    else:
+                        files[filename]["read"] += fd.read
+                        files[filename]["write"] += fd.write
+                        files[filename]["other"].append("(fd %d in %s (%d)" %
+                                                        (fd.fd, tid.comm,
+                                                         tid.tid))
+        return files
+
+    def output_print_file_read(self, args, files):
         count = 0
         limit = args.top
         graph = Pyasciigraph()
         values = []
-        files = {}
-        for tid in self.tids.values():
-            for fd in tid.fds.values():
-                if fd.filename not in files.keys():
-                    files[fd.filename] = {}
-                    files[fd.filename]["read"] = fd.read
-                    files[fd.filename]["write"] = fd.write
-                    if fd.filename.startswith("pipe") or \
-                            fd.filename.startswith("socket") or \
-                            fd.filename.startswith("anon_inode"):
-                        files[fd.filename]["name"] = "%s (%s)" % (fd.filename,
-                                                                  tid.comm)
-                    else:
-                        files[fd.filename]["name"] = fd.filename
-                    files[fd.filename]["other"] = "(fd=%d, tid=%d)" % (fd.fd,
-                                                                       tid.tid)
-                else:
-                    files[fd.filename]["read"] += fd.read
-                    files[fd.filename]["write"] += fd.write
-        for f in files.values():
-            if f["read"] == 0:
+        sorted_f = sorted(files.items(), key=lambda files: files[1]['read'],
+                          reverse=True)
+        for f in sorted_f:
+            if f[1]["read"] == 0:
                 continue
-            values.append(("%s %s %s" % (convert_size(f["read"]), f["name"],
-                           f["other"]), f["read"]))
+            values.append(("%s %s %s" % (convert_size(f[1]["read"]),
+                                         f[1]["name"],
+                                         str(f[1]["other"])[1:-1]),
+                           f[1]["read"]))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -226,18 +247,32 @@ class IOTop():
                                 with_value=False):
             print(line)
 
+    def output_print_file_write(self, args, files):
+        # Compute files read
+        count = 0
+        limit = args.top
+        graph = Pyasciigraph()
         values = []
-        for f in files.values():
-            if f["write"] == 0:
+        sorted_f = sorted(files.items(), key=lambda files: files[1]['write'],
+                          reverse=True)
+        for f in sorted_f:
+            if f[1]["write"] == 0:
                 continue
-            values.append(("%s %s %s" % (convert_size(f["write"]), f["name"],
-                           f["other"]), f["write"]))
+            values.append(("%s %s %s" % (convert_size(f[1]["write"]),
+                                         f[1]["name"],
+                                         str(f[1]["other"])[1:-1]),
+                           f[1]["write"]))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
         for line in graph.graph('Files Write', values, sort=2,
                                 with_value=False):
             print(line)
+
+    def output_file_read_write(self, args):
+        files = self.create_files_dict()
+        self.output_print_file_read(args, files)
+        self.output_print_file_write(args, files)
 
     def output_read(self, args):
         count = 0
@@ -290,6 +325,8 @@ class IOTop():
         values = []
         for tid in sorted(self.tids.values(),
                           key=operator.attrgetter('block_read'), reverse=True):
+            if tid.block_read == 0:
+                continue
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
             values.append(("%s %s (tid=%d)" % (convert_size(tid.block_read),
@@ -309,6 +346,8 @@ class IOTop():
         for tid in sorted(self.tids.values(),
                           key=operator.attrgetter('block_write'),
                           reverse=True):
+            if tid.block_write == 0:
+                continue
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
             values.append(("%s %s (tid=%d)" % (convert_size(tid.block_write),
