@@ -114,12 +114,16 @@ class CPUTop():
             print(line)
 
         values = []
+        total_cpu_pc = 0
         for cpu in sorted(self.cpus.values(),
                           key=operator.attrgetter('cpu_ns'), reverse=True):
             cpu_pc = float("%0.02f" % cpu.cpu_pc)
+            total_cpu_pc += cpu_pc
             values.append(("CPU %d" % cpu.cpu_id, cpu_pc))
         for line in graph.graph("Per-CPU Usage", values, unit=" %"):
             print(line)
+        print("\nTotal CPU Usage: %0.02f%%\n" %
+              (total_cpu_pc / len(self.cpus.keys())))
 
     def reset_total(self, start_ts):
         for cpu in self.cpus.keys():
