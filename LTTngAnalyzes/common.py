@@ -122,11 +122,20 @@ class FD():
         self.parent = -1
 
 
+# imported from include/linux/kdev_t.h
+def kdev_major_minor(dev):
+    MINORBITS = 20
+    MINORMASK = ((1 << MINORBITS) - 1)
+    major = dev >> MINORBITS
+    minor = dev & MINORMASK
+    return "(%d,%d)" % (major, minor)
+
+
 def get_disk(dev, disks):
     if dev not in disks:
         d = Disk()
         d.name = "%d" % dev
-        d.prettyname = "%d" % dev
+        d.prettyname = kdev_major_minor(dev)
         disks[dev] = d
     else:
         d = disks[dev]
