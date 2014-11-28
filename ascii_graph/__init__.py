@@ -56,14 +56,14 @@ class Pyasciigraph:
         number_of_space = (line_length - start_info - len(info))
         return info + self._u(' ') * number_of_space
 
-    def _gen_value_string(self, value, start_value, start_info):
+    def _gen_value_string(self, value, start_value, start_info, unit):
         number_space = start_info -\
             start_value -\
             len(str(value)) -\
             self.separator_length
 
         return ' ' * number_space +\
-            str(value) +\
+            str(value) + str(unit) +\
             ' ' * self.separator_length
 
     def _sanitize_string(self, string):
@@ -90,7 +90,7 @@ class Pyasciigraph:
             ret.append((self._sanitize_string(item[0]), item[1]))
         return ret
 
-    def graph(self, label, data, sort=0, with_value=True):
+    def graph(self, label, data, sort=0, with_value=True, unit=""):
         """function generating the graph
 
         :param string label: the label of the graph
@@ -167,7 +167,7 @@ class Pyasciigraph:
             value_string = self._gen_value_string(
                 value,
                 start_value,
-                start_info)
+                start_info, unit)
 
             info_string = self._gen_info_string(
                 info,
