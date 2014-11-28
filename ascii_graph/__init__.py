@@ -164,10 +164,13 @@ class Pyasciigraph:
                 graph_length,
                 start_value)
 
-            value_string = self._gen_value_string(
-                value,
-                start_value,
-                start_info, unit)
+            if with_value:
+                value_string = self._gen_value_string(
+                    value,
+                    start_value,
+                    start_info, unit)
+            else:
+                value_string = ""
 
             info_string = self._gen_info_string(
                 info,
