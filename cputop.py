@@ -51,6 +51,8 @@ class CPUTop():
 
             if event.name == "sched_switch":
                 sched.switch(event)
+            elif event.name == "sched_migrate_task":
+                sched.migrate_task(event)
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()
@@ -100,7 +102,11 @@ class CPUTop():
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
             pc = float("%0.02f" % ((tid.cpu_ns * 100) / total_ns))
-            values.append(("%s (%d)" % (tid.comm, tid.tid), pc))
+            if tid.migrate_count > 0:
+                migrations = ", %d migrations" % (tid.migrate_count)
+            else:
+                migrations = ""
+            values.append(("%s (%d)%s" % (tid.comm, tid.tid, migrations), pc))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
