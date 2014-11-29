@@ -20,9 +20,16 @@ except ImportError:
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime
+from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, getFolderSize, \
+    BYTES_PER_EVENT
 from LTTngAnalyzes.sched import Sched
 from ascii_graph import Pyasciigraph
+
+try:
+    from progressbar import ETA, Bar, Percentage, ProgressBar
+    progressbar_available = True
+except ImportError:
+    progressbar_available = False
 
 
 class CPUTop():
@@ -39,8 +46,29 @@ class CPUTop():
         self.start_ns = 0
         self.end_ns = 0
 
+        if not args.no_progress:
+            if progressbar_available:
+                size = getFolderSize(args.path)
+                widgets = ['Processing the trace: ', Percentage(), ' ',
+                           Bar(marker='#', left='[', right=']'),
+                           ' ', ETA(), ' ']  # see docs for other options
+                pbar = ProgressBar(widgets=widgets,
+                                   maxval=size/BYTES_PER_EVENT)
+                pbar.start()
+            else:
+                print("Warning: progressbar module not available, "
+                      "using --no-progress.", file=sys.stderr)
+                args.no_progress = True
+
         sched = Sched(self.cpus, self.tids)
+        event_count = 0
         for event in self.traces.events:
+            if not args.no_progress:
+                try:
+                    pbar.update(event_count)
+                except ValueError:
+                    pass
+            event_count += 1
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
             if self.trace_start_ts == 0:
@@ -53,6 +81,9 @@ class CPUTop():
                 sched.switch(event)
             elif event.name == "sched_migrate_task":
                 sched.migrate_task(event)
+        if not args.no_progress:
+            pbar.finish()
+            print
         if args.refresh == 0:
             # stats for the whole trace
             self.compute_stats()
@@ -148,6 +179,8 @@ if __name__ == "__main__":
                         help='Refresh period in seconds', default=0)
     parser.add_argument('--top', type=int, default=10,
                         help='Limit to top X TIDs (default = 10)')
+    parser.add_argument('--no-progress', action="store_true",
+                        help='Don\'t display the progress bar')
     args = parser.parse_args()
     args.proc_list = []
 
