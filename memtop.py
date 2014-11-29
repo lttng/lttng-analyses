@@ -119,8 +119,6 @@ class MemTop():
         for tid in sorted(self.tids.values(),
                           key=operator.attrgetter('allocated_pages'),
                           reverse=True):
-            if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
-                continue
             values.append(("%s (%d)" % (tid.comm, tid.tid),
                           tid.allocated_pages))
             count = count + 1
@@ -135,8 +133,6 @@ class MemTop():
         for tid in sorted(self.tids.values(),
                           key=operator.attrgetter('freed_pages'),
                           reverse=True):
-            if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
-                continue
             values.append(("%s (%d)" % (tid.comm, tid.tid), tid.freed_pages))
             count = count + 1
             if limit > 0 and count >= limit:
@@ -164,7 +160,6 @@ if __name__ == "__main__":
     parser.add_argument('--no-progress', action="store_true",
                         help='Don\'t display the progress bar')
     args = parser.parse_args()
-    args.proc_list = []
 
     traces = TraceCollection()
     handle = traces.add_trace(args.path, "ctf")
