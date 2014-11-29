@@ -89,6 +89,7 @@ class Syscalls():
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
+        self.syscalls["total"] = 0
         self.dirty_pages = dirty_pages
         self.names = names
         self.latency = latency
@@ -104,6 +105,7 @@ class Syscalls():
         else:
             s = self.syscalls[name]
         s.count += 1
+        self.syscalls["total"] += 1
 
     def per_tid_syscall_entry(self, name, cpu_id):
         # we don't know which process is currently on this CPU
@@ -113,6 +115,7 @@ class Syscalls():
         if c.current_tid == -1:
             return
         t = self.tids[c.current_tid]
+        t.total_syscalls += 1
         if name not in t.syscalls:
             s = Syscall()
             s.name = name

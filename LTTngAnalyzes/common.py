@@ -49,6 +49,7 @@ class Process():
         self.dirty = 0
         self.allocated_pages = 0
         self.freed_pages = 0
+        self.total_syscalls = 0
 
 
 class CPU():
