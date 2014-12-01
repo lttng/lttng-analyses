@@ -105,6 +105,8 @@ class Analyzes():
                 self.tids[tid].syscalls[syscall].count = 0
 
         for syscall in self.syscalls.keys():
+            if syscall == "total":
+                continue
             self.syscalls[syscall].count = 0
 
         for dev in self.disks.keys():
