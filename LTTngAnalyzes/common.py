@@ -123,6 +123,29 @@ class FD():
         self.parent = -1
 
 
+class IRQ():
+    HARD_IRQ = 1
+    SOFT_IRQ = 2
+    # from include/linux/interrupt.h
+    soft_names = {0: "HI_SOFTIRQ",
+                  1: "TIMER_SOFTIRQ",
+                  2: "NET_TX_SOFTIRQ",
+                  3: "NET_RX_SOFTIRQ",
+                  4: "BLOCK_SOFTIRQ",
+                  5: "BLOCK_IOPOLL_SOFTIRQ",
+                  6: "TASKLET_SOFTIRQ",
+                  7: "SCHED_SOFTIRQ",
+                  8: "HRTIMER_SOFTIRQ",
+                  9: "RCU_SOFTIRQ"}
+
+    def __init__(self):
+        self.nr = -1
+        self.irqclass = 0
+        self.start_ts = -1
+        self.stop_ts = -1
+        self.cpu_id = -1
+
+
 # imported from include/linux/kdev_t.h
 def kdev_major_minor(dev):
     MINORBITS = 20
