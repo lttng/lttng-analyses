@@ -120,7 +120,8 @@ class SyscallTop():
                           key=operator.attrgetter('total_syscalls'),
                           reverse=True):
 
-            print("%s (%d syscalls):" % (tid.comm, tid.total_syscalls))
+            print("%s (%d), %d syscalls:" % (tid.comm, tid.tid,
+                                             tid.total_syscalls))
             for syscall in sorted(tid.syscalls.values(),
                                   key=operator.attrgetter('count'),
                                   reverse=True):
