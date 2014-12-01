@@ -140,10 +140,17 @@ class IrqStats():
                 if delay > args.thresh:
                     v.append(("%s to %s" % (ns_to_hour_nsec(j.start_ts),
                               ns_to_hour_nsec(j.stop_ts)), delay))
+            if count == 0:
+                continue
+            elif count < 2:
+                stdev = "?"
+            else:
+                stdev = statistics.stdev(values)
+
             print("- IRQ %d (%s): %d interrupts, delay (ns): min = %d, "
-                  "max = %s, avg = %d, stdev = %d" %
+                  "max = %s, avg = %d, stdev = %s" %
                   (i, name, count, mintime, maxtime, total/count,
-                   statistics.stdev(values)))
+                   stdev))
             if not args.details:
                 continue
             for line in graph.graph("IRQs delay repartition", v,
@@ -152,21 +159,20 @@ class IrqStats():
 
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
-        print("Total :\n- %d hard IRQs" % (self.irq["hard_count"]))
-        print("- %d soft IRQs" % (self.irq["soft_count"]))
-
-        print("\nHard IRQs:")
+        print("\nHard IRQs (%d):" % self.irq["hard_count"])
         self.print_irq_stats(args, self.irq["hard-irqs"], self.irq["names"])
 
-        print("\nSoft IRQs:")
+        print("\nSoft IRQs (%d):" % self.irq["soft_count"])
         self.print_irq_stats(args, self.irq["soft-irqs"], IRQ.soft_names)
+        print("")
 
     def reset_total(self, start_ts):
-        for tid in self.tids.keys():
-            self.tids[tid].allocated_pages = 0
-            self.tids[tid].freed_pages = 0
-        self.mm["allocated_pages"] = 0
-        self.mm["freed_pages"] = 0
+        self.irq["hard_count"] = 0
+        self.irq["soft_count"] = 0
+        for i in self.irq["hard-irqs"].keys():
+            self.irq["hard-irqs"][i] = []
+        for i in self.irq["soft-irqs"].keys():
+            self.irq["soft-irqs"][i] = []
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Memory usage analysis')
