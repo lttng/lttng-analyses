@@ -164,12 +164,12 @@ class IrqStats():
             elif count < 2:
                 stdev = "?"
             else:
-                stdev = statistics.stdev(values)
+                stdev = "%0.02f" % (statistics.stdev(values))
 
             if r_count < 2:
                 r_stdev = ""
             else:
-                st = statistics.stdev(raise_delays)
+                st = "%0.02f" % (statistics.stdev(raise_delays))
                 r_avg = r_total / r_count
                 r_stdev = "\n\traised %d times\n\tdelay before handler_entry" \
                           " (ns):\n\t\tmin = %d\n\t\tmax = %d\n\t\tavg = %d" \
