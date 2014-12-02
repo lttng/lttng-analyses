@@ -21,11 +21,7 @@ except ImportError:
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import ns_to_hour_nsec
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.syscalls import Syscalls
-from LTTngAnalyzes.block import Block
-from LTTngAnalyzes.net import Net
-from LTTngAnalyzes.statedump import Statedump
+from LTTngAnalyzes.state import State
 
 
 class ProcInfo():
@@ -33,23 +29,13 @@ class ProcInfo():
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.cpus = {}
-        self.tids = {}
-        self.disks = {}
-        self.ifaces = {}
-        self.syscalls = {}
+        self.state = State()
 
     def run(self, args):
         """Process the trace"""
         self.current_sec = 0
         self.start_ns = 0
         self.end_ns = 0
-
-        sched = Sched(self.cpus, self.tids)
-        syscall = Syscalls(self.cpus, self.tids, self.syscalls)
-        block = Block(self.cpus, self.disks, self.tids)
-        net = Net(self.ifaces, self.cpus, self.tids)
-        statedump = Statedump(self.tids, self.disks)
 
         for event in self.traces.events:
             if self.start_ns == 0:
@@ -62,22 +48,22 @@ class ProcInfo():
             override_tid = 0
 
             if event.name == "sched_switch":
-                sched.switch(event)
+                self.state.sched.switch(event)
             elif event.name[0:4] == "sys_":
-                payload = syscall.entry(event)
+                payload = self.state.syscall.entry(event)
             elif event.name == "exit_syscall":
-                payload = syscall.exit(event, 1)
+                payload = self.state.syscall.exit(event, 1)
             elif event.name == "block_complete" or \
                     event.name == "block_rq_complete":
-                block.complete(event)
+                self.state.block.complete(event)
             elif event.name == "block_queue":
-                block.queue(event)
+                self.state.block.queue(event)
             elif event.name == "netif_receive_skb":
-                net.recv(event)
+                self.state.net.recv(event)
             elif event.name == "net_dev_xmit":
-                net.send(event)
+                self.state.net.send(event)
             elif event.name == "sched_process_fork":
-                sched.process_fork(event)
+                self.state.sched.process_fork(event)
                 if int(event["child_tid"]) == int(args.pid):
                     override_tid = 1
                     payload = "%s created by : %d" % (
@@ -92,28 +78,28 @@ class ProcInfo():
                     ns_to_hour_nsec(event.timestamp),
                     event["filename"])
             elif event.name == "lttng_statedump_process_state":
-                statedump.process_state(event)
+                self.state.statedump.process_state(event)
                 if event["pid"] == int(args.pid):
                     override_tid = 1
                     payload = "%s existed at statedump" % \
                         ns_to_hour_nsec(event.timestamp)
             elif event.name == "lttng_statedump_file_descriptor":
-                statedump.file_descriptor(event)
+                self.state.statedump.file_descriptor(event)
                 if event["pid"] == int(args.pid):
                     override_tid = 1
                     payload = "%s statedump file : %s, fd : %d" % (
                         ns_to_hour_nsec(event.timestamp),
                         event["filename"], event["fd"])
             elif event.name == "lttng_statedump_block_device":
-                statedump.block_device(event)
+                self.state.statedump.block_device(event)
 
             cpu_id = event["cpu_id"]
-            if cpu_id not in self.cpus.keys():
+            if cpu_id not in self.state.cpus.keys():
                 continue
-            c = self.cpus[cpu_id]
-            if c.current_tid not in self.tids.keys():
+            c = self.state.cpus[cpu_id]
+            if c.current_tid not in self.state.tids.keys():
                 continue
-            pid = self.tids[c.current_tid].pid
+            pid = self.state.tids[c.current_tid].pid
             if int(args.pid) != pid and override_tid == 0:
                 continue
             if payload:

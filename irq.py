@@ -25,8 +25,7 @@ from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, \
     ns_to_hour_nsec, IRQ
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.irq import Interrupt
+from LTTngAnalyzes.state import State
 from ascii_graph import Pyasciigraph
 
 
@@ -35,10 +34,7 @@ class IrqStats():
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.tids = {}
-        self.cpus = {}
-        self.irq = {}
-        self.mm = {}
+        self.state = State()
 
     def run(self, args):
         """Process the trace"""
@@ -47,8 +43,6 @@ class IrqStats():
         self.end_ns = 0
 
         progressbar_setup(self, args)
-        sched = Sched(self.cpus, self.tids)
-        irq = Interrupt(self.irq, self.cpus, self.tids)
         for event in self.traces.events:
             progressbar_update(self, args)
             if self.start_ns == 0:
@@ -60,17 +54,17 @@ class IrqStats():
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
-                sched.switch(event)
+                self.state.sched.switch(event)
             elif event.name == "irq_handler_entry":
-                irq.hard_entry(event)
+                self.state.irq.hard_entry(event)
             elif event.name == "irq_handler_exit":
-                irq.hard_exit(event)
+                self.state.irq.hard_exit(event)
             elif event.name == "softirq_entry":
-                irq.soft_entry(event)
+                self.state.irq.soft_entry(event)
             elif event.name == "softirq_exit":
-                irq.soft_exit(event)
+                self.state.irq.soft_exit(event)
             elif event.name == "softirq_raise":
-                irq.soft_raise(event)
+                self.state.irq.soft_raise(event)
         progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace
@@ -175,7 +169,8 @@ class IrqStats():
         print('{:<37} {:<12} {:<12} {:<11} {:<12}'.format("", "min", "avg",
                                                           "max", "mdev"))
         print('-'*80)
-        self.print_irq_stats(args, self.irq["hard-irqs"], self.irq["names"])
+        self.print_irq_stats(args, self.state.interrupts["hard-irqs"],
+                             self.state.interrupts["names"])
 
         print("")
         print('{:<22} {:<30} {:<12}'.format("Soft IRQ", "Count",
@@ -183,16 +178,17 @@ class IrqStats():
         print('{:<37} {:<12} {:<12} {:<11} {:<12}'.format("", "min", "avg",
                                                           "max", "mdev"))
         print('-'*80)
-        self.print_irq_stats(args, self.irq["soft-irqs"], IRQ.soft_names)
+        self.print_irq_stats(args, self.state.interrupts["soft-irqs"],
+                             IRQ.soft_names)
         print("")
 
     def reset_total(self, start_ts):
-        self.irq["hard_count"] = 0
-        self.irq["soft_count"] = 0
-        for i in self.irq["hard-irqs"].keys():
-            self.irq["hard-irqs"][i] = []
-        for i in self.irq["soft-irqs"].keys():
-            self.irq["soft-irqs"][i] = []
+        self.state.interrupts["hard_count"] = 0
+        self.state.interrupts["soft_count"] = 0
+        for i in self.state.interrupts["hard-irqs"].keys():
+            self.state.interrupts["hard-irqs"][i] = []
+        for i in self.state.interrupts["soft-irqs"].keys():
+            self.state.interrupts["soft-irqs"][i] = []
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Memory usage analysis')

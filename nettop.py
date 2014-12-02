@@ -18,8 +18,7 @@ import argparse
 import socket
 from babeltrace import TraceCollection
 from LTTngAnalyzes.common import convert_size, FDType
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.syscalls import Syscalls
+from LTTngAnalyzes.state import State
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 
@@ -32,9 +31,7 @@ class NetTop():
         self.is_io_measured = is_io_measured
         self.is_connection_measured = is_connection_measured
         self.number = number
-        self.cpus = {}
-        self.tids = {}
-        self.syscalls = {}
+        self.state = State()
 
     def get_total_transfer(self, transfer):
         total = 0
@@ -52,25 +49,22 @@ class NetTop():
 
         return total
 
-    def process_event(self, event, sched, syscall):
+    def process_event(self, event):
         if event.name == 'sched_switch':
-            sched.switch(event)
+            self.state.sched.switch(event)
         elif event.name == 'sched_process_fork':
-            sched.process_fork(event)
+            self.state.sched.process_fork(event)
         elif event.name[0:4] == 'sys_' or event.name[0:14] == "syscall_entry_":
-            syscall.entry(event)
+            self.state.syscall.entry(event)
         elif event.name == 'exit_syscall' or \
                 event.name[0:13] == "syscall_exit_":
-            syscall.exit(event, False)
+            self.state.syscall.exit(event, False)
 
     def run(self, args):
-        sched = Sched(self.cpus, self.tids)
-        syscall = Syscalls(self.cpus, self.tids, self.syscalls)
-
         progressbar_setup(self, args)
         for event in self.traces.events:
             progressbar_update(self, args)
-            self.process_event(event, sched, syscall)
+            self.process_event(event)
 
         progressbar_finish(self, args)
 
@@ -79,13 +73,13 @@ class NetTop():
     def output(self):
         transferred = {}
 
-        for tid in self.tids.keys():
+        for tid in self.state.tids.keys():
             transferred[tid] = {'ipv4': {}, 'ipv6': {}}
 
             transferred[tid]['ipv4'] = {'up': 0, 'down': 0}
             transferred[tid]['ipv6'] = {'up': 0, 'down': 0}
 
-            for fd in self.tids[tid].fds.values():
+            for fd in self.state.tids[tid].fds.values():
                 if fd.fdtype is FDType.net:
                     if fd.family == socket.AF_INET:
                         transferred[tid]['ipv4']['up'] += fd.net_write
@@ -104,7 +98,7 @@ class NetTop():
             total = self.get_total_transfer(transferred[tid])
 
             if total != 0:
-                print(NetTop.TOTAL_FORMAT.format(self.tids[tid].comm,
+                print(NetTop.TOTAL_FORMAT.format(self.state.tids[tid].comm,
                                                  '(' + str(tid) + ')',
                                                  convert_size(total)))
 

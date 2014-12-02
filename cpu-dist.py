@@ -20,7 +20,7 @@ except ImportError:
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import NSEC_PER_SEC, sec_to_hour
-from LTTngAnalyzes.sched import Sched
+from LTTngAnalyzes.state import State
 from ascii_graph import Pyasciigraph
 
 
@@ -29,9 +29,8 @@ class CPUTop():
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.tids = {}
-        self.cpus = {}
         self.history = {}
+        self.state = State()
 
     def run(self, args):
         """Process the trace"""
@@ -39,7 +38,6 @@ class CPUTop():
         self.start_ns = 0
         self.end_ns = 0
 
-        sched = Sched(self.cpus, self.tids)
         for event in self.traces.events:
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
@@ -50,7 +48,7 @@ class CPUTop():
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
-                sched.switch(event)
+                self.state.sched.switch(event)
         # stats for the whole trace
         self.compute_stats()
         # self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
@@ -62,7 +60,7 @@ class CPUTop():
         self.history[sec]["total_ns"] = self.end_ns - self.start_ns
         self.history[sec]["proc"] = {}
         h = self.history[sec]["proc"]
-        for tid in self.tids.values():
+        for tid in self.state.tids.values():
             if tid.comm not in args.proc_list:
                 continue
             if tid.comm not in h.keys():
@@ -70,9 +68,9 @@ class CPUTop():
             else:
                 h[tid.comm] += tid.cpu_ns
         total_cpu_pc = 0
-        for cpu in self.cpus.values():
+        for cpu in self.state.cpus.values():
             total_cpu_pc += cpu.cpu_pc
-        total_cpu_pc = total_cpu_pc / len(self.cpus.keys())
+        total_cpu_pc = total_cpu_pc / len(self.state.cpus.keys())
         self.history[sec]["cpu"] = total_cpu_pc
 
     def check_refresh(self, args, event):
@@ -91,15 +89,15 @@ class CPUTop():
             self.start_ns = event.timestamp
 
     def compute_stats(self):
-        for cpu in self.cpus.keys():
-            current_cpu = self.cpus[cpu]
+        for cpu in self.state.cpus.keys():
+            current_cpu = self.state.cpus[cpu]
             total_ns = self.end_ns - self.start_ns
             if current_cpu.start_task_ns != 0:
                 current_cpu.cpu_ns += self.end_ns - current_cpu.start_task_ns
             cpu_total_ns = current_cpu.cpu_ns
             current_cpu.cpu_pc = (cpu_total_ns * 100)/total_ns
             if current_cpu.current_tid >= 0:
-                self.tids[current_cpu.current_tid].cpu_ns += \
+                self.state.tids[current_cpu.current_tid].cpu_ns += \
                     self.end_ns - current_cpu.start_task_ns
 
     def output(self, args, begin_ns, end_ns, final=0):
@@ -131,20 +129,20 @@ class CPUTop():
             print(line)
 
     def reset_total(self, start_ts):
-        for cpu in self.cpus.keys():
-            current_cpu = self.cpus[cpu]
+        for cpu in self.state.cpus.keys():
+            current_cpu = self.state.cpus[cpu]
             current_cpu.cpu_ns = 0
             if current_cpu.start_task_ns != 0:
                 current_cpu.start_task_ns = start_ts
             if current_cpu.current_tid >= 0:
-                self.tids[current_cpu.current_tid].last_sched = start_ts
-        for tid in self.tids.keys():
-            self.tids[tid].cpu_ns = 0
-            self.tids[tid].migrate_count = 0
-            self.tids[tid].read = 0
-            self.tids[tid].write = 0
-            for syscall in self.tids[tid].syscalls.keys():
-                self.tids[tid].syscalls[syscall].count = 0
+                self.state.tids[current_cpu.current_tid].last_sched = start_ts
+        for tid in self.state.tids.keys():
+            self.state.tids[tid].cpu_ns = 0
+            self.state.tids[tid].migrate_count = 0
+            self.state.tids[tid].read = 0
+            self.state.tids[tid].write = 0
+            for syscall in self.state.tids[tid].syscalls.keys():
+                self.state.tids[tid].syscalls[syscall].count = 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CPU usage analysis')

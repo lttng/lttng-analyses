@@ -23,8 +23,7 @@ except ImportError:
 from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.mm import Mm
+from LTTngAnalyzes.state import State
 from ascii_graph import Pyasciigraph
 
 
@@ -33,9 +32,7 @@ class MemTop():
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.tids = {}
-        self.cpus = {}
-        self.mm = {}
+        self.state = State()
 
     def run(self, args):
         """Process the trace"""
@@ -44,8 +41,6 @@ class MemTop():
         self.end_ns = 0
 
         progressbar_setup(self, args)
-        sched = Sched(self.cpus, self.tids)
-        mm = Mm(self.mm, self.cpus, self.tids, None)
         for event in self.traces.events:
             progressbar_update(self, args)
             if self.start_ns == 0:
@@ -57,11 +52,11 @@ class MemTop():
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
-                sched.switch(event)
+                self.state.sched.switch(event)
             elif event.name == "mm_page_alloc":
-                mm.page_alloc(event)
+                self.state.mem.page_alloc(event)
             elif event.name == "mm_page_free":
-                mm.page_free(event)
+                self.state.mem.page_free(event)
         progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace
@@ -90,7 +85,7 @@ class MemTop():
         graph = Pyasciigraph()
         values = []
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
-        for tid in sorted(self.tids.values(),
+        for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('allocated_pages'),
                           reverse=True):
             values.append(("%s (%d)" % (tid.comm, tid.tid),
@@ -104,7 +99,7 @@ class MemTop():
 
         values = []
         count = 0
-        for tid in sorted(self.tids.values(),
+        for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('freed_pages'),
                           reverse=True):
             values.append(("%s (%d)" % (tid.comm, tid.tid), tid.freed_pages))
@@ -115,14 +110,14 @@ class MemTop():
                                 unit=" pages"):
             print(line)
         print("\nTotal memory usage:\n- %d pages allocated\n- %d pages freed" %
-              (self.mm["allocated_pages"], self.mm["freed_pages"]))
+              (self.state.mm["allocated_pages"], self.state.mm["freed_pages"]))
 
     def reset_total(self, start_ts):
-        for tid in self.tids.keys():
-            self.tids[tid].allocated_pages = 0
-            self.tids[tid].freed_pages = 0
-        self.mm["allocated_pages"] = 0
-        self.mm["freed_pages"] = 0
+        for tid in self.state.tids.keys():
+            self.state.tids[tid].allocated_pages = 0
+            self.state.tids[tid].freed_pages = 0
+        self.state.mm["allocated_pages"] = 0
+        self.state.mm["freed_pages"] = 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Memory usage analysis')

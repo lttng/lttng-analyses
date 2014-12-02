@@ -13,10 +13,6 @@
 import argparse
 import operator
 import sys
-from LTTngAnalyzes.block import Block
-from LTTngAnalyzes.net import Net
-from LTTngAnalyzes.statedump import Statedump
-from LTTngAnalyzes.mm import Mm
 try:
     from babeltrace import TraceCollection
 except ImportError:
@@ -24,10 +20,9 @@ except ImportError:
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
+from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
     ns_to_asctime, sec_to_nsec
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.syscalls import Syscalls
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -38,23 +33,10 @@ class IOTop():
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.cpus = {}
-        self.tids = {}
-        self.disks = {}
-        self.ifaces = {}
-        self.syscalls = {}
         self.latency_hist = {}
-        self.mm = {}
-        # prototyping stuff
-        self.random = {}
-        self.random["write_queue"] = 0
-        self.dirty_pages = {}
-        self.dirty_pages["pages"] = []
-        self.dirty_pages["global_nr_dirty"] = -1
-        self.dirty_pages["base_nr_dirty"] = -1
+        self.state = State()
 
-    def process_event(self, event, sched, syscall, block, net, statedump,
-                      mm, started):
+    def process_event(self, event, started):
         if self.start_ns == 0:
             self.start_ns = event.timestamp
         if self.trace_start_ts == 0:
@@ -64,49 +46,49 @@ class IOTop():
         self.trace_end_ts = event.timestamp
 
         if event.name == "sched_switch":
-            sched.switch(event)
+            self.state.sched.switch(event)
         if event.name in ["sched_wakeup", "sched_wakeup_new"]:
-            sched.wakeup(event)
+            self.state.sched.wakeup(event)
         elif event.name[0:4] == "sys_" or event.name[0:14] == "syscall_entry_":
-            syscall.entry(event)
+            self.state.syscall.entry(event)
         elif event.name == "writeback_pages_written":
-            syscall.wb_pages(event)
+            self.state.syscall.wb_pages(event)
         elif event.name == "mm_vmscan_wakeup_kswapd":
-            syscall.wakeup_kswapd(event)
+            self.state.syscall.wakeup_kswapd(event)
 #        elif event.name == "writeback_global_dirty_state":
-#            mm.writeback_global_dirty_state(event)
+#            self.state.mem.writeback_global_dirty_state(event)
         elif event.name == "block_dirty_buffer":
-            mm.block_dirty_buffer(event)
+            self.state.mem.block_dirty_buffer(event)
         elif event.name == "mm_page_free":
-            syscall.page_free(event)
-            mm.page_free(event)
+            self.state.syscall.page_free(event)
+            self.state.mem.page_free(event)
         elif event.name == "mm_page_alloc":
-            mm.page_alloc(event)
+            self.state.mem.page_alloc(event)
         elif event.name == "exit_syscall" or \
                 event.name[0:13] == "syscall_exit_":
-            syscall.exit(event, started)
+            self.state.syscall.exit(event, started)
         elif event.name == "block_rq_complete":
-            block.complete(event)
+            self.state.block.complete(event)
         elif event.name == "block_rq_issue":
-            block.issue(event)
+            self.state.block.issue(event)
         elif event.name == "block_bio_remap":
-            block.remap(event)
+            self.state.block.remap(event)
         elif event.name == "block_bio_backmerge":
-            block.backmerge(event)
+            self.state.block.backmerge(event)
         elif event.name == "netif_receive_skb":
-            net.recv(event)
+            self.state.net.recv(event)
         elif event.name == "net_dev_xmit":
-            net.send(event)
+            self.state.net.send(event)
         elif event.name == "sched_process_fork":
-            sched.process_fork(event)
+            self.state.sched.process_fork(event)
         elif event.name == "sched_process_exec":
-            sched.process_exec(event)
+            self.state.sched.process_exec(event)
         elif event.name == "lttng_statedump_process_state":
-            statedump.process_state(event)
+            self.state.statedump.process_state(event)
         elif event.name == "lttng_statedump_file_descriptor":
-            statedump.file_descriptor(event)
+            self.state.statedump.file_descriptor(event)
         elif event.name == "lttng_statedump_block_device":
-            statedump.block_device(event)
+            self.state.statedump.block_device(event)
 
     def run(self, args):
         """Process the trace"""
@@ -115,16 +97,6 @@ class IOTop():
         self.end_ns = 0
 
         progressbar_setup(self, args)
-        sched = Sched(self.cpus, self.tids, self.dirty_pages)
-        syscall = Syscalls(self.cpus, self.tids, self.syscalls,
-                           self.dirty_pages,
-                           names=args.names, latency=args.latency,
-                           latency_hist=self.latency_hist,
-                           seconds=args.seconds)
-        block = Block(self.cpus, self.disks, self.tids)
-        net = Net(self.ifaces, self.cpus, self.tids)
-        statedump = Statedump(self.tids, self.disks)
-        mm = Mm(self.mm, self.cpus, self.tids, self.dirty_pages)
 
         if not args.begin:
             started = 1
@@ -138,8 +110,7 @@ class IOTop():
                 self.reset_total(event.timestamp)
             if args.end and event.timestamp > args.end:
                 break
-            self.process_event(event, sched, syscall, block, net,
-                               statedump, mm, started)
+            self.process_event(event, started)
         progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace
@@ -148,7 +119,7 @@ class IOTop():
             # stats only for the last segment
             self.output(args, self.start_ns, self.trace_end_ts, final=1)
         # XXX : debug
-        # block.dump_orphan_requests()
+        # self.state.block.dump_orphan_requests()
 
     def check_refresh(self, args, event):
         """Check if we need to output something"""
@@ -166,7 +137,7 @@ class IOTop():
 
     def create_files_dict(self):
         files = {}
-        for tid in self.tids.values():
+        for tid in self.state.tids.values():
             for fd in tid.fds.values():
                 if fd.read == 0 and fd.write == 0:
                     continue
@@ -253,7 +224,7 @@ class IOTop():
         limit = args.top
         graph = Pyasciigraph()
         values = []
-        for tid in sorted(self.tids.values(),
+        for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('read'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
@@ -275,7 +246,7 @@ class IOTop():
         limit = args.top
         graph = Pyasciigraph()
         values = []
-        for tid in sorted(self.tids.values(),
+        for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('write'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
@@ -297,7 +268,7 @@ class IOTop():
         limit = args.top
         graph = Pyasciigraph()
         values = []
-        for tid in sorted(self.tids.values(),
+        for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('block_read'), reverse=True):
             if tid.block_read == 0:
                 continue
@@ -317,7 +288,7 @@ class IOTop():
         limit = args.top
         graph = Pyasciigraph()
         values = []
-        for tid in sorted(self.tids.values(),
+        for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('block_write'),
                           reverse=True):
             if tid.block_write == 0:
@@ -336,7 +307,7 @@ class IOTop():
     def output_nr_sector(self, args):
         graph = Pyasciigraph()
         values = []
-        for disk in sorted(self.disks.values(),
+        for disk in sorted(self.state.disks.values(),
                            key=operator.attrgetter('nr_sector'), reverse=True):
             if disk.nr_sector == 0:
                 continue
@@ -347,7 +318,7 @@ class IOTop():
     def output_nr_requests(self, args):
         graph = Pyasciigraph()
         values = []
-        for disk in sorted(self.disks.values(),
+        for disk in sorted(self.state.disks.values(),
                            key=operator.attrgetter('nr_requests'),
                            reverse=True):
             if disk.nr_sector == 0:
@@ -359,7 +330,7 @@ class IOTop():
     def output_dev_latency(self, args):
         graph = Pyasciigraph()
         values = []
-        for disk in self.disks.values():
+        for disk in self.state.disks.values():
             if disk.completed_requests == 0:
                 continue
             total = (disk.request_time / disk.completed_requests) \
@@ -373,7 +344,7 @@ class IOTop():
     def output_net_recv_bytes(self, args):
         graph = Pyasciigraph()
         values = []
-        for iface in sorted(self.ifaces.values(),
+        for iface in sorted(self.state.ifaces.values(),
                             key=operator.attrgetter('recv_bytes'),
                             reverse=True):
             values.append(("%s %s" % (convert_size(iface.recv_bytes),
@@ -386,7 +357,7 @@ class IOTop():
     def output_net_sent_bytes(self, args):
         graph = Pyasciigraph()
         values = []
-        for iface in sorted(self.ifaces.values(),
+        for iface in sorted(self.state.ifaces.values(),
                             key=operator.attrgetter('send_bytes'),
                             reverse=True):
             values.append(("%s %s" % (convert_size(iface.send_bytes),
@@ -421,19 +392,19 @@ class IOTop():
         self.output_latencies(args)
 
     def reset_total(self, start_ts):
-        for dev in self.disks.keys():
-            self.disks[dev].nr_sector = 0
-            self.disks[dev].nr_requests = 0
-            self.disks[dev].completed_requests = 0
-            self.disks[dev].request_time = 0
+        for dev in self.state.disks.keys():
+            self.state.disks[dev].nr_sector = 0
+            self.state.disks[dev].nr_requests = 0
+            self.state.disks[dev].completed_requests = 0
+            self.state.disks[dev].request_time = 0
 
-        for iface in self.ifaces.keys():
-            self.ifaces[iface].recv_bytes = 0
-            self.ifaces[iface].recv_packets = 0
-            self.ifaces[iface].send_bytes = 0
-            self.ifaces[iface].send_packets = 0
+        for iface in self.state.ifaces.keys():
+            self.state.ifaces[iface].recv_bytes = 0
+            self.state.ifaces[iface].recv_packets = 0
+            self.state.ifaces[iface].send_bytes = 0
+            self.state.ifaces[iface].send_packets = 0
 
-        for tid in self.tids.values():
+        for tid in self.state.tids.values():
             for fd in tid.fds.values():
                 fd.read = 0
                 fd.write = 0

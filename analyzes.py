@@ -25,12 +25,7 @@ from LTTngAnalyzes.common import NSEC_PER_SEC
 from LTTngAnalyzes.jsonreport import JsonReport
 from LTTngAnalyzes.textreport import TextReport
 from LTTngAnalyzes.graphitereport import GraphiteReport
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.syscalls import Syscalls
-from LTTngAnalyzes.block import Block
-from LTTngAnalyzes.net import Net
-from LTTngAnalyzes.statedump import Statedump
-from LTTngAnalyzes.mm import Mm
+from LTTngAnalyzes.state import State
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 
@@ -40,29 +35,26 @@ class Analyzes():
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.tids = {}
-        self.cpus = {}
-        self.syscalls = {}
-        self.disks = {}
-        self.ifaces = {}
-        self.mm = {}
+        self.state = State()
 
     def output(self, args, begin_ns, end_ns, final=0):
         if args.text:
             r = TextReport(self.trace_start_ts, self.trace_end_ts,
-                           self.cpus, self.tids, self.syscalls, self.disks,
-                           self.ifaces, self.mm)
+                           self.state.cpus, self.state.tids,
+                           self.state.syscalls, self.state.disks,
+                           self.state.ifaces, self.state.mm)
             r.report(begin_ns, end_ns, final, args)
             if not final and (args.cpu or args.tid or args.disk or args.net):
                 print("")
         if args.json:
             r = JsonReport(self.trace_start_ts, self.trace_end_ts,
-                           self.cpus, self.tids)
+                           self.state.cpus, self.state.tids)
             r.report(begin_ns, end_ns, final, args)
         if args.graphite:
             r = GraphiteReport(self.trace_start_ts, self.trace_end_ts,
-                               self.cpus, self.tids, self.syscalls,
-                               self.disks, self.ifaces)
+                               self.state.cpus, self.state.tids,
+                               self.state.syscalls, self.state.disks,
+                               self.state.ifaces)
             r.report(begin_ns, end_ns, final, args)
 
     def check_refresh(self, args, event):
@@ -81,61 +73,61 @@ class Analyzes():
             self.start_ns = event.timestamp
 
     def reset_total(self, start_ts):
-        for cpu in self.cpus.keys():
-            current_cpu = self.cpus[cpu]
+        for cpu in self.state.cpus.keys():
+            current_cpu = self.state.cpus[cpu]
             current_cpu.cpu_ns = 0
             if current_cpu.start_task_ns != 0:
                 current_cpu.start_task_ns = start_ts
             if current_cpu.current_tid >= 0:
-                self.tids[current_cpu.current_tid].last_sched = start_ts
+                self.state.tids[current_cpu.current_tid].last_sched = start_ts
 
-        for tid in self.tids.keys():
-            self.tids[tid].cpu_ns = 0
-            self.tids[tid].migrate_count = 0
-            self.tids[tid].read = 0
-            self.tids[tid].write = 0
-            self.tids[tid].allocated_pages = 0
-            self.tids[tid].freed_pages = 0
-            for syscall in self.tids[tid].syscalls.keys():
-                self.tids[tid].syscalls[syscall].count = 0
+        for tid in self.state.tids.keys():
+            self.state.tids[tid].cpu_ns = 0
+            self.state.tids[tid].migrate_count = 0
+            self.state.tids[tid].read = 0
+            self.state.tids[tid].write = 0
+            self.state.tids[tid].allocated_pages = 0
+            self.state.tids[tid].freed_pages = 0
+            for syscall in self.state.tids[tid].syscalls.keys():
+                self.state.tids[tid].syscalls[syscall].count = 0
 
-        for syscall in self.syscalls.keys():
+        for syscall in self.state.syscalls.keys():
             if syscall == "total":
                 continue
-            self.syscalls[syscall].count = 0
+            self.state.syscalls[syscall].count = 0
 
-        for dev in self.disks.keys():
-            self.disks[dev].nr_sector = 0
-            self.disks[dev].nr_requests = 0
-            self.disks[dev].completed_requests = 0
-            self.disks[dev].request_time = 0
+        for dev in self.state.disks.keys():
+            self.state.disks[dev].nr_sector = 0
+            self.state.disks[dev].nr_requests = 0
+            self.state.disks[dev].completed_requests = 0
+            self.state.disks[dev].request_time = 0
 
-        for iface in self.ifaces.keys():
-            self.ifaces[iface].recv_bytes = 0
-            self.ifaces[iface].recv_packets = 0
-            self.ifaces[iface].send_bytes = 0
-            self.ifaces[iface].send_packets = 0
+        for iface in self.state.ifaces.keys():
+            self.state.ifaces[iface].recv_bytes = 0
+            self.state.ifaces[iface].recv_packets = 0
+            self.state.ifaces[iface].send_bytes = 0
+            self.state.ifaces[iface].send_packets = 0
 
     def clear(self):
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.tids = {}
-        self.cpus = {}
-        self.syscalls = {}
-        self.disks = {}
-        self.ifaces = {}
+        self.state.tids = {}
+        self.state.cpus = {}
+        self.state.syscalls = {}
+        self.state.disks = {}
+        self.state.ifaces = {}
 
     def compute_stats(self):
-        for cpu in self.cpus.keys():
-            current_cpu = self.cpus[cpu]
+        for cpu in self.state.cpus.keys():
+            current_cpu = self.state.cpus[cpu]
             total_ns = self.end_ns - self.start_ns
             if current_cpu.start_task_ns != 0:
                 current_cpu.cpu_ns += self.end_ns - current_cpu.start_task_ns
             cpu_total_ns = current_cpu.cpu_ns
             current_cpu.cpu_pc = (cpu_total_ns * 100)/total_ns
             if current_cpu.current_tid >= 0:
-                self.tids[current_cpu.current_tid].cpu_ns += \
+                self.state.tids[current_cpu.current_tid].cpu_ns += \
                     self.end_ns - current_cpu.start_task_ns
 
     def run(self, args):
@@ -145,12 +137,6 @@ class Analyzes():
         self.end_ns = 0
 
         progressbar_setup(self, args)
-        sched = Sched(self.cpus, self.tids)
-        syscall = Syscalls(self.cpus, self.tids, self.syscalls)
-        block = Block(self.cpus, self.disks, self.tids)
-        net = Net(self.ifaces, self.cpus, self.tids)
-        statedump = Statedump(self.tids, self.disks)
-        mm = Mm(self.mm, self.cpus, self.tids, None)
 
         for event in self.traces.events:
             progressbar_update(self, args)
@@ -163,39 +149,39 @@ class Analyzes():
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
-                sched.switch(event)
+                self.state.sched.switch(event)
             elif event.name == "sched_migrate_task":
-                sched.migrate_task(event)
+                self.state.sched.migrate_task(event)
             elif event.name == "sched_process_fork":
-                sched.process_fork(event)
+                self.state.sched.process_fork(event)
             elif event.name == "sched_process_exec":
-                sched.process_exec(event)
+                self.state.sched.process_exec(event)
             elif (event.name[0:4] == "sys_" or event.name[0:14] ==
                   "syscall_entry_") and (args.global_syscalls or
                                          args.tid_syscalls or
                                          args.fds):
-                syscall.entry(event)
+                self.state.syscall.entry(event)
             elif (event.name == "exit_syscall" or event.name[0:13] ==
                   "syscall_exit_") and (args.global_syscalls or
                                         args.tid_syscalls or
                                         args.fds):
-                syscall.exit(event, 1)
+                self.state.syscall.exit(event, 1)
             elif event.name == "block_rq_complete":
-                block.complete(event)
+                self.state.block.complete(event)
             elif event.name == "block_rq_issue":
-                block.issue(event)
+                self.state.block.issue(event)
             elif event.name == "netif_receive_skb":
-                net.recv(event)
+                self.state.net.recv(event)
             elif event.name == "net_dev_xmit":
-                net.send(event)
+                self.state.net.send(event)
             elif event.name == "lttng_statedump_process_state":
-                statedump.process_state(event)
+                self.state.statedump.process_state(event)
             elif event.name == "lttng_statedump_file_descriptor":
-                statedump.file_descriptor(event)
-            elif event.name == "mm_page_alloc":
-                mm.page_alloc(event)
-            elif event.name == "mm_page_free":
-                mm.page_free(event)
+                self.state.statedump.file_descriptor(event)
+            elif event.name == "self.state.mm_page_alloc":
+                self.state.mm.page_alloc(event)
+            elif event.name == "self.state.mm_page_free":
+                self.state.mm.page_free(event)
         progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace

@@ -21,7 +21,7 @@ except ImportError:
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime
-from LTTngAnalyzes.sched import Sched
+from LTTngAnalyzes.state import State
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -32,8 +32,7 @@ class CPUTop():
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.tids = {}
-        self.cpus = {}
+        self.state = State()
 
     def run(self, args):
         """Process the trace"""
@@ -42,7 +41,6 @@ class CPUTop():
         self.end_ns = 0
 
         progressbar_setup(self, args)
-        sched = Sched(self.cpus, self.tids)
         for event in self.traces.events:
             progressbar_update(self, args)
             if self.start_ns == 0:
@@ -54,9 +52,9 @@ class CPUTop():
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
-                sched.switch(event)
+                self.state.sched.switch(event)
             elif event.name == "sched_migrate_task":
-                sched.migrate_task(event)
+                self.state.sched.migrate_task(event)
         progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace
@@ -84,15 +82,15 @@ class CPUTop():
             self.start_ns = event.timestamp
 
     def compute_stats(self):
-        for cpu in self.cpus.keys():
-            current_cpu = self.cpus[cpu]
+        for cpu in self.state.cpus.keys():
+            current_cpu = self.state.cpus[cpu]
             total_ns = self.end_ns - self.start_ns
             if current_cpu.start_task_ns != 0:
                 current_cpu.cpu_ns += self.end_ns - current_cpu.start_task_ns
             cpu_total_ns = current_cpu.cpu_ns
             current_cpu.cpu_pc = (cpu_total_ns * 100)/total_ns
             if current_cpu.current_tid >= 0:
-                self.tids[current_cpu.current_tid].cpu_ns += \
+                self.state.tids[current_cpu.current_tid].cpu_ns += \
                     self.end_ns - current_cpu.start_task_ns
 
     def output(self, args, begin_ns, end_ns, final=0):
@@ -102,7 +100,7 @@ class CPUTop():
         graph = Pyasciigraph()
         values = []
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
-        for tid in sorted(self.tids.values(),
+        for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('cpu_ns'), reverse=True):
             if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
                 continue
@@ -120,7 +118,7 @@ class CPUTop():
 
         values = []
         total_cpu_pc = 0
-        for cpu in sorted(self.cpus.values(),
+        for cpu in sorted(self.state.cpus.values(),
                           key=operator.attrgetter('cpu_ns'), reverse=True):
             cpu_pc = float("%0.02f" % cpu.cpu_pc)
             total_cpu_pc += cpu_pc
@@ -128,23 +126,23 @@ class CPUTop():
         for line in graph.graph("Per-CPU Usage", values, unit=" %"):
             print(line)
         print("\nTotal CPU Usage: %0.02f%%\n" %
-              (total_cpu_pc / len(self.cpus.keys())))
+              (total_cpu_pc / len(self.state.cpus.keys())))
 
     def reset_total(self, start_ts):
-        for cpu in self.cpus.keys():
-            current_cpu = self.cpus[cpu]
+        for cpu in self.state.cpus.keys():
+            current_cpu = self.state.cpus[cpu]
             current_cpu.cpu_ns = 0
             if current_cpu.start_task_ns != 0:
                 current_cpu.start_task_ns = start_ts
             if current_cpu.current_tid >= 0:
-                self.tids[current_cpu.current_tid].last_sched = start_ts
-        for tid in self.tids.keys():
-            self.tids[tid].cpu_ns = 0
-            self.tids[tid].migrate_count = 0
-            self.tids[tid].read = 0
-            self.tids[tid].write = 0
-            for syscall in self.tids[tid].syscalls.keys():
-                self.tids[tid].syscalls[syscall].count = 0
+                self.state.tids[current_cpu.current_tid].last_sched = start_ts
+        for tid in self.state.tids.keys():
+            self.state.tids[tid].cpu_ns = 0
+            self.state.tids[tid].migrate_count = 0
+            self.state.tids[tid].read = 0
+            self.state.tids[tid].write = 0
+            for syscall in self.state.tids[tid].syscalls.keys():
+                self.state.tids[tid].syscalls[syscall].count = 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CPU usage analysis')

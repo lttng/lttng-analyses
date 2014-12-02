@@ -23,8 +23,7 @@ except ImportError:
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import ns_to_hour_nsec
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.statedump import Statedump
+from LTTngAnalyzes.state import State
 from pymongo import MongoClient
 from pymongo.errors import CollectionInvalid
 
@@ -41,9 +40,7 @@ class Perf():
         self.types = types
         self.is_interactive = sys.stdout.isatty()
 
-        self.cpus = {}
-        self.tids = {}
-        self.disks = {}
+        self.state = State()
         self.perf = []
 
         # Stores metadata about processes when outputting to json
@@ -54,9 +51,9 @@ class Perf():
         # Hyphens in collections names are an incovenience in mongo
         self.session_name = self.session_name.replace('-', '_')
 
-    def process_event(self, event, sched, statedump):
+    def process_event(self, event):
         if event.name == 'sched_switch':
-            ret = sched.switch(event)
+            ret = self.state.sched.switch(event)
             tid = event['prev_tid']
             if len(ret.keys()) > 0:
                 d = {'ts': event.timestamp,
@@ -68,18 +65,15 @@ class Perf():
                         if self.args.delta:
                             d[context] = ret[context]
                         else:
-                            d[context] = self.tids[tid].perf[context]
+                            d[context] = self.state.tids[tid].perf[context]
                 self.output_perf(event, d)
         elif event.name == 'lttng_statedump_process_state':
-            statedump.process_state(event)
+            self.state.statedump.process_state(event)
 
     def run(self):
         '''Process the trace'''
-        sched = Sched(self.cpus, self.tids)
-        statedump = Statedump(self.tids, self.disks)
-
         for event in self.traces.events:
-            self.process_event(event, sched, statedump)
+            self.process_event(event)
 
         if self.args.json:
             self.output_json()
@@ -143,11 +137,11 @@ class Perf():
         if self.args.tid and str(tid) not in self.args.tid:
             return
 
-        pid = self.tids[tid].pid
+        pid = self.state.tids[tid].pid
         if pid == -1:
             pid = tid
 
-        comm = self.tids[tid].comm
+        comm = self.state.tids[tid].comm
         if self.args.pname is not None and self.args.pname != comm:
             return
 

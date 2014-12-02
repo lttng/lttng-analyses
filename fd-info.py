@@ -25,8 +25,7 @@ except ImportError:
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import FDType, ns_to_hour_nsec, NSEC_PER_SEC
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.statedump import Statedump
+from LTTngAnalyzes.state import State
 from LTTngAnalyzes.syscalls import Syscalls, IOCategory
 try:
     from pymongo import MongoClient
@@ -89,11 +88,6 @@ class FDInfo():
 
         self.is_interactive = sys.stdout.isatty()
 
-        self.cpus = {}
-        self.tids = {}
-        self.disks = {}
-        self.syscalls = {}
-
         self.fd_events = []
         # Stores metadata about processes when outputting to json
         # Keys: PID, values: {pname, fds, threads}
@@ -105,35 +99,36 @@ class FDInfo():
             self.session_name = self.args.path.split('/')[-2]
         # Hyphens in collections names are an incovenience in mongo
         self.session_name = self.session_name.replace('-', '_')
+        self.state = State()
 
-    def process_event(self, event, sched, syscall, statedump):
+    def process_event(self, event):
         if event.name == 'sched_switch':
-            sched.switch(event)
+            self.state.sched.switch(event)
         elif event.name.startswith('sys_') or \
                 event.name.startswith('syscall_entry_'):
-            syscall.entry(event)
+            self.state.syscall.entry(event)
         elif event.name == 'exit_syscall' or \
                 event.name.startswith('syscall_exit_'):
-            self.handle_syscall_exit(event, syscall)
+            self.handle_syscall_exit(event)
         elif event.name == 'sched_process_fork':
-            sched.process_fork(event)
+            self.state.sched.process_fork(event)
         elif event.name == 'lttng_statedump_process_state':
-            statedump.process_state(event)
+            self.state.statedump.process_state(event)
         elif event.name == 'lttng_statedump_file_descriptor':
-            statedump.file_descriptor(event)
+            self.state.statedump.file_descriptor(event)
             if self.output_enabled['dump']:
                 self.output_dump(event)
 
-    def handle_syscall_exit(self, event, syscall, started=1):
+    def handle_syscall_exit(self, event, started=1):
         cpu_id = event['cpu_id']
-        if cpu_id not in self.cpus:
+        if cpu_id not in self.state.cpus:
             return
 
-        cpu = self.cpus[cpu_id]
+        cpu = self.state.cpus[cpu_id]
         if cpu.current_tid == -1:
             return
 
-        current_syscall = self.tids[cpu.current_tid].current_syscall
+        current_syscall = self.state.tids[cpu.current_tid].current_syscall
         if len(current_syscall.keys()) == 0:
             return
 
@@ -144,17 +139,13 @@ class FDInfo():
            name in Syscalls.WRITE_SYSCALLS and self.output_enabled['write']:
             self.output_fd_event(event, current_syscall)
 
-        syscall.exit(event, started)
+        self.state.syscall.exit(event, started)
 
     def run(self):
         '''Process the trace'''
 
-        sched = Sched(self.cpus, self.tids)
-        syscall = Syscalls(self.cpus, self.tids, self.syscalls)
-        statedump = Statedump(self.tids, self.disks)
-
         for event in self.traces.events:
-            self.process_event(event, sched, syscall, statedump)
+            self.process_event(event)
 
         if self.args.json:
             self.output_json()
@@ -310,7 +301,7 @@ class FDInfo():
         if self.args.tid >= 0 and self.args.tid != tid:
             return
 
-        comm = self.tids[tid].comm
+        comm = self.state.tids[tid].comm
         if self.args.pname is not None and self.args.pname != comm:
             return
 
@@ -345,15 +336,15 @@ class FDInfo():
         if self.err_number and ret != -err_number:
             return
 
-        tid = self.cpus[exit_event['cpu_id']].current_tid
+        tid = self.state.cpus[exit_event['cpu_id']].current_tid
         if self.args.tid >= 0 and self.args.tid != tid:
             return
 
-        pid = self.tids[tid].pid
+        pid = self.state.tids[tid].pid
         if pid == -1:
             pid = tid
 
-        comm = self.tids[tid].comm
+        comm = self.state.tids[tid].comm
         if self.args.pname is not None and self.args.pname != comm:
             return
 
@@ -491,8 +482,8 @@ class FDInfo():
         fd_str = str(fd)
         fdtype = FDType.unknown
 
-        if fd in self.tids[tid].fds:
-            fdtype = self.tids[tid].fds[fd].fdtype
+        if fd in self.state.tids[tid].fds:
+            fdtype = self.state.tids[tid].fds[fd].fdtype
 
         fd_metadata = {}
         fd_metadata['filename'] = filename

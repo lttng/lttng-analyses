@@ -23,8 +23,7 @@ except ImportError:
 from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
-from LTTngAnalyzes.sched import Sched
-from LTTngAnalyzes.syscalls import Syscalls
+from LTTngAnalyzes.state import State
 
 
 class SyscallTop():
@@ -32,9 +31,7 @@ class SyscallTop():
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.traces = traces
-        self.tids = {}
-        self.cpus = {}
-        self.syscalls = {}
+        self.state = State()
 
     def run(self, args):
         """Process the trace"""
@@ -43,8 +40,6 @@ class SyscallTop():
         self.end_ns = 0
 
         progressbar_setup(self, args)
-        sched = Sched(self.cpus, self.tids)
-        syscall = Syscalls(self.cpus, self.tids, self.syscalls)
         for event in self.traces.events:
             progressbar_update(self, args)
             if self.start_ns == 0:
@@ -56,13 +51,13 @@ class SyscallTop():
             self.trace_end_ts = event.timestamp
 
             if event.name == "sched_switch":
-                sched.switch(event)
+                self.state.sched.switch(event)
             elif (event.name[0:4] == "sys_" or event.name[0:14] ==
                     "syscall_entry_"):
-                syscall.entry(event)
+                self.state.syscall.entry(event)
             elif (event.name == "exit_syscall" or event.name[0:13] ==
                     "syscall_exit_"):
-                syscall.exit(event, 1)
+                self.state.syscall.exit(event, 1)
         progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace
@@ -90,7 +85,7 @@ class SyscallTop():
         limit = args.top
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         print("Per-TID syscalls usage")
-        for tid in sorted(self.tids.values(),
+        for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('total_syscalls'),
                           reverse=True):
 
@@ -105,18 +100,18 @@ class SyscallTop():
                 break
             print("")
 
-        print("\nTotal syscalls: %d" % (self.syscalls["total"]))
+        print("\nTotal syscalls: %d" % (self.state.syscalls["total"]))
 
     def reset_total(self, start_ts):
-        for syscall in self.syscalls.keys():
+        for syscall in self.state.syscalls.keys():
             if syscall == "total":
                 continue
-            self.syscalls[syscall].count = 0
-        self.syscalls["total"] = 0
-        for tid in self.tids.keys():
-            for syscall in self.tids[tid].syscalls.keys():
-                self.tids[tid].syscalls[syscall].count = 0
-                self.tids[tid].total_syscalls = 0
+            self.state.syscalls[syscall].count = 0
+        self.state.syscalls["total"] = 0
+        for tid in self.state.tids.keys():
+            for syscall in self.state.tids[tid].syscalls.keys():
+                self.state.tids[tid].syscalls[syscall].count = 0
+                self.state.tids[tid].total_syscalls = 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Memory usage analysis')

@@ -11,6 +11,9 @@ class Mm():
         self.mm["freed_pages"] = 0
         self.mm["count"] = 0
         self.mm["dirty"] = 0
+        self.dirty_pages["pages"] = []
+        self.dirty_pages["global_nr_dirty"] = -1
+        self.dirty_pages["base_nr_dirty"] = -1
 
     def get_current_proc(self, event):
         cpu_id = event["cpu_id"]
