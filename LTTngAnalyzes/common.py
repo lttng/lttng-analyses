@@ -143,6 +143,7 @@ class IRQ():
         self.irqclass = 0
         self.start_ts = -1
         self.stop_ts = -1
+        self.raise_ts = -1
         self.cpu_id = -1
 
 

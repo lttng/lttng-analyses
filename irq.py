@@ -92,6 +92,8 @@ class IrqStats():
                 irq.soft_entry(event)
             elif event.name == "softirq_exit":
                 irq.soft_exit(event)
+            elif event.name == "softirq_raise":
+                irq.soft_raise(event)
         if not args.no_progress:
             pbar.finish()
             print
@@ -120,12 +122,14 @@ class IrqStats():
         for i in dic.keys():
             name = name_table[i]
             graph = Pyasciigraph()
-            count = 0
-            maxtime = 0
+            count = maxtime = total = 0
             mintime = -1
-            total = 0
             values = []
             v = []
+            r_count = r_maxtime = r_total = 0
+            r_mintime = -1
+            raise_delays = []
+            r = []
             for j in dic[i]:
                 count += 1
                 delay = j.stop_ts - j.start_ts
@@ -140,6 +144,21 @@ class IrqStats():
                 if delay > args.thresh:
                     v.append(("%s to %s" % (ns_to_hour_nsec(j.start_ts),
                               ns_to_hour_nsec(j.stop_ts)), delay))
+                if j.raise_ts == -1:
+                    continue
+
+                r_count += 1
+                r_d = j.start_ts - j.raise_ts
+                r_total += r_d
+                if r_d > r_maxtime:
+                    r_maxtime = r_d
+                    if r_mintime == -1:
+                        r_mintime = r_maxtime
+                if r_d < r_mintime:
+                    r_mintime = r_d
+                raise_delays.append(r_d)
+                r.append(("%s to %s" % (ns_to_hour_nsec(j.raise_ts),
+                          ns_to_hour_nsec(j.start_ts)), r_d))
             if count == 0:
                 continue
             elif count < 2:
@@ -147,10 +166,21 @@ class IrqStats():
             else:
                 stdev = statistics.stdev(values)
 
-            print("- IRQ %d (%s): %d interrupts, delay (ns): min = %d, "
-                  "max = %s, avg = %d, stdev = %s" %
+            if r_count < 2:
+                r_stdev = ""
+            else:
+                st = statistics.stdev(raise_delays)
+                r_avg = r_total / r_count
+                r_stdev = "\n\traised %d times\n\tdelay before handler_entry" \
+                          " (ns):\n\t\tmin = %d\n\t\tmax = %d\n\t\tavg = %d" \
+                          "\n\t\tstdev = %s" % \
+                          (r_count, r_mintime, r_maxtime, r_avg, st)
+
+            print("- IRQ %d (%s):\n\t %d interrupts\n\t delay (ns):"
+                  "\n\t\t min = %d\n\t\t max = %d\n\t\t avg = %d"
+                  "\n\t\t stdev = %s%s" %
                   (i, name, count, mintime, maxtime, total/count,
-                   stdev))
+                   stdev, r_stdev))
             if not args.details:
                 continue
             for line in graph.graph("IRQs delay repartition", v,
