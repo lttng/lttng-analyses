@@ -1,5 +1,5 @@
 from LTTngAnalyzes.common import FDType, FD, MSEC_PER_NSEC, \
-    ns_to_hour_nsec, ns_to_sec, Syscall, O_CLOEXEC, seq_to_ipv4, Process
+    ns_to_hour_nsec, ns_to_sec, Syscall, O_CLOEXEC, get_v4_addr_str, Process
 import socket
 import operator
 
@@ -134,7 +134,7 @@ class Syscalls():
         elif name in ["sys_accept", "syscall_entry_accept"] \
                 and "family" in event.keys():
             if event["family"] == socket.AF_INET:
-                ipport = "%s:%d" % (seq_to_ipv4(event["v4addr"]),
+                ipport = "%s:%d" % (get_v4_addr_str(event["v4addr"]),
                                     event["sport"])
                 current_syscall["filename"] = ipport
             else:
@@ -237,7 +237,7 @@ class Syscalls():
                 and "family" in event.keys():
             if event["family"] == socket.AF_INET:
                 fd = self.get_fd(t, event["fd"])
-                ipport = "%s:%d" % (seq_to_ipv4(event["v4addr"]),
+                ipport = "%s:%d" % (get_v4_addr_str(event["v4addr"]),
                                     event["dport"])
                 fd.filename = ipport
         return ret_string

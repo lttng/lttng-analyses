@@ -1,6 +1,7 @@
 import math
 import time
 import socket
+import struct
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
@@ -210,3 +211,16 @@ def sec_to_nsec(sec):
 
 def seq_to_ipv4(ip):
     return "{}.{}.{}.{}".format(ip[0], ip[1], ip[2], ip[3])
+
+
+def int_to_ipv4(ip):
+    return socket.inet_ntoa(struct.pack("!I", ip))
+
+
+def get_v4_addr_str(ip):
+    # depending on the version of lttng-modules, the v4addr is a
+    # string (< 2.6) or sequence (>= 2.6)
+    try:
+        return seq_to_ipv4(ip)
+    except TypeError:
+        return int_to_ipv4(ip)
