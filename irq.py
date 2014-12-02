@@ -157,42 +157,57 @@ class IrqStats():
                 if r_d < r_mintime:
                     r_mintime = r_d
                 raise_delays.append(r_d)
-                r.append(("%s to %s" % (ns_to_hour_nsec(j.raise_ts),
-                          ns_to_hour_nsec(j.start_ts)), r_d))
+                if r_d > args.thresh:
+                    r.append(("%s to %s" % (ns_to_hour_nsec(j.raise_ts),
+                              ns_to_hour_nsec(j.start_ts)), r_d))
             if count == 0:
                 continue
             elif count < 2:
                 stdev = "?"
             else:
-                stdev = "%0.02f" % (statistics.stdev(values))
+                stdev = "%0.03f" % (statistics.stdev(values) / 1000)
 
             if r_count < 2:
-                r_stdev = ""
+                #r_stdev = ""
+                pass
             else:
-                st = "%0.02f" % (statistics.stdev(raise_delays))
-                r_avg = r_total / r_count
-                r_stdev = "\n\traised %d times\n\tdelay before handler_entry" \
-                          " (ns):\n\t\tmin = %d\n\t\tmax = %d\n\t\tavg = %d" \
-                          "\n\t\tstdev = %s" % \
-                          (r_count, r_mintime, r_maxtime, r_avg, st)
+                pass
+                #st = "%0.03f" % (statistics.stdev(raise_delays)/1000)
+                #r_avg = r_total / (r_count * 1000)
+                #r_stdev = "\n\traised %d times\n\tdelay before handler_entry"\
+                #          " (ns):\n\t\tmin = %d\n\t\tmax = %d\n\t\tavg = %d" \
+                #          "\n\t\tstdev = %s" % \
+                #          (r_count, r_mintime, r_maxtime, r_avg, st)
 
-            print("- IRQ %d (%s):\n\t %d interrupts\n\t delay (ns):"
-                  "\n\t\t min = %d\n\t\t max = %d\n\t\t avg = %d"
-                  "\n\t\t stdev = %s%s" %
-                  (i, name, count, mintime, maxtime, total/count,
-                   stdev, r_stdev))
+            avg = "%0.03f" % (total/(count * 1000))
+            format_str = '{:<3} {:<18} {:>5} {:>12} {:>12} {:>12} {:>12}'
+            s = format_str.format(i, name, count,
+                                  "%0.03f" % (mintime/1000),
+                                  "%s" % (avg),
+                                  "%0.03f" % (maxtime/1000),
+                                  "%s" % stdev)
+            print(s)
             if not args.details:
                 continue
-            for line in graph.graph("IRQs delay repartition", v,
+            for line in graph.graph("IRQs processing delay repartition", v,
                                     unit=" ns"):
                 print(line)
 
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
-        print("\nHard IRQs (%d):" % self.irq["hard_count"])
+        print('{:<22} {:<30} {:<12}'.format("Hard IRQ", "Count",
+                                            "Latency (us)"))
+        print('{:<37} {:<12} {:<12} {:<11} {:<12}'.format("", "min", "avg",
+                                                          "max", "mdev"))
+        print('-'*80)
         self.print_irq_stats(args, self.irq["hard-irqs"], self.irq["names"])
 
-        print("\nSoft IRQs (%d):" % self.irq["soft_count"])
+        print("")
+        print('{:<22} {:<30} {:<12}'.format("Soft IRQ", "Count",
+                                            "Latency (us)"))
+        print('{:<37} {:<12} {:<12} {:<11} {:<12}'.format("", "min", "avg",
+                                                          "max", "mdev"))
+        print('-'*80)
         self.print_irq_stats(args, self.irq["soft-irqs"], IRQ.soft_names)
         print("")
 
