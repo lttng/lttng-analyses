@@ -156,9 +156,10 @@ if __name__ == '__main__':
         sys.exit(1)
 
     traces = TraceCollection()
-    handle = traces.add_trace(args.path, 'ctf')
+    handle = traces.add_traces_recursive(args.path, 'ctf')
 
     c = NetTop(traces, is_io_measured, is_connection_measured, args.number)
     c.run(args)
 
-    traces.remove_trace(handle)
+    for h in handle.values():
+        traces.remove_trace(h)

@@ -269,7 +269,7 @@ if __name__ == "__main__":
             os.system("lttng stop graphite >/dev/null")
             os.system("lttng destroy graphite >/dev/null")
         traces = TraceCollection()
-        handle = traces.add_trace(args.path, "ctf")
+        handle = traces.add_traces_recursive(args.path, "ctf")
         if handle is None:
             sys.exit(1)
 
@@ -277,7 +277,8 @@ if __name__ == "__main__":
         c.run(args)
         c.clear()
 
-        traces.remove_trace(handle)
+        for h in handle.values():
+            traces.remove_trace(h)
 
         if not args.graphite:
             break
