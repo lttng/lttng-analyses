@@ -19,14 +19,10 @@ except ImportError:
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import getFolderSize, BYTES_PER_EVENT
+from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
+    progressbar_finish
 from babeltrace import CTFWriter, CTFScope, CTFStringEncoding
 
-try:
-    from progressbar import ETA, Bar, Percentage, ProgressBar
-    progressbar_available = True
-except ImportError:
-    progressbar_available = False
 
 # These declarations will go in their own file
 # They have been put here temporarily for testing
@@ -213,47 +209,18 @@ class CTFFilter():
         writeable_event.value = value
 
     def run(self):
-        if not args.no_progress:
-            if progressbar_available:
-                size = getFolderSize(args.path)
-                widgets = ['Processing the trace: ', Percentage(), ' ',
-                           Bar(marker='#', left='[', right=']'),
-                           ' ', ETA(), ' ']  # see docs for other options
-                pbar = ProgressBar(widgets=widgets,
-                                   maxval=size/BYTES_PER_EVENT)
-                pbar.start()
-            else:
-                print("Warning: progressbar module not available, "
-                      "using --no-progress.", file=sys.stderr)
-                args.no_progress = True
-
-        event_count = 0
-
+        progressbar_setup(self, args)
         for event in self.handle.events:
-            if not args.no_progress:
-                try:
-                    pbar.update(event_count)
-                except ValueError:
-                    pass
-
+            progressbar_update(self, args)
             self.process_event_metadata(event)
-            event_count += 1
 
         self.stream = self.writer.create_stream(self.stream_class)
 
         for event in self.traces.events:
-            if not args.no_progress:
-                try:
-                    pbar.update(event_count)
-                except ValueError:
-                    pass
-
+            progressbar_update(self, args)
             self.process_event(event)
-            event_count += 1
 
-        if not args.no_progress:
-            pbar.finish()
-            print
+        progressbar_finish(self, args)
 
         self.stream.flush()
 

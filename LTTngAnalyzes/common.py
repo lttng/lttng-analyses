@@ -1,15 +1,11 @@
 import math
 import time
-import os
 import socket
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
 
 O_CLOEXEC = 0o2000000
-
-# approximation for the progress bar
-BYTES_PER_EVENT = 30
 
 
 class Process():
@@ -210,17 +206,6 @@ def sec_to_hour(ns):
 
 def sec_to_nsec(sec):
     return sec * NSEC_PER_SEC
-
-
-def getFolderSize(folder):
-    total_size = os.path.getsize(folder)
-    for item in os.listdir(folder):
-        itempath = os.path.join(folder, item)
-        if os.path.isfile(itempath):
-            total_size += os.path.getsize(itempath)
-        elif os.path.isdir(itempath):
-            total_size += getFolderSize(itempath)
-    return total_size
 
 
 def seq_to_ipv4(ip):

@@ -21,17 +21,13 @@ except ImportError:
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, getFolderSize, \
-    BYTES_PER_EVENT, ns_to_hour_nsec, IRQ
+from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, \
+    ns_to_hour_nsec, IRQ
+from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
+    progressbar_finish
 from LTTngAnalyzes.sched import Sched
 from LTTngAnalyzes.irq import Interrupt
 from ascii_graph import Pyasciigraph
-
-try:
-    from progressbar import ETA, Bar, Percentage, ProgressBar
-    progressbar_available = True
-except ImportError:
-    progressbar_available = False
 
 
 class IrqStats():
@@ -50,30 +46,11 @@ class IrqStats():
         self.start_ns = 0
         self.end_ns = 0
 
-        if not args.no_progress:
-            if progressbar_available:
-                size = getFolderSize(args.path)
-                widgets = ['Processing the trace: ', Percentage(), ' ',
-                           Bar(marker='#', left='[', right=']'),
-                           ' ', ETA(), ' ']  # see docs for other options
-                pbar = ProgressBar(widgets=widgets,
-                                   maxval=size/BYTES_PER_EVENT)
-                pbar.start()
-            else:
-                print("Warning: progressbar module not available, "
-                      "using --no-progress.", file=sys.stderr)
-                args.no_progress = True
-
+        progressbar_setup(self, args)
         sched = Sched(self.cpus, self.tids)
         irq = Interrupt(self.irq, self.cpus, self.tids)
-        event_count = 0
         for event in self.traces.events:
-            if not args.no_progress:
-                try:
-                    pbar.update(event_count)
-                except ValueError:
-                    pass
-            event_count += 1
+            progressbar_update(self, args)
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
             if self.trace_start_ts == 0:
@@ -94,9 +71,7 @@ class IrqStats():
                 irq.soft_exit(event)
             elif event.name == "softirq_raise":
                 irq.soft_raise(event)
-        if not args.no_progress:
-            pbar.finish()
-            print
+        progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace
             self.output(args, self.trace_start_ts, self.trace_end_ts, final=1)
