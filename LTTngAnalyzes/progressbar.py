@@ -25,6 +25,7 @@ def getFolderSize(folder):
 def progressbar_setup(obj, args):
     if args.no_progress:
         obj.pbar = None
+        return
 
     if progressbar_available:
         size = getFolderSize(args.path)
