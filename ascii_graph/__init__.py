@@ -3,6 +3,7 @@
 
 from __future__ import unicode_literals
 import sys
+import os
 
 
 class Pyasciigraph:
@@ -51,6 +52,10 @@ class Pyasciigraph:
             number_of_square = int(value * graph_length / max_value)
         number_of_space = int(start_value - number_of_square)
         return '█' * number_of_square + self._u(' ') * number_of_space
+
+    def _console_size(self):
+        TERMSIZE = 80
+        return int(os.environ.get('COLUMNS', TERMSIZE)) - 1
 
     def _gen_info_string(self, info, start_info, line_length):
         number_of_space = (line_length - start_info - len(info))
@@ -151,6 +156,7 @@ class Pyasciigraph:
             # calcul of the real line length
             real_line_length = min_line_length
 
+        real_line_length = min(real_line_length, self._console_size())
         result.append(san_label)
         result.append(self._u('#') * real_line_length)
 
