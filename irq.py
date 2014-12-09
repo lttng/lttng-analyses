@@ -88,7 +88,7 @@ class IrqStats():
             self.start_ns = event.timestamp
 
     def print_irq_stats(self, args, dic, name_table):
-        for i in dic.keys():
+        for i in sorted(dic.keys()):
             name = name_table[i]
             graph = Pyasciigraph()
             count = maxtime = total = 0
@@ -99,6 +99,7 @@ class IrqStats():
             r_mintime = -1
             raise_delays = []
             r = []
+            total = 0
             for j in dic[i]:
                 # Handler processing time
                 count += 1
@@ -113,7 +114,7 @@ class IrqStats():
                 total += delay
                 if delay > args.thresh:
                     v.append(("%s to %s" % (ns_to_hour_nsec(j.start_ts),
-                              ns_to_hour_nsec(j.stop_ts)), delay))
+                              ns_to_hour_nsec(j.stop_ts)), delay / 1000))
                 if j.raise_ts == -1:
                     continue
 
@@ -140,7 +141,7 @@ class IrqStats():
 
             # format string for the raise if present
             if r_count < 2:
-                r_stdev = ""
+                r_stdev = " |"
             else:
                 st = "%0.03f" % (statistics.stdev(raise_delays)/1000)
                 r_avg = r_total / (r_count * 1000)
@@ -161,8 +162,9 @@ class IrqStats():
             if not args.details:
                 continue
             for line in graph.graph("IRQs processing delay repartition", v,
-                                    unit=" ns"):
+                                    unit=" us"):
                 print(line)
+            print("")
 
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
@@ -171,7 +173,7 @@ class IrqStats():
                                                                  "min", "avg",
                                                                  "max",
                                                                  "stdev"))
-        print('-'*80)
+        print('-'*82 + "|")
         self.print_irq_stats(args, self.state.interrupts["hard-irqs"],
                              self.state.interrupts["names"])
 
