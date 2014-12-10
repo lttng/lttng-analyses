@@ -23,7 +23,7 @@ def getFolderSize(folder):
 
 
 def progressbar_setup(obj, args):
-    if args.no_progress:
+    if hasattr(args, "no_progress") and args.no_progress:
         obj.pbar = None
         return
 
@@ -44,7 +44,8 @@ def progressbar_setup(obj, args):
 
 
 def progressbar_update(obj, args):
-    if args.no_progress or obj.pbar is None:
+    if hasattr(args, "no_progress") and \
+            (args.no_progress or obj.pbar is None):
         return
     try:
         obj.pbar.update(obj.event_count)
@@ -54,6 +55,6 @@ def progressbar_update(obj, args):
 
 
 def progressbar_finish(obj, args):
-    if args.no_progress:
+    if hasattr(args, "no_progress") and args.no_progress:
         return
     obj.pbar.finish()
