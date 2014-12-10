@@ -25,7 +25,6 @@ from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, IRQ
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from LTTngAnalyzes.state import State
-from ascii_graph import Pyasciigraph
 
 
 class IrqStats():
@@ -110,8 +109,6 @@ class IrqStats():
     def print_irq_stats(self, args, dic, name_table):
         for i in sorted(dic.keys()):
             name = name_table[i]
-            graph = Pyasciigraph()
-            v = []
             stdev = self.compute_stdev(dic[i])
 
             # format string for the raise if present
@@ -137,12 +134,6 @@ class IrqStats():
                                   "%s" % (stdev["duration"]),
                                   raise_stats)
             print(s)
-            if not args.details:
-                continue
-            for line in graph.graph("IRQs processing delay repartition", v,
-                                    unit=" us"):
-                print(line)
-            print("")
 
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
