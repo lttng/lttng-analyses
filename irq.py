@@ -21,8 +21,7 @@ except ImportError:
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, \
-    ns_to_hour_nsec, IRQ
+from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, IRQ
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from LTTngAnalyzes.state import State
@@ -87,77 +86,56 @@ class IrqStats():
             self.current_sec = event_sec
             self.start_ns = event.timestamp
 
+    def compute_stdev(self, irq):
+        values = []
+        raise_delays = []
+        stdev = {}
+        for j in irq["list"]:
+            delay = j.stop_ts - j.start_ts
+            values.append(delay)
+            if j.raise_ts == -1:
+                continue
+            # Raise latency (only for some softirqs)
+            r_d = j.start_ts - j.raise_ts
+            raise_delays.append(r_d)
+        if irq["count"] < 2:
+            stdev["duration"] = "?"
+        else:
+            stdev["duration"] = "%0.03f" % (statistics.stdev(values) / 1000)
+        # format string for the raise if present
+        if irq["raise_count"] >= 2:
+            stdev["raise"] = "%0.03f" % (statistics.stdev(raise_delays)/1000)
+        return stdev
+
     def print_irq_stats(self, args, dic, name_table):
         for i in sorted(dic.keys()):
             name = name_table[i]
             graph = Pyasciigraph()
-            count = maxtime = total = 0
-            mintime = -1
-            values = []
             v = []
-            r_count = r_maxtime = r_total = 0
-            r_mintime = -1
-            raise_delays = []
-            r = []
-            total = 0
-            for j in dic[i]:
-                # Handler processing time
-                count += 1
-                delay = j.stop_ts - j.start_ts
-                if delay > maxtime:
-                    maxtime = delay
-                    if mintime == -1:
-                        mintime = maxtime
-                if delay < mintime:
-                    mintime = delay
-                values.append(delay)
-                total += delay
-                if delay > args.thresh:
-                    v.append(("%s to %s" % (ns_to_hour_nsec(j.start_ts),
-                              ns_to_hour_nsec(j.stop_ts)), delay / 1000))
-                if j.raise_ts == -1:
-                    continue
-
-                # Raise latency (only for some softirqs)
-                r_count += 1
-                r_d = j.start_ts - j.raise_ts
-                r_total += r_d
-                if r_d > r_maxtime:
-                    r_maxtime = r_d
-                    if r_mintime == -1:
-                        r_mintime = r_maxtime
-                if r_d < r_mintime:
-                    r_mintime = r_d
-                raise_delays.append(r_d)
-                if r_d > args.thresh:
-                    r.append(("%s to %s" % (ns_to_hour_nsec(j.raise_ts),
-                              ns_to_hour_nsec(j.start_ts)), r_d))
-            if count == 0:
-                continue
-            elif count < 2:
-                stdev = "?"
-            else:
-                stdev = "%0.03f" % (statistics.stdev(values) / 1000)
+            stdev = self.compute_stdev(dic[i])
 
             # format string for the raise if present
-            if r_count < 2:
-                r_stdev = " |"
+            if dic[i]["raise_count"] < 2:
+                raise_stats = " |"
             else:
-                st = "%0.03f" % (statistics.stdev(raise_delays)/1000)
-                r_avg = r_total / (r_count * 1000)
-                r_stdev = " | {:>6} {:>12} {:>12} {:>12} {:>12}".format(
-                          r_count, "%0.03f" % (r_mintime/1000),
-                          "%0.03f" % r_avg, "%0.03f" % (r_maxtime/1000), st)
+                r_avg = dic[i]["raise_total"] / (dic[i]["raise_count"] * 1000)
+                raise_stats = " | {:>6} {:>12} {:>12} {:>12} {:>12}".format(
+                    dic[i]["raise_count"],
+                    "%0.03f" % (dic[i]["raise_min"] / 1000),
+                    "%0.03f" % r_avg,
+                    "%0.03f" % (dic[i]["raise_max"] / 1000),
+                    stdev["raise"])
 
             # final output
-            avg = "%0.03f" % (total/(count * 1000))
+            avg = "%0.03f" % (dic[i]["total"] / (dic[i]["count"] * 1000))
             format_str = '{:<3} {:<18} {:>5} {:>12} {:>12} {:>12} ' \
                          '{:>12} {:<60}'
-            s = format_str.format("%d:" % i, "<%s>" % name, count,
-                                  "%0.03f" % (mintime/1000),
+            s = format_str.format("%d:" % i, "<%s>" % name, dic[i]["count"],
+                                  "%0.03f" % (dic[i]["min"] / 1000),
                                   "%s" % (avg),
-                                  "%0.03f" % (maxtime/1000),
-                                  "%s" % (stdev), r_stdev)
+                                  "%0.03f" % (dic[i]["max"] / 1000),
+                                  "%s" % (stdev["duration"]),
+                                  raise_stats)
             print(s)
             if not args.details:
                 continue
