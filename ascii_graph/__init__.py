@@ -102,14 +102,14 @@ class Pyasciigraph:
         input_type = type(string)
         if input_type is str:
             if sys.version_info.major < 3:  # pragma: no cover
-                info = unicode(string)
+                info = string
             else:
                 info = string
         elif input_type is unicode_type:
             info = string
         elif input_type is int or input_type is float:
             if sys.version_info.major < 3:  # pragma: no cover
-                info = unicode(string)
+                info = string
             else:
                 info = str(string)
         return info
@@ -121,7 +121,7 @@ class Pyasciigraph:
         return ret
 
     def graph(self, label, data, sort=0, with_value=True, unit="",
-            info_before=False):
+              info_before=False):
         """function generating the graph
 
         :param string label: the label of the graph
