@@ -79,9 +79,12 @@ class Pyasciigraph:
         TERMSIZE = 80
         return int(os.environ.get('COLUMNS', TERMSIZE)) - 1
 
-    def _gen_info_string(self, info, start_info, line_length):
+    def _gen_info_string(self, info, start_info, line_length, info_before):
         number_of_space = (line_length - start_info - len(info))
-        return info + self._u(' ') * number_of_space
+        if info_before:
+            return self._u(' ') * number_of_space + info
+        else:
+            return info + self._u(' ') * number_of_space
 
     def _gen_value_string(self, value, start_value, start_info, unit):
         number_space = start_info -\
@@ -117,7 +120,8 @@ class Pyasciigraph:
             ret.append((self._sanitize_string(item[0]), item[1]))
         return ret
 
-    def graph(self, label, data, sort=0, with_value=True, unit=""):
+    def graph(self, label, data, sort=0, with_value=True, unit="",
+            info_before=False):
         """function generating the graph
 
         :param string label: the label of the graph
@@ -203,8 +207,11 @@ class Pyasciigraph:
             info_string = self._gen_info_string(
                 info,
                 start_info,
-                real_line_length)
-            new_line = graph_string + value_string + info_string
+                real_line_length, info_before)
+            if info_before:
+                new_line = info_string + " " + graph_string + value_string
+            else:
+                new_line = graph_string + value_string + info_string
             result.append(new_line)
 
         return result
