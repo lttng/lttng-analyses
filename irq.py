@@ -126,7 +126,7 @@ class IrqStats():
         for v in values:
             g.append(("%0.03f" % (i * step + _min), v))
             i += 1
-        for line in graph.graph('freq', g):
+        for line in graph.graph('freq', g, info_before=True, unit=""):
             print(line)
         print("")
 

@@ -164,16 +164,24 @@ def get_disk(dev, disks):
     return d
 
 
-def convert_size(size):
+def convert_size(size, padding_after=False, padding_before=False):
+    if padding_after and size < 1024:
+        space_after = " "
+    else:
+        space_after = ""
+    if padding_before and size < 1024:
+        space_before = " "
+    else:
+        space_before = ""
     if size <= 0:
-        return "0 B"
+        return "0 " + space_before + "B" + space_after
     size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
     i = int(math.floor(math.log(size, 1024)))
     p = math.pow(1024, i)
     s = round(size/p, 2)
     if (s > 0):
         try:
-            return '%s %s' % (s, size_name[i])
+            return '%s %s%s%s' % (s, space_before, size_name[i], space_after)
         except:
             print(i, size_name)
             raise Exception("Too big to be true")
