@@ -135,40 +135,45 @@ class IOTop():
             self.current_sec = event_sec
             self.start_ns = event.timestamp
 
+    def add_fd_dict(self, tid, fd, files):
+        if fd.read == 0 and fd.write == 0:
+            return
+        if fd.filename.startswith("pipe") or \
+                fd.filename.startswith("socket") or \
+                fd.filename.startswith("anon_inode") or \
+                fd.filename.startswith("unknown"):
+            filename = "%s (%s)" % (fd.filename, tid.comm)
+            files[filename] = {}
+            files[filename]["read"] = fd.read
+            files[filename]["write"] = fd.write
+            files[filename]["name"] = filename
+            files[filename]["other"] = ["(fd %d in %s (%d))" % (fd.fd,
+                                        tid.comm, tid.tid)]
+        else:
+            # merge counters of shared files
+            filename = fd.filename
+            if filename not in files.keys():
+                files[filename] = {}
+                files[filename]["read"] = fd.read
+                files[filename]["write"] = fd.write
+                files[filename]["name"] = filename
+                files[filename]["other"] = ["(fd %d in %s (%d)" %
+                                            (fd.fd, tid.comm, tid.tid)]
+                files[filename]["tids"] = [tid.tid]
+            else:
+                files[filename]["read"] += fd.read
+                files[filename]["write"] += fd.write
+                files[filename]["other"].append("(fd %d in %s (%d)" %
+                                                (fd.fd, tid.comm,
+                                                 tid.tid))
+
     def create_files_dict(self):
         files = {}
         for tid in self.state.tids.values():
             for fd in tid.fds.values():
-                if fd.read == 0 and fd.write == 0:
-                    continue
-                if fd.filename.startswith("pipe") or \
-                        fd.filename.startswith("socket") or \
-                        fd.filename.startswith("anon_inode") or \
-                        fd.filename.startswith("unknown"):
-                    filename = "%s (%s)" % (fd.filename, tid.comm)
-                    files[filename] = {}
-                    files[filename]["read"] = fd.read
-                    files[filename]["write"] = fd.write
-                    files[filename]["name"] = filename
-                    files[filename]["other"] = ["(fd %d in %s (%d))" % (fd.fd,
-                                                tid.comm, tid.tid)]
-                else:
-                    # merge counters of shared files
-                    filename = fd.filename
-                    if filename not in files.keys():
-                        files[filename] = {}
-                        files[filename]["read"] = fd.read
-                        files[filename]["write"] = fd.write
-                        files[filename]["name"] = filename
-                        files[filename]["other"] = ["(fd %d in %s (%d)" %
-                                                    (fd.fd, tid.comm, tid.tid)]
-                        files[filename]["tids"] = [tid.tid]
-                    else:
-                        files[filename]["read"] += fd.read
-                        files[filename]["write"] += fd.write
-                        files[filename]["other"].append("(fd %d in %s (%d)" %
-                                                        (fd.fd, tid.comm,
-                                                         tid.tid))
+                self.add_fd_dict(tid, fd, files)
+            for fd in tid.closed_fds.values():
+                self.add_fd_dict(tid, fd, files)
         return files
 
     def output_print_file_read(self, args, files):
