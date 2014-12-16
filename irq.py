@@ -156,9 +156,10 @@ class IrqStats():
         raise Exception("WTF")
 
     def log_irq(self, args):
-        fmt = "{:<20} {:<18} {:>15} {:>4}  {:<9} {:>4}  {:<22}"
-        print(fmt.format("Begin", "End", "Duration (us)", "CPU", "Type",
-                         "#", "Name"))
+        fmt = "[{:<18}, {:<18}] {:>15} {:>4}  {:<9} {:>4}  {:<22}"
+        title_fmt = "{:<20} {:<19} {:>15} {:>4}  {:<9} {:>4}  {:<22}"
+        print(title_fmt.format("Begin", "End", "Duration (us)", "CPU",
+                               "Type", "#", "Name"))
         for i in self.state.interrupts["irq-list"]:
             if not self.filter_irq(args, i):
                 continue
