@@ -171,11 +171,14 @@ class IrqStats():
                 irqtype = "SoftIRQ"
             if i.raise_ts != -1:
                 raise_ts = " (raised at %s)" % \
-                           (ns_to_hour_nsec(i.raise_ts, args.multi_day))
+                           (ns_to_hour_nsec(i.raise_ts, args.multi_day,
+                                            args.gmt))
             else:
                 raise_ts = ""
-            print(fmt.format(ns_to_hour_nsec(i.start_ts, args.multi_day),
-                             ns_to_hour_nsec(i.stop_ts, args.multi_day),
+            print(fmt.format(ns_to_hour_nsec(i.start_ts, args.multi_day,
+                                             args.gmt),
+                             ns_to_hour_nsec(i.stop_ts, args.multi_day,
+                                             args.gmt),
                              "%0.03f" % ((i.stop_ts - i.start_ts) / 1000),
                              "%d" % i.cpu_id, irqtype, i.nr, name + raise_ts))
 
@@ -271,6 +274,8 @@ if __name__ == "__main__":
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('-r', '--refresh', type=int,
                         help='Refresh period in seconds', default=0)
+    parser.add_argument('--gmt', action="store_true",
+                        help='Display timestamps based on GMT')
     parser.add_argument('--top', type=int, default=10,
                         help='Limit to top X TIDs (default = 10)')
     parser.add_argument('--no-progress', action="store_true",
