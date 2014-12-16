@@ -21,7 +21,8 @@ except ImportError:
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, IRQ
+from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, IRQ, \
+    ns_to_hour_nsec
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from LTTngAnalyzes.state import State
@@ -130,6 +131,52 @@ class IrqStats():
             print(line)
         print("")
 
+    # FIXME: there must be a way to make that more complicated/ugly
+    def filter_irq(self, args, i):
+        if i.irqclass == IRQ.HARD_IRQ:
+            if args.irq_filter_list is not None:
+                if len(args.irq_filter_list) > 0 and \
+                        str(i.nr) not in args.irq_filter_list:
+                    return False
+                else:
+                    return True
+            if args.softirq_filter_list is not None and \
+                    len(args.softirq_filter_list) > 0:
+                return False
+        else:
+            if args.softirq_filter_list is not None:
+                if len(args.softirq_filter_list) > 0 and \
+                        str(i.nr) not in args.softirq_filter_list:
+                    return False
+                else:
+                    return True
+            if args.irq_filter_list is not None and \
+                    len(args.irq_filter_list) > 0:
+                return False
+        raise Exception("WTF")
+
+    def log_irq(self, args):
+        fmt = "{:<20} {:<18} {:>15} {:>4}  {:<9} {:>4}  {:<22}"
+        print(fmt.format("Begin", "End", "Duration (us)", "CPU", "Type",
+                         "#", "Name"))
+        for i in self.state.interrupts["irq-list"]:
+            if not self.filter_irq(args, i):
+                continue
+            if i.irqclass == IRQ.HARD_IRQ:
+                name = self.state.interrupts["names"][i.nr]
+                irqtype = "IRQ"
+            else:
+                name = IRQ.soft_names[i.nr]
+                irqtype = "SoftIRQ"
+            if i.raise_ts != -1:
+                raise_ts = " (raised at %s)" % (ns_to_hour_nsec(i.raise_ts))
+            else:
+                raise_ts = ""
+            print(fmt.format(ns_to_hour_nsec(i.start_ts),
+                             ns_to_hour_nsec(i.stop_ts),
+                             "%0.03f" % ((i.stop_ts - i.start_ts) / 1000),
+                             "%d" % i.cpu_id, irqtype, i.nr, name + raise_ts))
+
     def print_irq_stats(self, args, dic, name_table, filter_list, header):
         header_output = 0
         for i in sorted(dic.keys()):
@@ -206,6 +253,9 @@ class IrqStats():
                                  header)
             print("")
 
+        if args.log:
+            self.log_irq(args)
+
     def reset_total(self, start_ts):
         self.state.interrupts["hard_count"] = 0
         self.state.interrupts["soft_count"] = 0
@@ -240,6 +290,9 @@ if __name__ == "__main__":
                         help='Filter out, duration longer than max usec')
     parser.add_argument('--min', type=float, default=-1,
                         help='Filter out, duration shorter than min usec')
+    parser.add_argument('--log', action="store_true",
+                        help='Display the interrupt in the order they were '
+                             'handled')
     args = parser.parse_args()
 
     args.irq_filter_list = None
