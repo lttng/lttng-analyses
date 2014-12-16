@@ -189,7 +189,7 @@ def convert_size(size, padding_after=False, padding_before=False):
         return '0 B'
 
 
-def is_multi_day_trace(handle):
+def is_multi_day_trace_collection(handle):
     y = m = d = -1
     for h in handle.values():
         if y == -1:

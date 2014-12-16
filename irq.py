@@ -22,7 +22,7 @@ except ImportError:
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, IRQ, \
-    ns_to_hour_nsec, is_multi_day_trace
+    ns_to_hour_nsec, is_multi_day_trace_collection
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from LTTngAnalyzes.state import State
@@ -323,7 +323,7 @@ if __name__ == "__main__":
     if handle is None:
         sys.exit(1)
 
-    args.multi_day = is_multi_day_trace(handle)
+    args.multi_day = is_multi_day_trace_collection(handle)
 
     c = IrqStats(traces)
 
