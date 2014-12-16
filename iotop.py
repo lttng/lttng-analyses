@@ -147,7 +147,7 @@ class IOTop():
             files[filename]["read"] = fd.read
             files[filename]["write"] = fd.write
             files[filename]["name"] = filename
-            files[filename]["other"] = ["(fd %d in %s (%d))" % (fd.fd,
+            files[filename]["other"] = ["fd %d in %s (%d)" % (fd.fd,
                                         tid.comm, tid.tid)]
         else:
             # merge counters of shared files
@@ -157,13 +157,13 @@ class IOTop():
                 files[filename]["read"] = fd.read
                 files[filename]["write"] = fd.write
                 files[filename]["name"] = filename
-                files[filename]["other"] = ["(fd %d in %s (%d)" %
+                files[filename]["other"] = ["fd %d in %s (%d)" %
                                             (fd.fd, tid.comm, tid.tid)]
                 files[filename]["tids"] = [tid.tid]
             else:
                 files[filename]["read"] += fd.read
                 files[filename]["write"] += fd.write
-                files[filename]["other"].append("(fd %d in %s (%d)" %
+                files[filename]["other"].append("fd %d in %s (%d)" %
                                                 (fd.fd, tid.comm,
                                                  tid.tid))
 
