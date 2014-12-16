@@ -189,6 +189,25 @@ def convert_size(size, padding_after=False, padding_before=False):
         return '0 B'
 
 
+def is_multi_day_trace(handle):
+    y = m = d = -1
+    for h in handle.values():
+        if y == -1:
+            y = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_year
+            m = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mon
+            d = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mday
+        _y = time.localtime(h.timestamp_end/NSEC_PER_SEC).tm_year
+        _m = time.localtime(h.timestamp_end/NSEC_PER_SEC).tm_mon
+        _d = time.localtime(h.timestamp_end/NSEC_PER_SEC).tm_mday
+        if y != _y:
+            return True
+        elif m != _m:
+            return True
+        elif d != _d:
+            return True
+    return False
+
+
 def ns_to_asctime(ns):
     return time.asctime(time.localtime(ns/NSEC_PER_SEC))
 
@@ -198,14 +217,25 @@ def ns_to_hour(ns):
     return "%02d:%02d:%02d" % (d.tm_hour, d.tm_min, d.tm_sec)
 
 
-def ns_to_hour_nsec(ns):
+def ns_to_hour_nsec(ns, multi_day=False):
     d = time.localtime(ns/NSEC_PER_SEC)
-    return "%02d:%02d:%02d.%09d" % (d.tm_hour, d.tm_min, d.tm_sec,
-                                    ns % NSEC_PER_SEC)
+    if multi_day:
+        return "%04d-%02d-%02d %02d:%02d:%02d.%09d" % (d.tm_year, d.tm_mon,
+                                                       d.tm_mday, d.tm_hour,
+                                                       d.tm_min, d.tm_sec,
+                                                       ns % NSEC_PER_SEC)
+    else:
+        return "%02d:%02d:%02d.%09d" % (d.tm_hour, d.tm_min, d.tm_sec,
+                                        ns % NSEC_PER_SEC)
 
 
 def ns_to_sec(ns):
     return "%lu.%09u" % (ns/NSEC_PER_SEC, ns % NSEC_PER_SEC)
+
+
+def ns_to_day(ns):
+    d = time.localtime(ns/NSEC_PER_SEC)
+    return "%04d-%02d-%02d" % (d.tm_year, d.tm_mon, d.tm_mday)
 
 
 def sec_to_hour(ns):

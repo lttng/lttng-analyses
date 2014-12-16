@@ -22,7 +22,7 @@ except ImportError:
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, IRQ, \
-    ns_to_hour_nsec
+    ns_to_hour_nsec, is_multi_day_trace
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from LTTngAnalyzes.state import State
@@ -170,11 +170,12 @@ class IrqStats():
                 name = IRQ.soft_names[i.nr]
                 irqtype = "SoftIRQ"
             if i.raise_ts != -1:
-                raise_ts = " (raised at %s)" % (ns_to_hour_nsec(i.raise_ts))
+                raise_ts = " (raised at %s)" % \
+                           (ns_to_hour_nsec(i.raise_ts, args.multi_day))
             else:
                 raise_ts = ""
-            print(fmt.format(ns_to_hour_nsec(i.start_ts),
-                             ns_to_hour_nsec(i.stop_ts),
+            print(fmt.format(ns_to_hour_nsec(i.start_ts, args.multi_day),
+                             ns_to_hour_nsec(i.stop_ts, args.multi_day),
                              "%0.03f" % ((i.stop_ts - i.start_ts) / 1000),
                              "%d" % i.cpu_id, irqtype, i.nr, name + raise_ts))
 
@@ -316,6 +317,8 @@ if __name__ == "__main__":
     handle = traces.add_traces_recursive(args.path, "ctf")
     if handle is None:
         sys.exit(1)
+
+    args.multi_day = is_multi_day_trace(handle)
 
     c = IrqStats(traces)
 
