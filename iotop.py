@@ -242,10 +242,10 @@ class IOTop():
             values.append((info_fmt.format(
                            convert_size(tid.read, padding_after=True),
                            "%s (%d)" % (tid.comm, tid.tid),
-                           convert_size(tid.disk_read, padding_before=True),
-                           convert_size(tid.net_read, padding_before=True),
-                           convert_size(tid.block_read, padding_before=True),
-                           convert_size(tid.unk_read, padding_before=True)),
+                           convert_size(tid.disk_read, padding_after=True),
+                           convert_size(tid.net_read, padding_after=True),
+                           convert_size(tid.block_read, padding_after=True),
+                           convert_size(tid.unk_read, padding_after=True)),
                            tid.read))
             count = count + 1
             if limit > 0 and count >= limit:
@@ -267,10 +267,10 @@ class IOTop():
             values.append((info_fmt.format(
                            convert_size(tid.write, padding_after=True),
                            "%s (%d)" % (tid.comm, tid.tid),
-                           convert_size(tid.disk_write, padding_before=True),
-                           convert_size(tid.net_write, padding_before=True),
-                           convert_size(tid.block_write, padding_before=True),
-                           convert_size(tid.unk_write, padding_before=True)),
+                           convert_size(tid.disk_write, padding_after=True),
+                           convert_size(tid.net_write, padding_after=True),
+                           convert_size(tid.block_write, padding_after=True),
+                           convert_size(tid.unk_write, padding_after=True)),
                            tid.write))
             count = count + 1
             if limit > 0 and count >= limit:
