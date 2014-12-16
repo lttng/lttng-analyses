@@ -250,7 +250,8 @@ class IOTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('Syscall I/O Read', values, with_value=False):
+        for line in graph.graph('Per-process I/O Read', values,
+                                with_value=False):
             print(line)
 
     def output_write(self, args):
@@ -275,7 +276,8 @@ class IOTop():
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph('Syscall I/O Write', values, with_value=False):
+        for line in graph.graph('Per-process I/O Write', values,
+                                with_value=False):
             print(line)
 
     def disk_output_read(self, args):
