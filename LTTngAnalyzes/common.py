@@ -1,5 +1,7 @@
 import math
+import re
 import time
+import datetime
 import socket
 import struct
 
@@ -206,6 +208,84 @@ def is_multi_day_trace_collection(handle):
         elif d != _d:
             return True
     return False
+
+
+def trace_collection_date(handle):
+    if is_multi_day_trace_collection(handle):
+        return None
+    for h in handle.values():
+        y = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_year
+        m = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mon
+        d = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mday
+        return (y, m, d)
+
+
+def date_to_epoch_nsec(handle, date, gmt):
+    # match 2014-12-12 17:29:43.802588035 or 2014-12-12T17:29:43.802588035
+    p1 = re.compile('^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
+                    '(?P<day>[0123]\d)[\sTt]'
+                    '(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
+                    '(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    # match 2014-12-12 17:29:43 or 2014-12-12T17:29:43
+    p2 = re.compile('^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
+                    '(?P<day>[0123]\d)[\sTt]'
+                    '(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    # match 17:29:43.802588035
+    p3 = re.compile('^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
+                    '(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    # match 17:29:43
+    p4 = re.compile('^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+
+    if p1.match(date):
+        year = p1.search(date).group("year")
+        month = p1.search(date).group("mon")
+        day = p1.search(date).group("day")
+        hour = p1.search(date).group("hour")
+        minute = p1.search(date).group("min")
+        sec = p1.search(date).group("sec")
+        nsec = p1.search(date).group("nsec")
+    elif p2.match(date):
+        year = p2.search(date).group("year")
+        month = p2.search(date).group("mon")
+        day = p2.search(date).group("day")
+        hour = p2.search(date).group("hour")
+        minute = p2.search(date).group("min")
+        sec = p2.search(date).group("sec")
+        nsec = 0
+    elif p3.match(date):
+        d = trace_collection_date(handle)
+        if d is None:
+            print("Use the format 'yyyy-mm-dd hh:mm:ss[.nnnnnnnnn]' "
+                  "for multi-day traces")
+            return None
+        year = d[0]
+        month = d[1]
+        day = d[2]
+        hour = p3.search(date).group("hour")
+        minute = p3.search(date).group("min")
+        sec = p3.search(date).group("sec")
+        nsec = p3.search(date).group("nsec")
+    elif p4.match(date):
+        d = trace_collection_date(handle)
+        if d is None:
+            print("Use the format 'yyyy-mm-dd hh:mm:ss[.nnnnnnnnn]' "
+                  "for multi-day traces")
+            return None
+        year = d[0]
+        month = d[1]
+        day = d[2]
+        hour = p4.search(date).group("hour")
+        minute = p4.search(date).group("min")
+        sec = p4.search(date).group("sec")
+        nsec = 0
+    else:
+        return None
+
+    d = datetime.datetime(int(year), int(month), int(day), int(hour),
+                          int(minute), int(sec))
+    if gmt:
+        d = d + datetime.timedelta(seconds=time.timezone)
+    return int(d.timestamp()) * NSEC_PER_SEC + int(nsec)
 
 
 def ns_to_asctime(ns):

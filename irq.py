@@ -275,7 +275,8 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--refresh', type=int,
                         help='Refresh period in seconds', default=0)
     parser.add_argument('--gmt', action="store_true",
-                        help='Display timestamps based on GMT')
+                        help='Manipulate timestamps based on GMT instead '
+                        'of local time')
     parser.add_argument('--top', type=int, default=10,
                         help='Limit to top X TIDs (default = 10)')
     parser.add_argument('--no-progress', action="store_true",

@@ -22,7 +22,7 @@ except ImportError:
     from babeltrace import TraceCollection
 from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
-    ns_to_asctime, sec_to_nsec
+    ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -451,12 +451,13 @@ if __name__ == "__main__":
                              'this threshold (ms)')
     parser.add_argument('--no-progress', action="store_true",
                         help='Don\'t display the progress bar')
-    parser.add_argument('--begin', type=float,
-                        help='start time in seconds from epoch '
-                             '(e.g. 1394643671.032202563)')
-    parser.add_argument('--end', type=float,
-                        help='end time in seconds from epoch '
-                             '(e.g.: 1394643671.032202563)')
+    parser.add_argument('--gmt', action="store_true",
+                        help='Manipulate timestamps based on GMT instead '
+                        'of local time')
+    parser.add_argument('--begin', type=str,
+                        help='start time')
+    parser.add_argument('--end', type=str,
+                        help='end time')
     parser.add_argument('--seconds', action="store_true",
                         help='display time in seconds since epoch')
     args = parser.parse_args()
@@ -467,15 +468,16 @@ if __name__ == "__main__":
     else:
         args.names = None
 
-    if args.begin:
-        args.begin = sec_to_nsec(args.begin)
-    if args.end:
-        args.end = sec_to_nsec(args.end)
-
     traces = TraceCollection()
     handle = traces.add_traces_recursive(args.path, "ctf")
     if handle is None:
         sys.exit(1)
+
+    args.multi_day = is_multi_day_trace_collection(handle)
+    if args.begin:
+        args.begin = date_to_epoch_nsec(handle, args.begin, args.gmt)
+    if args.end:
+        args.end = date_to_epoch_nsec(handle, args.end, args.gmt)
 
     c = IOTop(traces)
 
