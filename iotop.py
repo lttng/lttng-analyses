@@ -176,7 +176,7 @@ class IOTop():
                 self.add_fd_dict(tid, fd, files)
         return files
 
-    def output_print_file_read(self, args, files):
+    def iotop_output_print_file_read(self, args, files):
         count = 0
         limit = args.top
         graph = Pyasciigraph()
@@ -199,7 +199,7 @@ class IOTop():
                                 with_value=False):
             print(line)
 
-    def output_print_file_write(self, args, files):
+    def iotop_output_print_file_write(self, args, files):
         # Compute files read
         count = 0
         limit = args.top
@@ -223,12 +223,12 @@ class IOTop():
                                 with_value=False):
             print(line)
 
-    def output_file_read_write(self, args):
+    def iotop_output_file_read_write(self, args):
         files = self.create_files_dict()
-        self.output_print_file_read(args, files)
-        self.output_print_file_write(args, files)
+        self.iotop_output_print_file_read(args, files)
+        self.iotop_output_print_file_write(args, files)
 
-    def output_read(self, args):
+    def iotop_output_read(self, args):
         count = 0
         limit = args.top
         graph = Pyasciigraph()
@@ -252,7 +252,7 @@ class IOTop():
                                 with_value=False):
             print(line)
 
-    def output_write(self, args):
+    def iotop_output_write(self, args):
         count = 0
         limit = args.top
         graph = Pyasciigraph()
@@ -276,7 +276,7 @@ class IOTop():
                                 with_value=False):
             print(line)
 
-    def disk_output_read(self, args):
+    def iotop_output_disk_read(self, args):
         count = 0
         limit = args.top
         graph = Pyasciigraph()
@@ -299,7 +299,7 @@ class IOTop():
         for line in graph.graph('Block I/O Read', values, with_value=False):
             print(line)
 
-    def disk_output_write(self, args):
+    def iotop_output_disk_write(self, args):
         count = 0
         limit = args.top
         graph = Pyasciigraph()
@@ -323,7 +323,7 @@ class IOTop():
         for line in graph.graph('Block I/O Write', values, with_value=False):
             print(line)
 
-    def output_nr_sector(self, args):
+    def iotop_output_nr_sector(self, args):
         graph = Pyasciigraph()
         values = []
         for disk in sorted(self.state.disks.values(),
@@ -334,7 +334,7 @@ class IOTop():
         for line in graph.graph('Disk nr_sector', values, unit=" sectors"):
             print(line)
 
-    def output_nr_requests(self, args):
+    def iotop_output_nr_requests(self, args):
         graph = Pyasciigraph()
         values = []
         for disk in sorted(self.state.disks.values(),
@@ -346,7 +346,7 @@ class IOTop():
         for line in graph.graph('Disk nr_requests', values, unit=" requests"):
             print(line)
 
-    def output_dev_latency(self, args):
+    def iotop_output_dev_latency(self, args):
         graph = Pyasciigraph()
         values = []
         for disk in self.state.disks.values():
@@ -360,7 +360,7 @@ class IOTop():
                                 unit=" ms"):
             print(line)
 
-    def output_net_recv_bytes(self, args):
+    def iotop_output_net_recv_bytes(self, args):
         graph = Pyasciigraph()
         values = []
         for iface in sorted(self.state.ifaces.values(),
@@ -373,7 +373,7 @@ class IOTop():
                                 with_value=False):
             print(line)
 
-    def output_net_sent_bytes(self, args):
+    def iotop_output_net_sent_bytes(self, args):
         graph = Pyasciigraph()
         values = []
         for iface in sorted(self.state.ifaces.values(),
@@ -396,19 +396,22 @@ class IOTop():
                                     unit=" ms"):
                 print(line)
 
+    def iotop_output(self):
+        self.iotop_output_read(args)
+        self.iotop_output_write(args)
+        self.iotop_output_file_read_write(args)
+        self.iotop_output_disk_read(args)
+        self.iotop_output_disk_write(args)
+        self.iotop_output_nr_sector(args)
+        self.iotop_output_nr_requests(args)
+        self.iotop_output_dev_latency(args)
+        self.iotop_output_net_recv_bytes(args)
+        self.iotop_output_net_sent_bytes(args)
+        self.output_latencies(args)
+
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
-        self.output_read(args)
-        self.output_write(args)
-        self.output_file_read_write(args)
-        self.disk_output_read(args)
-        self.disk_output_write(args)
-        self.output_nr_sector(args)
-        self.output_nr_requests(args)
-        self.output_dev_latency(args)
-        self.output_net_recv_bytes(args)
-        self.output_net_sent_bytes(args)
-        self.output_latencies(args)
+        self.iotop_output()
 
     def reset_total(self, start_ts):
         for dev in self.state.disks.keys():
