@@ -456,10 +456,12 @@ class IOTop():
             d = self.state.disks[dev]
             if d.max is None:
                 self.compute_disk_stats(d, args)
-            self.iolatency_freq_histogram(d.min, d.max, args.freq_resolution,
-                                          d.rq_values,
-                                          "Frequency distribution for "
-                                          "disk %s" % (d.prettyname))
+            if d.count is not None:
+                self.iolatency_freq_histogram(d.min, d.max,
+                                              args.freq_resolution,
+                                              d.rq_values,
+                                              "Frequency distribution for "
+                                              "disk %s" % (d.prettyname))
 
     def iolatency_output(self, args):
         self.iolatency_output_disk(args)
@@ -481,9 +483,9 @@ class IOTop():
             if d.max is None:
                 d = self.state.disks[dev]
             self.compute_disk_stats(d, args)
-            print("min : %s, max: %s, avg: %s, stdev: %s" % (d.min, d.max,
-                                                             d.total/d.count,
-                                                             d.stdev))
+            if d.count is not None:
+                print("min : %s, max: %s, avg: %s, "
+                      "stdev: %s" % (d.min, d.max, d.total/d.count, d.stdev))
 
     def iostats_output(self, args):
         self.iostats_output_disk(args)
