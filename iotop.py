@@ -476,6 +476,12 @@ class IOTop():
                                     unit=" ms"):
                 print(line)
 
+    def iostats_syscalls(self, args):
+        #read_max = read_count = read_total = 0
+        #write_max = write_count = write_total = 0
+        #read_min = write_min = -1
+        pass
+
     # iostats functions
     def iostats_output_disk(self, args):
         for dev in self.state.disks.keys():

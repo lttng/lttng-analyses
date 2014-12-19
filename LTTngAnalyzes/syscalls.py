@@ -1,5 +1,6 @@
 from LTTngAnalyzes.common import FDType, FD, MSEC_PER_NSEC, \
-    ns_to_hour_nsec, ns_to_sec, Syscall, O_CLOEXEC, get_v4_addr_str, Process
+    ns_to_hour_nsec, ns_to_sec, Syscall, O_CLOEXEC, get_v4_addr_str, Process, \
+    IORequest
 import socket
 import operator
 
@@ -355,7 +356,9 @@ class Syscalls():
         # print("%lu : %s opened %s (%d times)" % (event.timestamp, t.comm,
         #     fd.filename, fd.open))
 
-    def read_append(self, fd, proc, count):
+    def read_append(self, fd, proc, count, rq):
+        rq.operation = IORequest.OP_READ
+        rq.size = count
         if fd.fdtype in [FDType.net, FDType.maybe_net]:
             fd.net_read += count
             proc.net_read += count
@@ -368,7 +371,9 @@ class Syscalls():
         fd.read += count
         proc.read += count
 
-    def write_append(self, fd, proc, count):
+    def write_append(self, fd, proc, count, rq):
+        rq.operation = IORequest.OP_WRITE
+        rq.size = count
         if fd.fdtype in [FDType.net, FDType.maybe_net]:
             fd.net_write += count
             proc.net_write += count
@@ -392,14 +397,18 @@ class Syscalls():
         current_syscall = self.tids[cpu.current_tid].current_syscall
         if name in ["sys_splice", "syscall_entry_splice",
                     "sys_sendfile64", "syscall_entry_sendfile64"]:
-            self.read_append(current_syscall["fd_in"], proc, ret)
-            self.write_append(current_syscall["fd_out"], proc, ret)
+            self.read_append(current_syscall["fd_in"], proc, ret,
+                             current_syscall["iorequest"])
+            self.write_append(current_syscall["fd_out"], proc, ret,
+                              current_syscall["iorequest"])
         elif name in Syscalls.READ_SYSCALLS:
             if ret > 0:
-                self.read_append(current_syscall["fd"], proc, ret)
+                self.read_append(current_syscall["fd"], proc, ret,
+                                 current_syscall["iorequest"])
         elif name in Syscalls.WRITE_SYSCALLS:
             if ret > 0:
-                self.write_append(current_syscall["fd"], proc, ret)
+                self.write_append(current_syscall["fd"], proc, ret,
+                                  current_syscall["iorequest"])
 
     def get_page_queue_stats(self, page_list):
         processes = {}
@@ -452,9 +461,14 @@ class Syscalls():
             current_syscall["pages_cleared"] = cleaned
 
     def track_rw_latency(self, name, ret, c, ts, started, event):
-        if not self.names and self.latency < 0:
-            return
         current_syscall = self.tids[c.current_tid].current_syscall
+        rq = current_syscall["iorequest"]
+        if rq.size is None or rq.size == 0:
+            rq.duration = (event.timestamp - current_syscall["start"])
+        else:
+            rq.duration = (event.timestamp - current_syscall["start"])/rq.size
+        if not self.names:
+            return
         if "start" not in current_syscall.keys():
             return
         if "fd" in current_syscall.keys():
@@ -466,6 +480,9 @@ class Syscalls():
         else:
             filename = "unknown"
             fd = ""
+        fd.iorequests.append(current_syscall["iorequest"])
+        if self.latency < 0:
+            return
         ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
         latency = "%0.03f ms" % ms
 
@@ -583,6 +600,8 @@ class Syscalls():
             return
         name = current_syscall["name"]
         ret = event["ret"]
+        current_syscall["iorequest"] = IORequest()
+        current_syscall["iorequest"].iotype = IORequest.IO_SYSCALL
         if name in Syscalls.OPEN_SYSCALLS:
             self.add_tid_fd(event, c)
             ret_string = "%s %s(%s, fd = %d)" % (
