@@ -1,4 +1,4 @@
-from LTTngAnalyzes.common import Process, get_disk
+from LTTngAnalyzes.common import Process, get_disk, IORequest
 
 
 class Block():
@@ -40,9 +40,17 @@ class Block():
         dev = event["dev"]
         sector = event["sector"]
         nr_sector = event["nr_sector"]
+        # Note: since we don't know, we assume a sector is 512 bytes
+        block_size = 512
+        if nr_sector == 0:
+            return
+
         rq = {}
         rq["nr_sector"] = nr_sector
         rq["rq_time"] = event.timestamp
+        rq["iorequest"] = IORequest()
+        rq["iorequest"].iotype = IORequest.IO_BLOCK
+        rq["iorequest"].size = nr_sector * block_size
 
         d = None
         for req in self.remap_requests:
@@ -65,17 +73,21 @@ class Block():
                 p = self.tids[tid]
             if p.pid != -1 and p.tid != p.pid:
                 p = self.tids[p.pid]
+            rq["pid"] = p
             # even rwbs means read, odd means write
             if event["rwbs"] % 2 == 0:
-                # Note: since we don't know, we assume a sector is 512 bytes
-                p.block_read += event["nr_sector"] * 512
+                p.block_read += nr_sector * block_size
+                rq["iorequest"].operation = IORequest.OP_READ
             else:
-                p.block_write += event["nr_sector"] * 512
+                p.block_write += nr_sector * block_size
+                rq["iorequest"].operation = IORequest.OP_WRITE
 
     def complete(self, event):
         dev = event["dev"]
         sector = event["sector"]
         nr_sector = event["nr_sector"]
+        if nr_sector == 0:
+            return
 
         d = None
         for req in self.remap_requests:
@@ -95,13 +107,15 @@ class Block():
         if rq["nr_sector"] != nr_sector:
             return
         d.completed_requests += 1
-        # yes it happens
-        if rq["nr_sector"] == 0:
-            return
         if rq["rq_time"] > event.timestamp:
-            print("Weird request TS")
+            print("Weird request TS", event.timestamp)
         time_per_sector = (event.timestamp - rq["rq_time"]) / rq["nr_sector"]
         d.request_time += time_per_sector
+        rq["iorequest"].duration = time_per_sector
+        d.rq_list.append(rq["iorequest"])
+        if "pid" in rq.keys():
+            rq["pid"].blockiorequests.append(rq["iorequest"])
+        del d.pending_requests[sector]
 
     def dump_orphan_requests(self):
         for req in self.remap_requests:

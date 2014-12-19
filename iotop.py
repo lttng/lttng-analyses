@@ -13,6 +13,7 @@
 import argparse
 import operator
 import sys
+import statistics
 try:
     from babeltrace import TraceCollection
 except ImportError:
@@ -176,6 +177,7 @@ class IOTop():
                 self.add_fd_dict(tid, fd, files)
         return files
 
+    # iotop functions
     def iotop_output_print_file_read(self, args, files):
         count = 0
         limit = args.top
@@ -386,17 +388,7 @@ class IOTop():
                                 with_value=False):
             print(line)
 
-    def output_latencies(self, args):
-        graph = Pyasciigraph()
-        for proc in self.latency_hist.keys():
-            values = []
-            for v in self.latency_hist[proc]:
-                values.append(("%s" % (v[0]), v[1]))
-            for line in graph.graph('%s requests latency (ms)' % proc, values,
-                                    unit=" ms"):
-                print(line)
-
-    def iotop_output(self):
+    def iotop_output(self, args):
         self.iotop_output_read(args)
         self.iotop_output_write(args)
         self.iotop_output_file_read_write(args)
@@ -409,9 +401,98 @@ class IOTop():
         self.iotop_output_net_sent_bytes(args)
         self.output_latencies(args)
 
+    def iolatency_freq_histogram(self, _min, _max, res, rq_list, title):
+        step = (_max - _min) / res
+        if step == 0:
+            return
+        buckets = []
+        values = []
+        graph = Pyasciigraph()
+        for i in range(res):
+            buckets.append(i * step)
+            values.append(0)
+        for i in rq_list:
+            v = i / 1000
+            b = min(int((v-_min)/step), res - 1)
+            values[b] += 1
+        g = []
+        i = 0
+        for v in values:
+            g.append(("%0.03f" % (i * step + _min), v))
+            i += 1
+        for line in graph.graph(title, g, info_before=True):
+            print(line)
+        print("")
+
+    def compute_disk_stats(self, dev, args):
+        _max = 0
+        _min = -1
+        total = 0
+        values = []
+        count = len(dev.rq_list)
+        if count == 0:
+            return
+        for rq in dev.rq_list:
+            if rq.duration > _max:
+                _max = rq.duration
+            if _min == -1 or rq.duration < _min:
+                _min = rq.duration
+            total += rq.duration
+            values.append(rq.duration)
+        if count > 2:
+            stdev = statistics.stdev(values) / 1000
+        else:
+            stdev = "?"
+        dev.min = _min / 1000
+        dev.max = _max / 1000
+        dev.total = total / 1000
+        dev.count = count
+        dev.rq_values = values
+        dev.stdev = stdev
+
+    # iolatency functions
+    def iolatency_output_disk(self, args):
+        for dev in self.state.disks.keys():
+            d = self.state.disks[dev]
+            if d.max is None:
+                self.compute_disk_stats(d, args)
+            self.iolatency_freq_histogram(d.min, d.max, args.freq_resolution,
+                                          d.rq_values,
+                                          "Frequency distribution for "
+                                          "disk %s" % (d.prettyname))
+
+    def iolatency_output(self, args):
+        self.iolatency_output_disk(args)
+
+    def output_latencies(self, args):
+        graph = Pyasciigraph()
+        for proc in self.latency_hist.keys():
+            values = []
+            for v in self.latency_hist[proc]:
+                values.append(("%s" % (v[0]), v[1]))
+            for line in graph.graph('%s requests latency (ms)' % proc, values,
+                                    unit=" ms"):
+                print(line)
+
+    # iostats functions
+    def iostats_output_disk(self, args):
+        for dev in self.state.disks.keys():
+            d = self.state.disks[dev]
+            if d.max is None:
+                d = self.state.disks[dev]
+            self.compute_disk_stats(d, args)
+            print("min : %s, max: %s, avg: %s, stdev: %s" % (d.min, d.max,
+                                                             d.total/d.count,
+                                                             d.stdev))
+
+    def iostats_output(self, args):
+        self.iostats_output_disk(args)
+
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
-        self.iotop_output()
+        self.iotop_output(args)
+        self.iostats_output(args)
+        self.iolatency_output(args)
 
     def reset_total(self, start_ts):
         for dev in self.state.disks.keys():
@@ -459,6 +540,8 @@ if __name__ == "__main__":
                         help='end time')
     parser.add_argument('--seconds', action="store_true",
                         help='display time in seconds since epoch')
+    parser.add_argument('--freq-resolution', type=int, default=20,
+                        help='Frequency distribution resolution (default 20)')
     args = parser.parse_args()
     args.proc_list = []
 

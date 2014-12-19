@@ -49,6 +49,8 @@ class Process():
         self.allocated_pages = 0
         self.freed_pages = 0
         self.total_syscalls = 0
+        # array of IORequest objects for freq analysis later
+        self.blockiorequests = []
 
 
 class CPU():
@@ -76,6 +78,13 @@ class Disk():
         self.completed_requests = 0
         self.request_time = 0
         self.pending_requests = {}
+        self.rq_list = []
+        self.max = None
+        self.min = None
+        self.total = None
+        self.count = None
+        self.rq_values = None
+        self.stdev = None
 
 
 class Iface():
@@ -120,6 +129,8 @@ class FD():
         self.fdtype = FDType.unknown
         # if FD was inherited, parent PID
         self.parent = -1
+        # array of syscall IORequest objects for freq analysis later
+        self.iorequests = []
 
 
 class IRQ():
@@ -144,6 +155,31 @@ class IRQ():
         self.stop_ts = -1
         self.raise_ts = -1
         self.cpu_id = -1
+
+
+class IORequest():
+    # I/O "type"
+    IO_SYSCALL = 1
+    IO_BLOCK = 2
+    IO_NET = 3
+    # I/O operations
+    OP_OPEN = 1
+    OP_READ = 2
+    OP_WRITE = 3
+    OP_CLOSE = 4
+    OP_SYNC = 5
+
+    def __init__(self):
+        # IORequest.IO_*
+        self.iotype = None
+        # bytes for syscalls and net, sectors for block
+        # FIXME: syscalls handling vectors (vector size missing)
+        self.size = None
+        # for syscalls and block: delay between issue and completion of the
+        # request normalized by size (block or bytes)
+        self.duration = None
+        # IORequest.OP_*
+        self.operation = None
 
 
 # imported from include/linux/kdev_t.h
