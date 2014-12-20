@@ -19,7 +19,7 @@ a list of processes (see `--name` parameter).
 ## Requirements
 * LTTng 2.5
 * Babeltrace 1.2 (with python bindings compiled)
-* Python 3.3+
+* Python 3.4+
 
 ## Install on Ubuntu (12.04 and 14.04 at least)
 ```
