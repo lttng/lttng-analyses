@@ -149,7 +149,7 @@ class IOTop():
             files[filename]["write"] = fd.write
             files[filename]["name"] = filename
             files[filename]["other"] = ["fd %d in %s (%d)" % (fd.fd,
-                                        tid.comm, tid.tid)]
+                                        tid.comm, tid.pid)]
         else:
             # merge counters of shared files
             filename = fd.filename
@@ -159,18 +159,20 @@ class IOTop():
                 files[filename]["write"] = fd.write
                 files[filename]["name"] = filename
                 files[filename]["other"] = ["fd %d in %s (%d)" %
-                                            (fd.fd, tid.comm, tid.tid)]
+                                            (fd.fd, tid.comm, tid.pid)]
                 files[filename]["tids"] = [tid.tid]
             else:
                 files[filename]["read"] += fd.read
                 files[filename]["write"] += fd.write
                 files[filename]["other"].append("fd %d in %s (%d)" %
                                                 (fd.fd, tid.comm,
-                                                 tid.tid))
+                                                 tid.pid))
 
     def create_files_dict(self):
         files = {}
         for tid in self.state.tids.values():
+            if not self.filter_process(args, tid):
+                continue
             for fd in tid.fds.values():
                 self.add_fd_dict(tid, fd, files)
             for fd in tid.closed_fds.values():
@@ -230,6 +232,13 @@ class IOTop():
         self.iotop_output_print_file_read(args, files)
         self.iotop_output_print_file_write(args, files)
 
+    def filter_process(self, args, proc):
+        if args.proc_list and proc.comm not in args.proc_list:
+            return False
+        if args.pid_filter_list and str(proc.pid) not in args.pid_filter_list:
+            return False
+        return True
+
     def iotop_output_read(self, args):
         count = 0
         limit = args.top
@@ -237,12 +246,12 @@ class IOTop():
         values = []
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('read'), reverse=True):
-            if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
+            if not self.filter_process(args, tid):
                 continue
             info_fmt = "{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown"
             values.append((info_fmt.format(
                            convert_size(tid.read, padding_after=True),
-                           "%s (%d)" % (tid.comm, tid.tid),
+                           "%s (%d)" % (tid.comm, tid.pid),
                            convert_size(tid.disk_read, padding_after=True),
                            convert_size(tid.net_read, padding_after=True),
                            convert_size(tid.unk_read, padding_after=True)),
@@ -261,12 +270,12 @@ class IOTop():
         values = []
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('write'), reverse=True):
-            if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
+            if not self.filter_process(args, tid):
                 continue
             info_fmt = "{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown "
             values.append((info_fmt.format(
                            convert_size(tid.write, padding_after=True),
-                           "%s (%d)" % (tid.comm, tid.tid),
+                           "%s (%d)" % (tid.comm, tid.pid),
                            convert_size(tid.disk_write, padding_after=True),
                            convert_size(tid.net_write, padding_after=True),
                            convert_size(tid.unk_write, padding_after=True)),
@@ -285,15 +294,15 @@ class IOTop():
         values = []
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('block_read'), reverse=True):
-            if tid.block_read == 0:
+            if not self.filter_process(args, tid):
                 continue
-            if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
+            if tid.block_read == 0:
                 continue
             info_fmt = "{:>10} {:<22}"
             values.append((info_fmt.format(convert_size(tid.block_read,
                                            padding_after=True),
-                                           "%s (tid=%d)" % (tid.comm,
-                                                            tid.tid)),
+                                           "%s (pid=%d)" % (tid.comm,
+                                                            tid.pid)),
                            tid.block_read))
             count = count + 1
             if limit > 0 and count >= limit:
@@ -309,15 +318,15 @@ class IOTop():
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('block_write'),
                           reverse=True):
-            if tid.block_write == 0:
+            if not self.filter_process(args, tid):
                 continue
-            if len(args.proc_list) > 0 and tid.comm not in args.proc_list:
+            if tid.block_write == 0:
                 continue
             info_fmt = "{:>10} {:<22}"
             values.append((info_fmt.format(convert_size(tid.block_write,
                                            padding_after=True),
-                                           "%s (tid=%d)" % (tid.comm,
-                                                            tid.tid)),
+                                           "%s (pid=%d)" % (tid.comm,
+                                                            tid.pid)),
                            tid.block_write))
             count = count + 1
             if limit > 0 and count >= limit:
@@ -499,8 +508,10 @@ class IOTop():
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         self.iotop_output(args)
-        self.iostats_output(args)
-        self.iolatency_output(args)
+        if args.stats:
+            self.iostats_output(args)
+        if args.freq:
+            self.iolatency_output(args)
 
     def reset_total(self, start_ts):
         for dev in self.state.disks.keys():
@@ -532,8 +543,10 @@ if __name__ == "__main__":
     parser.add_argument('--top', type=int, default=10,
                         help='Limit to top X TIDs (default = 10)')
     parser.add_argument('--name', type=str, default=0,
-                        help='Show the I/O latency for this list of processes '
-                             '("all" accepted)')
+                        help='Filter the results only for this list of '
+                             'process names')
+    parser.add_argument('--pid', type=str, default=0,
+                        help='Filter the results only for this list of PIDs')
     parser.add_argument('--latency', type=int, default=-1,
                         help='Only show I/O requests with a latency above '
                              'this threshold (ms)')
@@ -548,15 +561,22 @@ if __name__ == "__main__":
                         help='end time')
     parser.add_argument('--seconds', action="store_true",
                         help='display time in seconds since epoch')
+    parser.add_argument('--stats', action="store_true",
+                        help='Display I/O and syscalls statistics')
+    parser.add_argument('--freq', action="store_true",
+                        help='Display frequency distribution of I/O '
+                             'and syscalls')
     parser.add_argument('--freq-resolution', type=int, default=20,
                         help='Frequency distribution resolution (default 20)')
     args = parser.parse_args()
-    args.proc_list = []
 
+    args.proc_list = None
     if args.name:
-        args.names = args.name.split(",")
-    else:
-        args.names = None
+        args.proc_list = args.name.split(",")
+
+    args.pid_filter_list = None
+    if args.pid:
+        args.pid_filter_list = args.pid.split(",")
 
     traces = TraceCollection()
     handle = traces.add_traces_recursive(args.path, "ctf")
