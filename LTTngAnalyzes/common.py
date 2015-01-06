@@ -180,6 +180,12 @@ class IORequest():
         self.duration = None
         # IORequest.OP_*
         self.operation = None
+        # begin syscall timestamp
+        self.begin = None
+        # end syscall timestamp
+        self.end = None
+        # current process
+        self.proc = None
 
 
 # imported from include/linux/kdev_t.h

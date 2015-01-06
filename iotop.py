@@ -520,6 +520,10 @@ class IOTop():
         write_rq = []
         sync_rq = []
         open_rq = []
+        all_read = []
+        all_write = []
+        all_open = []
+        all_sync = []
         for tid in self.state.tids.values():
             if not self.filter_process(args, tid):
                 continue
@@ -531,6 +535,7 @@ class IOTop():
                         read_count += 1
                         read_total += rq.duration
                         read_rq.append(rq.duration)
+                        all_read.append(rq)
                         read_min, read_max = self.iostats_minmax(rq.duration,
                                                                  read_min,
                                                                  read_max)
@@ -538,6 +543,7 @@ class IOTop():
                         write_count += 1
                         write_total += rq.duration
                         write_rq.append(rq.duration)
+                        all_write.append(rq)
                         write_min, write_max = self.iostats_minmax(rq.duration,
                                                                    write_min,
                                                                    write_max)
@@ -545,6 +551,7 @@ class IOTop():
                         sync_count += 1
                         sync_total += rq.duration
                         sync_rq.append(rq.duration)
+                        all_sync.append(rq)
                         sync_min, sync_max = self.iostats_minmax(rq.duration,
                                                                  sync_min,
                                                                  sync_max)
@@ -552,12 +559,14 @@ class IOTop():
                         open_count += 1
                         open_total += rq.duration
                         open_rq.append(rq.duration)
+                        all_open.append(rq)
                         open_min, open_max = self.iostats_minmax(rq.duration,
                                                                  open_min,
                                                                  open_max)
-        print("Syscalls statistics (usec):")
-        fmt = "{:<6} {:>14} {:>14} {:>14} {:>14} {:>14}"
+        print("\nSyscalls statistics (usec):")
+        fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
         print(fmt.format("Type", "Count", "Min", "Average", "Max", "Stdev"))
+        print("-" * 89)
         self.iostats_syscalls_line(fmt, "Open", open_count, open_min, open_max,
                                    open_total, open_rq)
         self.iostats_syscalls_line(fmt, "Read", read_count, read_min, read_max,
@@ -566,17 +575,26 @@ class IOTop():
                                    write_max, write_total, write_rq)
         self.iostats_syscalls_line(fmt, "Sync", sync_count, sync_min, sync_max,
                                    sync_total, sync_rq)
+        #for tid in sorted(self.state.tids.values(),
+        #                  key=operator.attrgetter('read'), reverse=True):
 
     # iostats functions
     def iostats_output_disk(self, args):
+        if len(self.state.disks.keys()) == 0:
+            return
+        print("\nDisk statistics (usec):")
+        fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
+        print(fmt.format("Name", "Count", "Min", "Average", "Max", "Stdev"))
+        print("-" * 89)
+
         for dev in self.state.disks.keys():
             d = self.state.disks[dev]
             if d.max is None:
                 d = self.state.disks[dev]
             self.compute_disk_stats(d, args)
             if d.count is not None:
-                print("min : %s, max: %s, avg: %s, "
-                      "stdev: %s" % (d.min, d.max, d.total/d.count, d.stdev))
+                self.iostats_syscalls_line(fmt, d.prettyname, d.count, d.min,
+                                           d.max, d.total, d.rq_values)
 
     def iostats_output(self, args):
         self.iostats_syscalls(args)

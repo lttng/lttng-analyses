@@ -463,12 +463,16 @@ class Syscalls():
     def track_rw_latency(self, name, ret, c, ts, started, event):
         current_syscall = self.tids[c.current_tid].current_syscall
         rq = current_syscall["iorequest"]
+#       FIXME: useless ?
+#        if "start" not in current_syscall.keys():
+#            return
         if rq.size is None or rq.size == 0:
             rq.duration = (event.timestamp - current_syscall["start"])
         else:
             rq.duration = (event.timestamp - current_syscall["start"])/rq.size
-        if "start" not in current_syscall.keys():
-            return
+        rq.begin = current_syscall["start"]
+        rq.end = event.timestamp
+        rq.proc = self.tids[c.current_tid]
         if "fd" in current_syscall.keys():
             filename = current_syscall["fd"].filename
             fd = current_syscall["fd"].fd
