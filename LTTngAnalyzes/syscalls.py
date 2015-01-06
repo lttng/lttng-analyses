@@ -467,21 +467,22 @@ class Syscalls():
             rq.duration = (event.timestamp - current_syscall["start"])
         else:
             rq.duration = (event.timestamp - current_syscall["start"])/rq.size
-        if not self.names:
-            return
         if "start" not in current_syscall.keys():
             return
         if "fd" in current_syscall.keys():
             filename = current_syscall["fd"].filename
             fd = current_syscall["fd"].fd
+            r = current_syscall["fd"].iorequests
+            r.append(current_syscall["iorequest"])
         elif "fd_in" in current_syscall.keys():
             filename = current_syscall["fd_in"].filename
             fd = current_syscall["fd_in"].fd
         else:
             filename = "unknown"
             fd = ""
-        fd.iorequests.append(current_syscall["iorequest"])
         if self.latency < 0:
+            return
+        if not self.names:
             return
         ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
         latency = "%0.03f ms" % ms
@@ -611,6 +612,7 @@ class Syscalls():
             current_syscall["fd"] = self.get_fd(t, ret)
             current_syscall["count"] = 0
             current_syscall["fd"].fdtype = current_syscall["fdtype"]
+            current_syscall["iorequest"].operation = IORequest.OP_OPEN
             self.track_rw_latency(name, ret, c,
                                   event.timestamp, started, event)
         elif name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
@@ -618,6 +620,7 @@ class Syscalls():
             self.track_rw_latency(name, ret, c, event.timestamp,
                                   started, event)
         elif name in Syscalls.SYNC_SYSCALLS:
+            current_syscall["iorequest"].operation = IORequest.OP_SYNC
             self.track_rw_latency(name, ret, c, event.timestamp,
                                   started, event)
         self.tids[c.current_tid].current_syscall = {}

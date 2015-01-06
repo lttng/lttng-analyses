@@ -23,7 +23,7 @@ except ImportError:
     from babeltrace import TraceCollection
 from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
-    ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection
+    ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection, IORequest
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -485,11 +485,87 @@ class IOTop():
                                     unit=" ms"):
                 print(line)
 
+    def iostats_minmax(self, duration, current_min, current_max):
+        _min = current_min
+        _max = current_max
+        if current_min is None or duration < current_min:
+            _min = duration
+        if duration > current_max:
+            _max = duration
+        return (_min, _max)
+
+    def iostats_syscalls_line(self, fmt, name, count, _min, _max, total, rq):
+        if count < 2:
+            stdev = "?"
+        else:
+            stdev = "%0.03f" % (statistics.stdev(rq) / 1000)
+        if count < 1:
+            avg = "0.000"
+        else:
+            avg = "%0.03f" % (total / (count * 1000))
+        if _min is None:
+            _min = 0
+        _min = "%0.03f" % (_min / 1000)
+        _max = "%0.03f" % (_max / 1000)
+        print(fmt.format(name, count, _min, avg, _max, stdev))
+
     def iostats_syscalls(self, args):
-        #read_max = read_count = read_total = 0
-        #write_max = write_count = write_total = 0
-        #read_min = write_min = -1
-        pass
+        read_max = read_count = read_total = 0
+        write_max = write_count = write_total = 0
+        open_max = open_count = open_total = 0
+        sync_max = sync_count = sync_total = 0
+        read_min = write_min = sync_min = open_min = None
+        read_total = write_total = sync_total = open_total = 0
+        read_rq = []
+        write_rq = []
+        sync_rq = []
+        open_rq = []
+        for tid in self.state.tids.values():
+            if not self.filter_process(args, tid):
+                continue
+            for fd in tid.fds.values():
+                for rq in fd.iorequests:
+                    if rq.iotype != IORequest.IO_SYSCALL:
+                        continue
+                    if rq.operation == IORequest.OP_READ:
+                        read_count += 1
+                        read_total += rq.duration
+                        read_rq.append(rq.duration)
+                        read_min, read_max = self.iostats_minmax(rq.duration,
+                                                                 read_min,
+                                                                 read_max)
+                    elif rq.operation == IORequest.OP_WRITE:
+                        write_count += 1
+                        write_total += rq.duration
+                        write_rq.append(rq.duration)
+                        write_min, write_max = self.iostats_minmax(rq.duration,
+                                                                   write_min,
+                                                                   write_max)
+                    elif rq.operation == IORequest.OP_SYNC:
+                        sync_count += 1
+                        sync_total += rq.duration
+                        sync_rq.append(rq.duration)
+                        sync_min, sync_max = self.iostats_minmax(rq.duration,
+                                                                 sync_min,
+                                                                 sync_max)
+                    elif rq.operation == IORequest.OP_OPEN:
+                        open_count += 1
+                        open_total += rq.duration
+                        open_rq.append(rq.duration)
+                        open_min, open_max = self.iostats_minmax(rq.duration,
+                                                                 open_min,
+                                                                 open_max)
+        print("Syscalls statistics (usec):")
+        fmt = "{:<6} {:>14} {:>14} {:>14} {:>14} {:>14}"
+        print(fmt.format("Type", "Count", "Min", "Average", "Max", "Stdev"))
+        self.iostats_syscalls_line(fmt, "Open", open_count, open_min, open_max,
+                                   open_total, open_rq)
+        self.iostats_syscalls_line(fmt, "Read", read_count, read_min, read_max,
+                                   read_total, read_rq)
+        self.iostats_syscalls_line(fmt, "Write", write_count, write_min,
+                                   write_max, write_total, write_rq)
+        self.iostats_syscalls_line(fmt, "Sync", sync_count, sync_min, sync_max,
+                                   sync_total, sync_rq)
 
     # iostats functions
     def iostats_output_disk(self, args):
@@ -503,6 +579,7 @@ class IOTop():
                       "stdev: %s" % (d.min, d.max, d.total/d.count, d.stdev))
 
     def iostats_output(self, args):
+        self.iostats_syscalls(args)
         self.iostats_output_disk(args)
 
     def output(self, args, begin_ns, end_ns, final=0):
