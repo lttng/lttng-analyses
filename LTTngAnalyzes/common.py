@@ -186,6 +186,8 @@ class IORequest():
         self.end = None
         # current process
         self.proc = None
+        # current FD (for syscalls)
+        self.fd = None
 
 
 # imported from include/linux/kdev_t.h

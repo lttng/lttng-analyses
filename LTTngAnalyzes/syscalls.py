@@ -476,11 +476,13 @@ class Syscalls():
         if "fd" in current_syscall.keys():
             filename = current_syscall["fd"].filename
             fd = current_syscall["fd"].fd
+            rq.fd = current_syscall["fd"]
             r = current_syscall["fd"].iorequests
             r.append(current_syscall["iorequest"])
         elif "fd_in" in current_syscall.keys():
             filename = current_syscall["fd_in"].filename
             fd = current_syscall["fd_in"].fd
+            rq.fd = current_syscall["fd_in"]
         else:
             filename = "unknown"
             fd = ""
