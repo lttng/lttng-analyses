@@ -23,7 +23,8 @@ except ImportError:
     from babeltrace import TraceCollection
 from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
-    ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection, IORequest
+    ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection, \
+    IORequest, Syscalls_stats
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -509,21 +510,8 @@ class IOTop():
         _max = "%0.03f" % (_max / 1000)
         print(fmt.format(name, count, _min, avg, _max, stdev))
 
-    def iostats_syscalls(self, args):
-        read_max = read_count = read_total = 0
-        write_max = write_count = write_total = 0
-        open_max = open_count = open_total = 0
-        sync_max = sync_count = sync_total = 0
-        read_min = write_min = sync_min = open_min = None
-        read_total = write_total = sync_total = open_total = 0
-        read_rq = []
-        write_rq = []
-        sync_rq = []
-        open_rq = []
-        all_read = []
-        all_write = []
-        all_open = []
-        all_sync = []
+    def compute_syscalls_stats(self, args):
+        s = Syscalls_stats()
         for tid in self.state.tids.values():
             if not self.filter_process(args, tid):
                 continue
@@ -532,70 +520,69 @@ class IOTop():
                     if rq.iotype != IORequest.IO_SYSCALL:
                         continue
                     if rq.operation == IORequest.OP_READ:
-                        read_count += 1
-                        read_total += rq.duration
-                        read_rq.append(rq.duration)
-                        all_read.append(rq)
-                        read_min, read_max = self.iostats_minmax(rq.duration,
-                                                                 read_min,
-                                                                 read_max)
+                        s.read_count += 1
+                        s.read_total += rq.duration
+                        s.read_rq.append(rq.duration)
+                        s.all_read.append(rq)
+                        s.read_min, s.read_max = self.iostats_minmax(
+                            rq.duration, s.read_min, s.read_max)
                     elif rq.operation == IORequest.OP_WRITE:
-                        write_count += 1
-                        write_total += rq.duration
-                        write_rq.append(rq.duration)
-                        all_write.append(rq)
-                        write_min, write_max = self.iostats_minmax(rq.duration,
-                                                                   write_min,
-                                                                   write_max)
+                        s.write_count += 1
+                        s.write_total += rq.duration
+                        s.write_rq.append(rq.duration)
+                        s.all_write.append(rq)
+                        s.write_min, s.write_max = self.iostats_minmax(
+                            rq.duration, s.write_min, s.write_max)
                     elif rq.operation == IORequest.OP_SYNC:
-                        sync_count += 1
-                        sync_total += rq.duration
-                        sync_rq.append(rq.duration)
-                        all_sync.append(rq)
-                        sync_min, sync_max = self.iostats_minmax(rq.duration,
-                                                                 sync_min,
-                                                                 sync_max)
+                        s.sync_count += 1
+                        s.sync_total += rq.duration
+                        s.sync_rq.append(rq.duration)
+                        s.all_sync.append(rq)
+                        s.sync_min, s.sync_max = self.iostats_minmax(
+                            rq.duration, s.sync_min, s.sync_max)
                     elif rq.operation == IORequest.OP_OPEN:
-                        open_count += 1
-                        open_total += rq.duration
-                        open_rq.append(rq.duration)
-                        all_open.append(rq)
-                        open_min, open_max = self.iostats_minmax(rq.duration,
-                                                                 open_min,
-                                                                 open_max)
+                        s.open_count += 1
+                        s.open_total += rq.duration
+                        s.open_rq.append(rq.duration)
+                        s.all_open.append(rq)
+                        s.open_min, s.open_max = self.iostats_minmax(
+                            rq.duration, s.open_min, s.open_max)
+        return s
 
-        if args.stats:
-            print("\nSyscalls statistics (usec):")
-            fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
-            print(fmt.format("Type", "Count", "Min", "Average",
-                             "Max", "Stdev"))
-            print("-" * 89)
-            self.iostats_syscalls_line(fmt, "Open", open_count, open_min,
-                                       open_max, open_total, open_rq)
-            self.iostats_syscalls_line(fmt, "Read", read_count, read_min,
-                                       read_max, read_total, read_rq)
-            self.iostats_syscalls_line(fmt, "Write", write_count, write_min,
-                                       write_max, write_total, write_rq)
-            self.iostats_syscalls_line(fmt, "Sync", sync_count, sync_min,
-                                       sync_max, sync_total, sync_rq)
+    def iostats_output_syscalls(self, args):
+        s = self.syscalls_stats
+        print("\nSyscalls statistics (usec):")
+        fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
+        print(fmt.format("Type", "Count", "Min", "Average",
+                         "Max", "Stdev"))
+        print("-" * 89)
+        self.iostats_syscalls_line(fmt, "Open", s.open_count, s.open_min,
+                                   s.open_max, s.open_total, s.open_rq)
+        self.iostats_syscalls_line(fmt, "Read", s.read_count, s.read_min,
+                                   s.read_max, s.read_total, s.read_rq)
+        self.iostats_syscalls_line(fmt, "Write", s.write_count, s.write_min,
+                                   s.write_max, s.write_total, s.write_rq)
+        self.iostats_syscalls_line(fmt, "Sync", s.sync_count, s.sync_min,
+                                   s.sync_max, s.sync_total, s.sync_rq)
 
-        if args.freq:
-            if open_count > 0:
-                self.iolatency_freq_histogram(open_min/1000, open_max/1000,
-                                              args.freq_resolution, open_rq,
-                                              "Open latency distribution")
-            if read_count > 0:
-                self.iolatency_freq_histogram(read_min/1000, read_max/1000,
-                                              args.freq_resolution, read_rq,
-                                              "Read latency distribution")
-            if write_count > 0:
-                self.iolatency_freq_histogram(write_min/1000, write_max/1000,
-                                              args.freq_resolution, write_rq,
-                                              "Write latency distribution")
-            if sync_count > 0:
-                self.iolatency_freq_histogram(sync_min/1000, sync_max/1000,
-                                              args.freq_resolution, sync_rq,
-                                              "Sync latency distribution")
+    def iolatency_syscalls_output(self, args):
+        s = self.syscalls_stats
+        if s.open_count > 0:
+            self.iolatency_freq_histogram(s.open_min/1000, s.open_max/1000,
+                                          args.freq_resolution, s.open_rq,
+                                          "Open latency distribution")
+        if s.read_count > 0:
+            self.iolatency_freq_histogram(s.read_min/1000, s.read_max/1000,
+                                          args.freq_resolution, s.read_rq,
+                                          "Read latency distribution")
+        if s.write_count > 0:
+            self.iolatency_freq_histogram(s.write_min/1000, s.write_max/1000,
+                                          args.freq_resolution, s.write_rq,
+                                          "Write latency distribution")
+        if s.sync_count > 0:
+            self.iolatency_freq_histogram(s.sync_min/1000, s.sync_max/1000,
+                                          args.freq_resolution, s.sync_rq,
+                                          "Sync latency distribution")
         # top X read latency
 #        limit = args.top
 #        count = 0
@@ -625,15 +612,17 @@ class IOTop():
                                            d.max, d.total, d.rq_values)
 
     def iostats_output(self, args):
-        self.iostats_syscalls(args)
+        self.iostats_output_syscalls(args)
         self.iostats_output_disk(args)
 
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         self.iotop_output(args)
+        self.syscalls_stats = self.compute_syscalls_stats(args)
         if args.stats:
             self.iostats_output(args)
         if args.freq:
+            self.iolatency_syscalls_output(args)
             self.iolatency_output(args)
 
     def reset_total(self, start_ts):
