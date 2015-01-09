@@ -609,7 +609,8 @@ class IOTop():
                                              args.gmt) + "]",
                              "%0.03f" % (rq.duration/1000),
                              size, rq.proc.comm,
-                             rq.proc.pid, rq.fd.filename))
+                             rq.proc.pid,
+                             "%s (fd=%d)" % (rq.fd.filename, rq.fd.fd)))
             count += 1
 
     def iolatency_syscalls_top_output(self, args):
