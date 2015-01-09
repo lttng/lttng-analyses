@@ -24,7 +24,7 @@ except ImportError:
 from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
     ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection, \
-    IORequest, Syscalls_stats
+    IORequest, Syscalls_stats, ns_to_hour_nsec
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -583,15 +583,45 @@ class IOTop():
             self.iolatency_freq_histogram(s.sync_min/1000, s.sync_max/1000,
                                           args.freq_resolution, s.sync_rq,
                                           "Sync latency distribution")
+
+    def iolatency_syscalls_top(self, args, title, rq_list):
         # top X read latency
-#        limit = args.top
-#        count = 0
-#        for rq in sorted(all_read,
-#                key=operator.attrgetter('duration'), reverse=True):
-#            if count > limit:
-#                break
-#            print(rq.begin, rq.end, rq.duration, rq.proc.comm, rq.fd.filename)
-#            count += 1
+        limit = args.top
+        count = 0
+        if len(rq_list) == 0:
+            return
+        print(title)
+        title_fmt = "{:<19} {:<22} {:<23} {:<5} {:<24} {:<8} {:<14}"
+        fmt = "{:<41} {:>16} {:>12}  {:<24} {:<8} {:<14}"
+        print(title_fmt.format("Begin", "End", "Duration (usec)", "Size",
+                               "Proc", "PID", "Filename"))
+        for rq in sorted(rq_list,
+                         key=operator.attrgetter('duration'), reverse=True):
+            if count > limit:
+                break
+            if rq.size is None:
+                size = "N/A"
+            else:
+                size = convert_size(rq.size)
+            print(fmt.format("[" + ns_to_hour_nsec(rq.begin, args.multi_day,
+                                                   args.gmt) + "," +
+                             ns_to_hour_nsec(rq.end, args.multi_day,
+                                             args.gmt) + "]",
+                             "%0.03f" % (rq.duration/1000),
+                             size, rq.proc.comm,
+                             rq.proc.pid, rq.fd.filename))
+            count += 1
+
+    def iolatency_syscalls_top_output(self, args):
+        s = self.syscalls_stats
+        self.iolatency_syscalls_top(
+            args, "\nTop open syscall latencies (usec)", s.all_open)
+        self.iolatency_syscalls_top(
+            args, "\nTop read syscall latencies (usec)", s.all_read)
+        self.iolatency_syscalls_top(
+            args, "\nTop write syscall latencies (usec)", s.all_write)
+        self.iolatency_syscalls_top(
+            args, "\nTop sync syscall latencies (usec)", s.all_sync)
 
     # iostats functions
     def iostats_output_disk(self, args):
@@ -621,6 +651,7 @@ class IOTop():
         self.syscalls_stats = self.compute_syscalls_latency_stats(args)
         if args.stats:
             self.iostats_output(args)
+            self.iolatency_syscalls_top_output(args)
         if args.freq:
             self.iolatency_syscalls_output(args)
             self.iolatency_output(args)

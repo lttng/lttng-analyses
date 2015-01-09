@@ -175,8 +175,8 @@ class IORequest():
         # bytes for syscalls and net, sectors for block
         # FIXME: syscalls handling vectors (vector size missing)
         self.size = None
-        # for syscalls and block: delay between issue and completion of the
-        # request normalized by size (block or bytes)
+        # for syscalls and block: delay between issue and completion
+        # of the request
         self.duration = None
         # IORequest.OP_*
         self.operation = None

@@ -465,10 +465,7 @@ class Syscalls():
 #       FIXME: useless ?
 #        if "start" not in current_syscall.keys():
 #            return
-        if rq.size is None or rq.size == 0:
-            rq.duration = (event.timestamp - current_syscall["start"])
-        else:
-            rq.duration = (event.timestamp - current_syscall["start"])/rq.size
+        rq.duration = (event.timestamp - current_syscall["start"])
         rq.begin = current_syscall["start"]
         rq.end = event.timestamp
         rq.proc = self.tids[c.current_tid]
