@@ -591,62 +591,41 @@ class IOTop():
                                           args.freq_resolution, s.sync_rq,
                                           "Sync latency distribution")
 
-    def iolatency_syscalls_top(self, args, title, rq_list):
-        # TODO: extras (dirty, free, alloc, etc)
+    def iolatency_syscalls_list_output(self, args, title, rq_list,
+                                       sortkey, reverse):
         limit = args.top
         count = 0
         if len(rq_list) == 0:
             return
         print(title)
-        title_fmt = "{:<19} {:<22} {:<23} {:<5} {:<24} {:<8} {:<14}"
-        fmt = "{:<41} {:>16} {:>12}  {:<24} {:<8} {:<14}"
-        print(title_fmt.format("Begin", "End", "Duration (usec)", "Size",
-                               "Proc", "PID", "Filename"))
+        if args.extra:
+            extra_fmt = "{:<48}"
+            extra_title = "{:<8} {:<8} {:<8} {:<8} {:<8} {:<8} ".format(
+                "Dirtied", "Alloc", "Free", "Written", "Kswap", "Cleared")
+        else:
+            extra_fmt = "{:<0}"
+            extra_title = ""
+        title_fmt = "{:<19} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} " + \
+            extra_fmt + "{:<14}"
+        fmt = "{:<40} {:<15} {:>16} {:>12}  {:<24} {:<8} " + \
+            extra_fmt + "{:<14}"
+        print(title_fmt.format("Begin", "End", "Name", "Duration (usec)",
+                               "Size", "Proc", "PID", extra_title, "Filename"))
         for rq in sorted(rq_list,
-                         key=operator.attrgetter('duration'), reverse=True):
-            if count > limit:
+                         key=operator.attrgetter(sortkey), reverse=reverse):
+            # only limit the output if in the "top" view
+            if reverse and count > limit:
                 break
             if rq.size is None:
                 size = "N/A"
             else:
                 size = convert_size(rq.size)
-            print(fmt.format("[" + ns_to_hour_nsec(rq.begin, args.multi_day,
-                                                   args.gmt) + "," +
-                             ns_to_hour_nsec(rq.end, args.multi_day,
-                                             args.gmt) + "]",
-                             "%0.03f" % (rq.duration/1000),
-                             size, rq.proc.comm,
-                             rq.proc.pid,
-                             "%s (fd=%d)" % (rq.fd.filename, rq.fd.fd)))
-            count += 1
-
-    def iolatency_syscalls_top_output(self, args):
-        s = self.syscalls_stats
-        self.iolatency_syscalls_top(
-            args, "\nTop open syscall latencies (usec)", s.all_open)
-        self.iolatency_syscalls_top(
-            args, "\nTop read syscall latencies (usec)", s.all_read)
-        self.iolatency_syscalls_top(
-            args, "\nTop write syscall latencies (usec)", s.all_write)
-        self.iolatency_syscalls_top(
-            args, "\nTop sync syscall latencies (usec)", s.all_sync)
-
-    def iolatency_syscalls_log_output(self, args):
-        s = self.syscalls_stats
-        print("\nLog of all I/O system calls")
-        all_rq = s.all_open + s.all_read + s.all_write + s.all_sync
-        if len(all_rq) == 0:
-            return
-        title_fmt = "{:<19} {:<20} {:<13} {:<23} {:<5} {:<24} {:<8} {:<14}"
-        fmt = "{:<40} {:<12} {:>16} {:>12}  {:<24} {:<8} {:<14}"
-        print(title_fmt.format("Begin", "End", "Name", "Duration (usec)",
-                               "Size", "Proc", "PID", "Filename"))
-        for rq in sorted(all_rq,
-                         key=operator.attrgetter('begin'), reverse=False):
-            if rq.size is None:
-                size = "N/A"
+            if args.extra:
+                extra = "{:<8} {:<8} {:<8} {:<8} {:<8} {:<8} ".format(
+                    rq.dirty, rq.page_alloc, rq.page_free, rq.page_written,
+                    rq.woke_kswapd, rq.page_cleared)
             else:
-                size = convert_size(rq.size)
+                extra = ""
             name = rq.name.replace("syscall_entry_", "").replace("sys_", "")
             print(fmt.format("[" + ns_to_hour_nsec(rq.begin, args.multi_day,
                                                    args.gmt) + "," +
@@ -655,11 +634,35 @@ class IOTop():
                              name,
                              "%0.03f" % (rq.duration/1000),
                              size, rq.proc.comm,
-                             rq.proc.pid,
+                             rq.proc.pid, extra,
                              "%s (fd=%d)" % (rq.fd.filename, rq.fd.fd)))
+            count += 1
+
+    def iolatency_syscalls_top_output(self, args):
+        s = self.syscalls_stats
+        self.iolatency_syscalls_list_output(
+            args, "\nTop open syscall latencies (usec)", s.all_open,
+            "duration", True)
+        self.iolatency_syscalls_list_output(
+            args, "\nTop read syscall latencies (usec)", s.all_read,
+            "duration", True)
+        self.iolatency_syscalls_list_output(
+            args, "\nTop write syscall latencies (usec)", s.all_write,
+            "duration", True)
+        self.iolatency_syscalls_list_output(
+            args, "\nTop sync syscall latencies (usec)", s.all_sync,
+            "duration", True)
+
+    def iolatency_syscalls_log_output(self, args):
+        s = self.syscalls_stats
+        self.iolatency_syscalls_list_output(
+            args, "\nLog of all I/O system calls",
+            s.all_open + s.all_read + s.all_write + s.all_sync,
+            "begin", False)
 
     # iostats functions
     def iostats_output_disk(self, args):
+        # TODO same with network
         if len(self.state.disks.keys()) == 0:
             return
         print("\nDisk latency statistics (usec):")
@@ -687,11 +690,11 @@ class IOTop():
         if args.stats:
             self.iostats_output(args)
             self.iolatency_syscalls_top_output(args)
-        if args.log:
-            self.iolatency_syscalls_log_output(args)
         if args.freq:
             self.iolatency_syscalls_output(args)
             self.iolatency_output(args)
+        if args.log:
+            self.iolatency_syscalls_log_output(args)
 
     def reset_total(self, start_ts):
         for dev in self.state.disks.keys():
@@ -735,16 +738,16 @@ if __name__ == "__main__":
     parser.add_argument('--gmt', action="store_true",
                         help='Manipulate timestamps based on GMT instead '
                         'of local time')
-    parser.add_argument('--begin', type=str,
-                        help='start time')
-    parser.add_argument('--end', type=str,
-                        help='end time')
+    parser.add_argument('--begin', type=str, help='start time')
+    parser.add_argument('--end', type=str, help='end time')
     parser.add_argument('--seconds', action="store_true",
                         help='display time in seconds since epoch')
     parser.add_argument('--stats', action="store_true",
                         help='Display I/O and syscalls statistics')
     parser.add_argument('--log', action="store_true",
                         help='Display syscalls requests')
+    parser.add_argument('--extra', action="store_true",
+                        help='Display extra information in latency log/top')
     parser.add_argument('--freq', action="store_true",
                         help='Display frequency distribution of I/O '
                              'and syscalls')

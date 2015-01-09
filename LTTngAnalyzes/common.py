@@ -190,6 +190,18 @@ class IORequest():
         self.proc = None
         # current FD (for syscalls)
         self.fd = None
+        # buffers dirtied during the operation
+        self.dirty = 0
+        # pages allocated during the operation
+        self.page_alloc = 0
+        # pages freed during the operation
+        self.page_free = 0
+        # pages written on disk during the operation
+        self.page_written = 0
+        # kswapd was forced to wakeup during the operation
+        self.woke_kswapd = False
+        # estimated pages flushed during a sync operation
+        self.page_cleared = 0
 
 
 class Syscalls_stats():

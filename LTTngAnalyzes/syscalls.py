@@ -1,6 +1,5 @@
-from LTTngAnalyzes.common import FDType, FD, MSEC_PER_NSEC, \
-    ns_to_hour_nsec, ns_to_sec, Syscall, O_CLOEXEC, get_v4_addr_str, Process, \
-    IORequest
+from LTTngAnalyzes.common import FDType, FD, ns_to_hour_nsec, Syscall, \
+    O_CLOEXEC, get_v4_addr_str, Process, IORequest
 import socket
 import operator
 
@@ -470,112 +469,30 @@ class Syscalls():
         rq.end = event.timestamp
         rq.proc = self.tids[c.current_tid]
         if "fd" in current_syscall.keys():
-            filename = current_syscall["fd"].filename
-            fd = current_syscall["fd"].fd
             rq.fd = current_syscall["fd"]
             r = current_syscall["fd"].iorequests
             r.append(current_syscall["iorequest"])
         elif "fd_in" in current_syscall.keys():
-            filename = current_syscall["fd_in"].filename
-            fd = current_syscall["fd_in"].fd
             rq.fd = current_syscall["fd_in"]
-        else:
-            filename = "unknown"
-            fd = ""
-        if self.latency < 0:
-            return
-        if not self.names:
-            return
-        ms = (ts - current_syscall["start"]) / MSEC_PER_NSEC
-        latency = "%0.03f ms" % ms
-
-        if self.seconds:
-            ts_start = ns_to_sec(current_syscall["start"])
-            ts_end = ns_to_sec(ts)
-        else:
-            ts_start = ns_to_hour_nsec(current_syscall["start"])
-            ts_end = ns_to_hour_nsec(ts)
-        procname = self.tids[c.current_tid].comm
-        if name in ["sys_recvmsg", "syscall_entry_recvmsg"]:
-            count = ""
-        elif name in Syscalls.SYNC_SYSCALLS:
-            count = ""
-        else:
-            count = ", count = %s" % (current_syscall["count"])
-        if self.names and self.latency < 0:
-            self.latency = 0
-        if self.latency >= 0 and ms > self.latency:
-            if self.names and "all" not in self.names and \
-                    procname not in self.names:
-                return
-            if not started:
-                return
-            if self.latency_hist is not None:
-                if procname not in self.latency_hist.keys():
-                    self.latency_hist[procname] = []
-                self.latency_hist[procname].append((ts_start, ms))
-            # pages written during the latency
-            if "pages_written" in current_syscall.keys():
-                pages = current_syscall["pages_written"]
-            # dirty buffers during the latency
-            if "dirty" in current_syscall.keys():
-                dirty = current_syscall["dirty"]
-            else:
-                dirty = 0
-            # alloc pages during the latency
-            if "alloc" in current_syscall.keys():
-                alloc = current_syscall["alloc"]
-            else:
-                alloc = 0
-            # wakeup_kswapd during the latency
-            if "page_free" in current_syscall.keys():
-                freed = current_syscall["page_free"]
-            else:
-                freed = 0
-            base = "[%s - %s] %s (%d)" % (ts_start, ts_end,
-                                          procname, c.current_tid)
-            spaces = (41) * " "
-            page_cache = {}
-            print("%s %s(fd = %s <%s>%s) = %d, %s" %
-                  (base, name, fd, filename, count, ret, latency))
-            if alloc > 0:
-                print("%s %d pages allocated during the period" % (spaces,
-                                                                   alloc))
-            if dirty > 0:
-                print("%s %d buffers dirtied during the period" % (spaces,
-                                                                   dirty))
-            if "wakeup_kswapd" in current_syscall.keys():
-                print("%s woke up kswapd during the period" % (spaces))
-                # dirty pages up-to now
-                page_cache = self.get_page_queue_stats(
-                    self.dirty_pages["pages"])
-            if "pages_written" in current_syscall.keys():
-                print("%s %d pages written on disk" % (spaces, pages))
-            if freed > 0:
-                print("%s freed %d pages from the cache during the period" %
-                      (spaces, freed))
-            if name in Syscalls.SYNC_SYSCALLS:
-                self.syscall_clear_pages(event, name, fd, current_syscall,
-                                         self.tids[c.current_tid])
+        # pages written during the latency
+        if "pages_written" in current_syscall.keys():
+            rq.page_written = current_syscall["pages_written"]
+        # dirty buffers during the latency
+        if "dirty" in current_syscall.keys():
+            rq.dirty = current_syscall["dirty"]
+        # alloc pages during the latency
+        if "alloc" in current_syscall.keys():
+            rq.page_alloc = current_syscall["alloc"]
+        # wakeup_kswapd during the latency
+        if "page_free" in current_syscall.keys():
+            rq.page_free = current_syscall["page_free"]
+        if "wakeup_kswapd" in current_syscall.keys():
+            rq.woke_kswapd = True
+        if name in Syscalls.SYNC_SYSCALLS:
+#            self.syscall_clear_pages(event, name, fd, current_syscall,
+#                                     self.tids[c.current_tid])
             if "pages_cleared" in current_syscall.keys():
-                print("%s %d dirty page(s) were flushed (assuming FIFO):" %
-                      (spaces, len(current_syscall["pages_cleared"])))
-                cleared_pages = self.get_page_queue_stats(
-                    current_syscall["pages_cleared"])
-                self.print_page_table(event, cleared_pages)
-                page_cache = self.get_page_queue_stats(
-                    self.dirty_pages["pages"])
-#            page_cache = self.get_page_queue_stats()
-
-            if len(page_cache) <= 0:
-                return
-            if "nr_dirty" not in event.keys():
-                print("%s %d last dirtied filesystem page(s):" %
-                      (spaces, len(self.dirty_pages["pages"])))
-            else:
-                print("%s %d active dirty filesystem page(s) (known):" %
-                      (spaces, len(self.dirty_pages["pages"])))
-            self.print_page_table(event, page_cache)
+                rq.page_cleared = len(current_syscall["pages_cleared"])
 
     def entry(self, event):
         name = event.name
