@@ -510,7 +510,7 @@ class IOTop():
         _max = "%0.03f" % (_max / 1000)
         print(fmt.format(name, count, _min, avg, _max, stdev))
 
-    def compute_syscalls_stats(self, args):
+    def compute_syscalls_latency_stats(self, args):
         s = Syscalls_stats()
         for tid in self.state.tids.values():
             if not self.filter_process(args, tid):
@@ -551,7 +551,7 @@ class IOTop():
 
     def iostats_output_syscalls(self, args):
         s = self.syscalls_stats
-        print("\nSyscalls statistics (usec):")
+        print("\nSyscalls latency statistics (usec):")
         fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
         print(fmt.format("Type", "Count", "Min", "Average",
                          "Max", "Stdev"))
@@ -597,7 +597,7 @@ class IOTop():
     def iostats_output_disk(self, args):
         if len(self.state.disks.keys()) == 0:
             return
-        print("\nDisk statistics (usec):")
+        print("\nDisk latency statistics (usec):")
         fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
         print(fmt.format("Name", "Count", "Min", "Average", "Max", "Stdev"))
         print("-" * 89)
@@ -618,7 +618,7 @@ class IOTop():
     def output(self, args, begin_ns, end_ns, final=0):
         print('%s to %s' % (ns_to_asctime(begin_ns), ns_to_asctime(end_ns)))
         self.iotop_output(args)
-        self.syscalls_stats = self.compute_syscalls_stats(args)
+        self.syscalls_stats = self.compute_syscalls_latency_stats(args)
         if args.stats:
             self.iostats_output(args)
         if args.freq:
