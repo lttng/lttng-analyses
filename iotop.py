@@ -519,6 +519,12 @@ class IOTop():
                 for rq in fd.iorequests:
                     if rq.iotype != IORequest.IO_SYSCALL:
                         continue
+                    if args.max is not None and \
+                            (rq.duration/1000) > args.max:
+                                continue
+                    if args.min is not None and \
+                            (rq.duration/1000) < args.min:
+                                continue
                     if rq.operation == IORequest.OP_READ:
                         s.read_count += 1
                         s.read_total += rq.duration
@@ -567,6 +573,7 @@ class IOTop():
 
     def iolatency_syscalls_output(self, args):
         s = self.syscalls_stats
+        print("")
         if s.open_count > 0:
             self.iolatency_freq_histogram(s.open_min/1000, s.open_max/1000,
                                           args.freq_resolution, s.open_rq,
@@ -743,6 +750,10 @@ if __name__ == "__main__":
                              'and syscalls')
     parser.add_argument('--freq-resolution', type=int, default=20,
                         help='Frequency distribution resolution (default 20)')
+    parser.add_argument('--max', type=float, default=-1,
+                        help='Filter out, operations longer than max usec')
+    parser.add_argument('--min', type=float, default=-1,
+                        help='Filter out, operations shorter than min usec')
     args = parser.parse_args()
 
     args.proc_list = None
@@ -763,6 +774,11 @@ if __name__ == "__main__":
         args.begin = date_to_epoch_nsec(handle, args.begin, args.gmt)
     if args.end:
         args.end = date_to_epoch_nsec(handle, args.end, args.gmt)
+
+    if args.max == -1:
+        args.max = None
+    if args.min == -1:
+        args.min = None
 
     c = IOTop(traces)
 
