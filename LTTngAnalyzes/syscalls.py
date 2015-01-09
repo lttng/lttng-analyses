@@ -610,6 +610,8 @@ class Syscalls():
             ret_string = "%s %s(%s, fd = %d)" % (
                 ns_to_hour_nsec(current_syscall["start"]),
                 name, current_syscall["filename"], ret)
+            if ret < 0:
+                return ret_string
             t = self.tids[c.current_tid]
             current_syscall["fd"] = self.get_fd(t, ret)
             current_syscall["count"] = 0
