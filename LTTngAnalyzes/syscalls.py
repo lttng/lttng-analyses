@@ -132,9 +132,8 @@ class Syscalls():
             current_syscall["filename"] = event["filename"]
             if event["flags"] & O_CLOEXEC == O_CLOEXEC:
                 current_syscall["cloexec"] = 1
-        elif name in ["sys_accept", "syscall_entry_accept"] \
-                and "family" in event.keys():
-            if event["family"] == socket.AF_INET:
+        elif name in ["sys_accept", "syscall_entry_accept"]:
+            if "family" in event.keys() and event["family"] == socket.AF_INET:
                 ipport = "%s:%d" % (get_v4_addr_str(event["v4addr"]),
                                     event["sport"])
                 current_syscall["filename"] = ipport
