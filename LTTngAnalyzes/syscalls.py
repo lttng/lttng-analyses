@@ -605,6 +605,7 @@ class Syscalls():
         ret = event["ret"]
         current_syscall["iorequest"] = IORequest()
         current_syscall["iorequest"].iotype = IORequest.IO_SYSCALL
+        current_syscall["iorequest"].name = name
         if name in Syscalls.OPEN_SYSCALLS:
             self.add_tid_fd(event, c)
             ret_string = "%s %s(%s, fd = %d)" % (

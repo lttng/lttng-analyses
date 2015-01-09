@@ -180,6 +180,8 @@ class IORequest():
         self.duration = None
         # IORequest.OP_*
         self.operation = None
+        # syscall name
+        self.name = None
         # begin syscall timestamp
         self.begin = None
         # end syscall timestamp

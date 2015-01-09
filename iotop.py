@@ -585,7 +585,7 @@ class IOTop():
                                           "Sync latency distribution")
 
     def iolatency_syscalls_top(self, args, title, rq_list):
-        # top X read latency
+        # TODO: extras (dirty, free, alloc, etc)
         limit = args.top
         count = 0
         if len(rq_list) == 0:
@@ -624,6 +624,33 @@ class IOTop():
         self.iolatency_syscalls_top(
             args, "\nTop sync syscall latencies (usec)", s.all_sync)
 
+    def iolatency_syscalls_log_output(self, args):
+        s = self.syscalls_stats
+        print("\nLog of all I/O system calls")
+        all_rq = s.all_open + s.all_read + s.all_write + s.all_sync
+        if len(all_rq) == 0:
+            return
+        title_fmt = "{:<19} {:<20} {:<13} {:<23} {:<5} {:<24} {:<8} {:<14}"
+        fmt = "{:<40} {:<12} {:>16} {:>12}  {:<24} {:<8} {:<14}"
+        print(title_fmt.format("Begin", "End", "Name", "Duration (usec)",
+                               "Size", "Proc", "PID", "Filename"))
+        for rq in sorted(all_rq,
+                         key=operator.attrgetter('begin'), reverse=False):
+            if rq.size is None:
+                size = "N/A"
+            else:
+                size = convert_size(rq.size)
+            name = rq.name.replace("syscall_entry_", "").replace("sys_", "")
+            print(fmt.format("[" + ns_to_hour_nsec(rq.begin, args.multi_day,
+                                                   args.gmt) + "," +
+                             ns_to_hour_nsec(rq.end, args.multi_day,
+                                             args.gmt) + "]",
+                             name,
+                             "%0.03f" % (rq.duration/1000),
+                             size, rq.proc.comm,
+                             rq.proc.pid,
+                             "%s (fd=%d)" % (rq.fd.filename, rq.fd.fd)))
+
     # iostats functions
     def iostats_output_disk(self, args):
         if len(self.state.disks.keys()) == 0:
@@ -653,6 +680,8 @@ class IOTop():
         if args.stats:
             self.iostats_output(args)
             self.iolatency_syscalls_top_output(args)
+        if args.log:
+            self.iolatency_syscalls_log_output(args)
         if args.freq:
             self.iolatency_syscalls_output(args)
             self.iolatency_output(args)
@@ -707,6 +736,8 @@ if __name__ == "__main__":
                         help='display time in seconds since epoch')
     parser.add_argument('--stats', action="store_true",
                         help='Display I/O and syscalls statistics')
+    parser.add_argument('--log', action="store_true",
+                        help='Display syscalls requests')
     parser.add_argument('--freq', action="store_true",
                         help='Display frequency distribution of I/O '
                              'and syscalls')
