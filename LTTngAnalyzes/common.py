@@ -448,18 +448,17 @@ def str_to_bytes(value):
         elif i.isalnum():
             unit = unit + i
     num = float(num)
-    unit = unit.lower()
     if len(unit) == 0:
         return int(num)
-    if unit == "b":
+    if unit in ["B"]:
         return int(num)
-    if unit == "kb":
+    if unit in ["k", "K", "kB", "KB"]:
         return int(num * 1024)
-    if unit == "mb":
+    if unit in ["m", "M", "mB", "MB"]:
         return int(num * 1024 * 1024)
-    if unit == "gb":
+    if unit in ["g", "G", "gB", "GB"]:
         return int(num * 1024 * 1024 * 1024)
-    if unit == "tb":
+    if unit in ["t", "T", "tB", "TB"]:
         return int(num * 1024 * 1024 * 1024 * 1024)
     print("Unit", unit, "not understood")
     return None
