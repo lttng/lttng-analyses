@@ -24,7 +24,7 @@ except ImportError:
 from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
     ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection, \
-    IORequest, Syscalls_stats, ns_to_hour_nsec
+    IORequest, Syscalls_stats, ns_to_hour_nsec, str_to_bytes
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -237,6 +237,23 @@ class IOTop():
         if args.proc_list and proc.comm not in args.proc_list:
             return False
         if args.pid_filter_list and str(proc.pid) not in args.pid_filter_list:
+            return False
+        return True
+
+    def filter_size(self, args, size):
+        # don't filter sync and open
+        if size is None:
+            return True
+        if args.maxsize is not None and size > args.maxsize:
+            return False
+        if args.minsize is not None and size < args.minsize:
+            return False
+        return True
+
+    def filter_latency(self, args, duration):
+        if args.max is not None and (duration/1000) > args.max:
+            return False
+        if args.min is not None and (duration/1000) < args.min:
             return False
         return True
 
@@ -519,12 +536,10 @@ class IOTop():
                 for rq in fd.iorequests:
                     if rq.iotype != IORequest.IO_SYSCALL:
                         continue
-                    if args.max is not None and \
-                            (rq.duration/1000) > args.max:
-                                continue
-                    if args.min is not None and \
-                            (rq.duration/1000) < args.min:
-                                continue
+                    if not self.filter_size(args, rq.size):
+                        continue
+                    if not self.filter_latency(args, rq.duration):
+                        continue
                     if rq.operation == IORequest.OP_READ:
                         s.read_count += 1
                         s.read_total += rq.duration
@@ -747,6 +762,12 @@ if __name__ == "__main__":
                         help='Filter out, operations longer than max usec')
     parser.add_argument('--min', type=float, default=-1,
                         help='Filter out, operations shorter than min usec')
+    parser.add_argument('--maxsize', type=str, default=0,
+                        help='Filter out, read/write operations working with '
+                             'more than maxsize bytes')
+    parser.add_argument('--minsize', type=str, default=0,
+                        help='Filter out, read/write operations working with '
+                             'less than minsize bytes')
     args = parser.parse_args()
 
     args.proc_list = None
@@ -772,6 +793,15 @@ if __name__ == "__main__":
         args.max = None
     if args.min == -1:
         args.min = None
+    if args.maxsize:
+        args.maxsize = str_to_bytes(args.maxsize)
+    else:
+        args.maxsize = None
+
+    if args.minsize:
+        args.minsize = str_to_bytes(args.minsize)
+    else:
+        args.minsize = None
 
     c = IOTop(traces)
 

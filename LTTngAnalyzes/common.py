@@ -439,6 +439,32 @@ def int_to_ipv4(ip):
     return socket.inet_ntoa(struct.pack("!I", ip))
 
 
+def str_to_bytes(value):
+    num = ""
+    unit = ""
+    for i in value:
+        if i.isdigit() or i == ".":
+            num = num + i
+        elif i.isalnum():
+            unit = unit + i
+    num = float(num)
+    unit = unit.lower()
+    if len(unit) == 0:
+        return int(num)
+    if unit == "b":
+        return int(num)
+    if unit == "kb":
+        return int(num * 1024)
+    if unit == "mb":
+        return int(num * 1024 * 1024)
+    if unit == "gb":
+        return int(num * 1024 * 1024 * 1024)
+    if unit == "tb":
+        return int(num * 1024 * 1024 * 1024 * 1024)
+    print("Unit", unit, "not understood")
+    return None
+
+
 def get_v4_addr_str(ip):
     # depending on the version of lttng-modules, the v4addr is a
     # string (< 2.6) or sequence (>= 2.6)
