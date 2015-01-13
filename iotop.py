@@ -488,7 +488,8 @@ class IOTop():
                                               args.freq_resolution,
                                               d.rq_values,
                                               "Frequency distribution for "
-                                              "disk %s" % (d.prettyname))
+                                              "disk %s (usec)" %
+                                              (d.prettyname))
 
     def iolatency_output(self, args):
         self.iolatency_output_disk(args)
@@ -592,19 +593,19 @@ class IOTop():
         if s.open_count > 0:
             self.iolatency_freq_histogram(s.open_min/1000, s.open_max/1000,
                                           args.freq_resolution, s.open_rq,
-                                          "Open latency distribution")
+                                          "Open latency distribution (usec)")
         if s.read_count > 0:
             self.iolatency_freq_histogram(s.read_min/1000, s.read_max/1000,
                                           args.freq_resolution, s.read_rq,
-                                          "Read latency distribution")
+                                          "Read latency distribution (usec)")
         if s.write_count > 0:
             self.iolatency_freq_histogram(s.write_min/1000, s.write_max/1000,
                                           args.freq_resolution, s.write_rq,
-                                          "Write latency distribution")
+                                          "Write latency distribution (usec)")
         if s.sync_count > 0:
             self.iolatency_freq_histogram(s.sync_min/1000, s.sync_max/1000,
                                           args.freq_resolution, s.sync_rq,
-                                          "Sync latency distribution")
+                                          "Sync latency distribution (usec)")
 
     def iolatency_syscalls_list_output(self, args, title, rq_list,
                                        sortkey, reverse):
