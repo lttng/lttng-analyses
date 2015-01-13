@@ -16,6 +16,14 @@ class Process():
         self.tid = -1
         self.pid = -1
         self.comm = ""
+        # indexed by fd
+        self.fds = {}
+        # indexed by filename
+        self.closed_fds = {}
+        self.current_syscall = {}
+        self.init_counts()
+
+    def init_counts(self):
         self.cpu_ns = 0
         self.migrate_count = 0
         # network read/write
@@ -39,11 +47,6 @@ class Process():
         self.prev_tid = -1
         # indexed by syscall_name
         self.syscalls = {}
-        # indexed by fd
-        self.fds = {}
-        # indexed by filename
-        self.closed_fds = {}
-        self.current_syscall = {}
         self.perf = {}
         self.dirty = 0
         self.allocated_pages = 0
@@ -73,6 +76,9 @@ class Disk():
     def __init__(self):
         self.name = ""
         self.prettyname = ""
+        self.init_counts()
+
+    def init_counts(self):
         self.nr_sector = 0
         self.nr_requests = 0
         self.completed_requests = 0
@@ -90,6 +96,9 @@ class Disk():
 class Iface():
     def __init__(self):
         self.name = ""
+        self.init_counts()
+
+    def init_counts(self):
         self.recv_bytes = 0
         self.recv_packets = 0
         self.send_bytes = 0
@@ -109,11 +118,17 @@ class FD():
     def __init__(self):
         self.filename = ""
         self.fd = -1
+        # address family
+        self.family = socket.AF_UNSPEC
+        self.fdtype = FDType.unknown
+        # if FD was inherited, parent PID
+        self.parent = -1
+        self.init_counts()
+
+    def init_counts(self):
         # network read/write
         self.net_read = 0
         self.net_write = 0
-        # address family
-        self.family = socket.AF_UNSPEC
         # disk read/write (might be cached)
         self.disk_read = 0
         self.disk_write = 0
@@ -126,9 +141,6 @@ class FD():
         self.open = 0
         self.close = 0
         self.cloexec = 0
-        self.fdtype = FDType.unknown
-        # if FD was inherited, parent PID
-        self.parent = -1
         # array of syscall IORequest objects for freq analysis later
         self.iorequests = []
 

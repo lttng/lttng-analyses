@@ -698,25 +698,15 @@ class IOTop():
 
     def reset_total(self, start_ts):
         for dev in self.state.disks.keys():
-            self.state.disks[dev].nr_sector = 0
-            self.state.disks[dev].nr_requests = 0
-            self.state.disks[dev].completed_requests = 0
-            self.state.disks[dev].request_time = 0
+            self.state.disks[dev].init_counts()
 
         for iface in self.state.ifaces.keys():
-            self.state.ifaces[iface].recv_bytes = 0
-            self.state.ifaces[iface].recv_packets = 0
-            self.state.ifaces[iface].send_bytes = 0
-            self.state.ifaces[iface].send_packets = 0
+            self.state.ifaces[iface].init_counts()
 
         for tid in self.state.tids.values():
             for fd in tid.fds.values():
-                fd.read = 0
-                fd.write = 0
-                fd.block_read = 0
-                fd.block_write = 0
-                fd.open = 0
-                fd.close = 0
+                fd.init_counts()
+            tid.init_counts()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='I/O usage analysis')
