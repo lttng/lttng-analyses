@@ -49,9 +49,11 @@ class ProcInfo():
 
             if event.name == "sched_switch":
                 self.state.sched.switch(event)
-            elif event.name[0:4] == "sys_":
+            elif event.name[0:4] == "sys_" or \
+                    event.name[0:14] == "syscall_entry_":
                 payload = self.state.syscall.entry(event)
-            elif event.name == "exit_syscall":
+            elif event.name == "exit_syscall" or \
+                    event.name[0:13] == "syscall_exit_":
                 payload = self.state.syscall.exit(event, 1)
             elif event.name == "block_complete" or \
                     event.name == "block_rq_complete":
