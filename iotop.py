@@ -573,6 +573,8 @@ class IOTop():
             self.account_syscall_iorequests(args, s, tid.iorequests)
             for fd in tid.fds.values():
                 self.account_syscall_iorequests(args, s, fd.iorequests)
+            for fd in tid.closed_fds.values():
+                self.account_syscall_iorequests(args, s, fd.iorequests)
         return s
 
     def iostats_output_syscalls(self, args):
