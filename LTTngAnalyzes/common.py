@@ -52,8 +52,9 @@ class Process():
         self.allocated_pages = 0
         self.freed_pages = 0
         self.total_syscalls = 0
-        # array of IORequest objects for freq analysis later
-        self.blockiorequests = []
+        # array of IORequest objects for freq analysis later (block and
+        # syscalls with no FD like sys_sync)
+        self.iorequests = []
 
 
 class CPU():

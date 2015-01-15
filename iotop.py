@@ -528,47 +528,51 @@ class IOTop():
         _max = "%0.03f" % (_max / 1000)
         print(fmt.format(name, count, _min, avg, _max, stdev))
 
+    def account_syscall_iorequests(self, args, s, iorequests):
+        for rq in iorequests:
+            if rq.iotype != IORequest.IO_SYSCALL:
+                continue
+            if not self.filter_size(args, rq.size):
+                continue
+            if not self.filter_latency(args, rq.duration):
+                continue
+            if rq.operation == IORequest.OP_READ:
+                s.read_count += 1
+                s.read_total += rq.duration
+                s.read_rq.append(rq.duration)
+                s.all_read.append(rq)
+                s.read_min, s.read_max = self.iostats_minmax(
+                    rq.duration, s.read_min, s.read_max)
+            elif rq.operation == IORequest.OP_WRITE:
+                s.write_count += 1
+                s.write_total += rq.duration
+                s.write_rq.append(rq.duration)
+                s.all_write.append(rq)
+                s.write_min, s.write_max = self.iostats_minmax(
+                    rq.duration, s.write_min, s.write_max)
+            elif rq.operation == IORequest.OP_SYNC:
+                s.sync_count += 1
+                s.sync_total += rq.duration
+                s.sync_rq.append(rq.duration)
+                s.all_sync.append(rq)
+                s.sync_min, s.sync_max = self.iostats_minmax(
+                    rq.duration, s.sync_min, s.sync_max)
+            elif rq.operation == IORequest.OP_OPEN:
+                s.open_count += 1
+                s.open_total += rq.duration
+                s.open_rq.append(rq.duration)
+                s.all_open.append(rq)
+                s.open_min, s.open_max = self.iostats_minmax(
+                    rq.duration, s.open_min, s.open_max)
+
     def compute_syscalls_latency_stats(self, args):
         s = Syscalls_stats()
         for tid in self.state.tids.values():
             if not self.filter_process(args, tid):
                 continue
+            self.account_syscall_iorequests(args, s, tid.iorequests)
             for fd in tid.fds.values():
-                for rq in fd.iorequests:
-                    if rq.iotype != IORequest.IO_SYSCALL:
-                        continue
-                    if not self.filter_size(args, rq.size):
-                        continue
-                    if not self.filter_latency(args, rq.duration):
-                        continue
-                    if rq.operation == IORequest.OP_READ:
-                        s.read_count += 1
-                        s.read_total += rq.duration
-                        s.read_rq.append(rq.duration)
-                        s.all_read.append(rq)
-                        s.read_min, s.read_max = self.iostats_minmax(
-                            rq.duration, s.read_min, s.read_max)
-                    elif rq.operation == IORequest.OP_WRITE:
-                        s.write_count += 1
-                        s.write_total += rq.duration
-                        s.write_rq.append(rq.duration)
-                        s.all_write.append(rq)
-                        s.write_min, s.write_max = self.iostats_minmax(
-                            rq.duration, s.write_min, s.write_max)
-                    elif rq.operation == IORequest.OP_SYNC:
-                        s.sync_count += 1
-                        s.sync_total += rq.duration
-                        s.sync_rq.append(rq.duration)
-                        s.all_sync.append(rq)
-                        s.sync_min, s.sync_max = self.iostats_minmax(
-                            rq.duration, s.sync_min, s.sync_max)
-                    elif rq.operation == IORequest.OP_OPEN:
-                        s.open_count += 1
-                        s.open_total += rq.duration
-                        s.open_rq.append(rq.duration)
-                        s.all_open.append(rq)
-                        s.open_min, s.open_max = self.iostats_minmax(
-                            rq.duration, s.open_min, s.open_max)
+                self.account_syscall_iorequests(args, s, fd.iorequests)
         return s
 
     def iostats_output_syscalls(self, args):
@@ -643,6 +647,12 @@ class IOTop():
             else:
                 extra = ""
             name = rq.name.replace("syscall_entry_", "").replace("sys_", "")
+            if rq.fd is None:
+                filename = "None"
+                fd = "None"
+            else:
+                filename = rq.fd.filename
+                fd = rq.fd.fd
             print(fmt.format("[" + ns_to_hour_nsec(rq.begin, args.multi_day,
                                                    args.gmt) + "," +
                              ns_to_hour_nsec(rq.end, args.multi_day,
@@ -651,7 +661,7 @@ class IOTop():
                              "%0.03f" % (rq.duration/1000),
                              size, rq.proc.comm,
                              rq.proc.pid, extra,
-                             "%s (fd=%d)" % (rq.fd.filename, rq.fd.fd)))
+                             "%s (fd=%s)" % (filename, fd)))
             count += 1
 
     def iolatency_syscalls_top_output(self, args):

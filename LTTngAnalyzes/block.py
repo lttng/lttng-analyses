@@ -114,7 +114,7 @@ class Block():
         rq["iorequest"].duration = time_per_sector
         d.rq_list.append(rq["iorequest"])
         if "pid" in rq.keys():
-            rq["pid"].blockiorequests.append(rq["iorequest"])
+            rq["pid"].iorequests.append(rq["iorequest"])
         del d.pending_requests[sector]
 
     def dump_orphan_requests(self):

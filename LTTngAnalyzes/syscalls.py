@@ -545,6 +545,9 @@ class Syscalls():
             current_syscall["iorequest"].operation = IORequest.OP_SYNC
             self.track_rw_latency(name, ret, c, event.timestamp,
                                   started, event)
+            if name in ["sys_sync", "syscall_entry_sync"]:
+                t = self.tids[c.current_tid]
+                t.iorequests.append(current_syscall["iorequest"])
         self.tids[c.current_tid].current_syscall = {}
         return ret_string
 
