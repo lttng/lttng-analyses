@@ -1,5 +1,5 @@
 from LTTngAnalyzes.common import FDType, FD, ns_to_hour_nsec, Syscall, \
-    O_CLOEXEC, get_v4_addr_str, Process, IORequest
+    O_CLOEXEC, get_v4_addr_str, Process, IORequest, SyscallConsts
 import socket
 import operator
 
@@ -18,68 +18,31 @@ class IOCategory():
 
 
 class Syscalls():
-    # TODO: decouple socket/family logic from this class
-    INET_FAMILIES = [socket.AF_INET, socket.AF_INET6]
-    DISK_FAMILIES = [socket.AF_UNIX]
-    # list nof syscalls that open a FD on disk (in the exit_syscall event)
-    DISK_OPEN_SYSCALLS = ["sys_open", "syscall_entry_open",
-                          "sys_openat", "syscall_entry_openat"]
-    # list of syscalls that open a FD on the network
-    # (in the exit_syscall event)
-    NET_OPEN_SYSCALLS = ["sys_accept", "syscall_entry_accept",
-                         "sys_socket", "syscall_entry_socket"]
-    # list of syscalls that can duplicate a FD
-    DUP_OPEN_SYSCALLS = ["sys_fcntl", "syscall_entry_fcntl",
-                         "sys_dup2", "syscall_entry_dup2"]
-    SYNC_SYSCALLS = ["sys_sync", "syscall_entry_sync",
-                     "sys_sync_file_range", "syscall_entry_sync_file_range",
-                     "sys_fsync", "syscall_entry_fsync",
-                     "sys_fdatasync", "syscall_entry_fdatasync"]
-    # merge the 3 open lists
-    OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
-    # list of syscalls that close a FD (in the "fd =" field)
-    CLOSE_SYSCALLS = ["sys_close", "syscall_entry_close"]
-    # list of syscall that read on a FD, value in the exit_syscall following
-    READ_SYSCALLS = ["sys_read", "syscall_entry_read",
-                     "sys_recvmsg", "syscall_entry_recvmsg",
-                     "sys_recvfrom", "syscall_entry_recvfrom",
-                     "sys_splice", "syscall_entry_splice",
-                     "sys_readv", "syscall_entry_readv",
-                     "sys_sendfile64", "syscall_entry_sendfile64"]
-    # list of syscall that write on a FD, value in the exit_syscall following
-    WRITE_SYSCALLS = ["sys_write", "syscall_entry_write",
-                      "sys_sendmsg", "syscall_entry_sendmsg",
-                      "sys_sendto", "syscall_entry_sendto",
-                      "sys_writev", "syscall_entry_writev"]
-    # generic names assigned to special FDs, don't try to match these in the
-    # closed_fds dict
-    GENERIC_NAMES = ["unknown", "socket"]
-
     def get_syscall_category(name):
         """Receives a syscall name and returns an enum value
         representing its IO category (open, close, read, or write)"
 
         This is used to produce json data for visualization"""
 
-        if name in Syscalls.OPEN_SYSCALLS:
+        if name in SyscallConsts.OPEN_SYSCALLS:
             return IOCategory.opn
-        if name in Syscalls.CLOSE_SYSCALLS:
+        if name in SyscallConsts.CLOSE_SYSCALLS:
             return IOCategory.close
-        if name in Syscalls.READ_SYSCALLS:
+        if name in SyscallConsts.READ_SYSCALLS:
             return IOCategory.read
-        if name in Syscalls.WRITE_SYSCALLS:
+        if name in SyscallConsts.WRITE_SYSCALLS:
             return IOCategory.write
 
         return IOCategory.invalid
 
     def get_fd_type(name, family):
-        if name in Syscalls.NET_OPEN_SYSCALLS:
-            if family in Syscalls.INET_FAMILIES:
+        if name in SyscallConsts.NET_OPEN_SYSCALLS:
+            if family in SyscallConsts.INET_FAMILIES:
                 return FDType.net
-            if family in Syscalls.DISK_FAMILIES:
+            if family in SyscallConsts.DISK_FAMILIES:
                 return FDType.disk
 
-        if name in Syscalls.DISK_OPEN_SYSCALLS:
+        if name in SyscallConsts.DISK_OPEN_SYSCALLS:
             return FDType.disk
 
         return FDType.unknown
@@ -127,7 +90,7 @@ class Syscalls():
     def track_open(self, name, proc, event, cpu):
         self.tids[cpu.current_tid].current_syscall = {}
         current_syscall = self.tids[cpu.current_tid].current_syscall
-        if name in Syscalls.DISK_OPEN_SYSCALLS:
+        if name in SyscallConsts.DISK_OPEN_SYSCALLS:
             current_syscall["filename"] = event["filename"]
             if event["flags"] & O_CLOEXEC == O_CLOEXEC:
                 current_syscall["cloexec"] = 1
@@ -138,7 +101,7 @@ class Syscalls():
                 current_syscall["filename"] = ipport
             else:
                 current_syscall["filename"] = "socket"
-        elif name in Syscalls.NET_OPEN_SYSCALLS:
+        elif name in SyscallConsts.NET_OPEN_SYSCALLS:
             current_syscall["filename"] = "socket"
         elif name in ["sys_dup2", "syscall_entry_dup2"]:
             newfd = event["newfd"]
@@ -161,7 +124,8 @@ class Syscalls():
             else:
                 current_syscall["filename"] = ""
 
-        if name in Syscalls.NET_OPEN_SYSCALLS and "family" in event.keys():
+        if name in SyscallConsts.NET_OPEN_SYSCALLS and \
+                "family" in event.keys():
             family = event["family"]
             current_syscall["family"] = family
         else:
@@ -174,7 +138,7 @@ class Syscalls():
 
     def close_fd(self, proc, fd):
         filename = proc.fds[fd].filename
-        if filename not in Syscalls.GENERIC_NAMES \
+        if filename not in SyscallConsts.GENERIC_NAMES \
            and filename in proc.closed_fds.keys():
             f = proc.closed_fds[filename]
             f.close += 1
@@ -224,9 +188,9 @@ class Syscalls():
         # if it's a thread, we want the parent
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
-        if name in Syscalls.OPEN_SYSCALLS:
+        if name in SyscallConsts.OPEN_SYSCALLS:
             self.track_open(name, t, event, c)
-        elif name in Syscalls.CLOSE_SYSCALLS:
+        elif name in SyscallConsts.CLOSE_SYSCALLS:
             ret_string = "%s %s(%d)" % (ns_to_hour_nsec(event.timestamp),
                                         name, event["fd"])
             self.track_close(name, t, event, c)
@@ -329,16 +293,16 @@ class Syscalls():
         current_syscall = self.tids[cpu.current_tid].current_syscall
 
         name = current_syscall["filename"]
-        if name not in Syscalls.GENERIC_NAMES \
+        if name not in SyscallConsts.GENERIC_NAMES \
            and name in t.closed_fds.keys():
             fd = t.closed_fds[name]
             fd.open += 1
         else:
             fd = FD()
             fd.filename = name
-            if current_syscall["name"] in Syscalls.NET_OPEN_SYSCALLS:
+            if current_syscall["name"] in SyscallConsts.NET_OPEN_SYSCALLS:
                 fd.family = current_syscall["family"]
-                if fd.family in Syscalls.INET_FAMILIES:
+                if fd.family in SyscallConsts.INET_FAMILIES:
                     fd.fdtype = FDType.net
             fd.open = 1
         if ret >= 0:
@@ -399,11 +363,11 @@ class Syscalls():
                              current_syscall["iorequest"])
             self.write_append(current_syscall["fd_out"], proc, ret,
                               current_syscall["iorequest"])
-        elif name in Syscalls.READ_SYSCALLS:
+        elif name in SyscallConsts.READ_SYSCALLS:
             if ret > 0:
                 self.read_append(current_syscall["fd"], proc, ret,
                                  current_syscall["iorequest"])
-        elif name in Syscalls.WRITE_SYSCALLS:
+        elif name in SyscallConsts.WRITE_SYSCALLS:
             if ret > 0:
                 self.write_append(current_syscall["fd"], proc, ret,
                                   current_syscall["iorequest"])
@@ -488,7 +452,7 @@ class Syscalls():
             rq.page_free = current_syscall["page_free"]
         if "wakeup_kswapd" in current_syscall.keys():
             rq.woke_kswapd = True
-        if name in Syscalls.SYNC_SYSCALLS:
+        if name in SyscallConsts.SYNC_SYSCALLS:
 #            self.syscall_clear_pages(event, name, fd, current_syscall,
 #                                     self.tids[c.current_tid])
             if "pages_cleared" in current_syscall.keys():
@@ -501,9 +465,10 @@ class Syscalls():
         self.global_syscall_entry(name)
         self.per_tid_syscall_entry(name, cpu_id)
         ret_string = self.track_fds(name, event, cpu_id)
-        if name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
+        if name in SyscallConsts.READ_SYSCALLS or \
+                name in SyscallConsts.WRITE_SYSCALLS:
             self.track_read_write(name, event, cpu_id)
-        if name in Syscalls.SYNC_SYSCALLS:
+        if name in SyscallConsts.SYNC_SYSCALLS:
             self.track_sync(name, event, cpu_id)
         return ret_string
 
@@ -523,7 +488,7 @@ class Syscalls():
         current_syscall["iorequest"] = IORequest()
         current_syscall["iorequest"].iotype = IORequest.IO_SYSCALL
         current_syscall["iorequest"].name = name
-        if name in Syscalls.OPEN_SYSCALLS:
+        if name in SyscallConsts.OPEN_SYSCALLS:
             self.add_tid_fd(event, c)
             ret_string = "%s %s(%s, fd = %d)" % (
                 ns_to_hour_nsec(current_syscall["start"]),
@@ -537,11 +502,12 @@ class Syscalls():
             current_syscall["iorequest"].operation = IORequest.OP_OPEN
             self.track_rw_latency(name, ret, c,
                                   event.timestamp, started, event)
-        elif name in Syscalls.READ_SYSCALLS or name in Syscalls.WRITE_SYSCALLS:
+        elif name in SyscallConsts.READ_SYSCALLS or \
+                name in SyscallConsts.WRITE_SYSCALLS:
             self.track_read_write_return(name, ret, c)
             self.track_rw_latency(name, ret, c, event.timestamp,
                                   started, event)
-        elif name in Syscalls.SYNC_SYSCALLS:
+        elif name in SyscallConsts.SYNC_SYSCALLS:
             current_syscall["iorequest"].operation = IORequest.OP_SYNC
             self.track_rw_latency(name, ret, c, event.timestamp,
                                   started, event)
