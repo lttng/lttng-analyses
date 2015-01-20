@@ -17,9 +17,11 @@ class State():
         self.ifaces = {}
         self.dirty_pages = {}
         self.interrupts = {}
+        self.pending_syscalls = []
 
         self.sched = Sched(self.cpus, self.tids)
-        self.syscall = Syscalls(self.cpus, self.tids, self.syscalls)
+        self.syscall = Syscalls(self.cpus, self.tids, self.syscalls,
+                                self.pending_syscalls)
         self.statedump = Statedump(self.tids, self.disks)
         self.mem = Mm(self.mm, self.cpus, self.tids, self.dirty_pages)
         self.block = Block(self.cpus, self.disks, self.tids)

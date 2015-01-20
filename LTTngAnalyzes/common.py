@@ -215,6 +215,8 @@ class IORequest():
         self.woke_kswapd = False
         # estimated pages flushed during a sync operation
         self.page_cleared = 0
+        # True if the syscall is not completed when printing the results
+        self.pending = False
 
 
 class Syscalls_stats():

@@ -47,11 +47,12 @@ class Syscalls():
 
         return FDType.unknown
 
-    def __init__(self, cpus, tids, syscalls, dirty_pages={}, names=None,
-                 latency=-1, latency_hist=None, seconds=False):
+    def __init__(self, cpus, tids, syscalls, pending_syscalls, dirty_pages={},
+                 names=None, latency=-1, latency_hist=None, seconds=False):
         self.cpus = cpus
         self.tids = tids
         self.syscalls = syscalls
+        self.pending_syscalls = pending_syscalls
         self.syscalls["total"] = 0
         self.dirty_pages = dirty_pages
         self.names = names
@@ -223,6 +224,7 @@ class Syscalls():
         if c.current_tid == -1:
             return
         t = self.tids[c.current_tid]
+        self.pending_syscalls.append(t)
         # if it's a thread, we want the parent
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
@@ -243,6 +245,7 @@ class Syscalls():
         if c.current_tid == -1:
             return
         t = self.tids[c.current_tid]
+        self.pending_syscalls.append(t)
         # if it's a thread, we want the parent
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
@@ -515,6 +518,8 @@ class Syscalls():
                 t = self.tids[c.current_tid]
                 t.iorequests.append(current_syscall["iorequest"])
         self.tids[c.current_tid].current_syscall = {}
+        if self.tids[c.current_tid] in self.pending_syscalls:
+            self.pending_syscalls.remove(self.tids[c.current_tid])
         return ret_string
 
     def wb_pages(self, event):
