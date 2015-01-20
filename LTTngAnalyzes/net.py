@@ -1,5 +1,4 @@
-from LTTngAnalyzes.common import Iface, FDType
-from LTTngAnalyzes.syscalls import Syscalls
+from LTTngAnalyzes.common import Iface, FDType, SyscallConsts
 
 
 class Net():
@@ -34,7 +33,7 @@ class Net():
         t = self.tids[c.current_tid]
         if not t.current_syscall:
             return
-        if t.current_syscall["name"] in Syscalls.WRITE_SYSCALLS:
+        if t.current_syscall["name"] in SyscallConsts.WRITE_SYSCALLS:
             if t.current_syscall["fd"].fdtype == FDType.unknown:
                 t.current_syscall["fd"].fdtype = FDType.maybe_net
 
