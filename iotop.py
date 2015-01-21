@@ -24,7 +24,7 @@ except ImportError:
 from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
     ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection, \
-    IORequest, Syscalls_stats, ns_to_hour_nsec, str_to_bytes, SyscallConsts
+    IORequest, Syscalls_stats, ns_to_hour_nsec, str_to_bytes
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -110,7 +110,8 @@ class IOTop():
                 started = 1
                 self.trace_start_ts = event.timestamp
                 self.reset_total(event.timestamp)
-            if args.end and event.timestamp > args.end:
+            if args.end and event.timestamp > args.end and \
+                    len(self.state.pending_syscalls) == 0:
                 break
             self.process_event(event, started)
         progressbar_finish(self, args)
@@ -530,6 +531,11 @@ class IOTop():
 
     def account_syscall_iorequests(self, args, s, iorequests):
         for rq in iorequests:
+            # filter out if completely out of range but accept the
+            # union to show the real begin/end time
+            if args.begin and args.end and rq.end and \
+                    rq.begin > args.end:
+                continue
             if rq.iotype != IORequest.IO_SYSCALL:
                 continue
             if not self.filter_size(args, rq.size):
@@ -565,30 +571,6 @@ class IOTop():
                 s.open_min, s.open_max = self.iostats_minmax(
                     rq.duration, s.open_min, s.open_max)
 
-    def account_pending_syscalls(self, args, end_ns):
-        pending_rq = []
-        for tid in self.state.pending_syscalls:
-            s = tid.current_syscall
-            r = IORequest()
-            r.name = s["name"]
-            if r.name in SyscallConsts.OPEN_SYSCALLS:
-                r.operation = IORequest.OP_OPEN
-            elif r.name in SyscallConsts.READ_SYSCALLS:
-                r.operation = IORequest.OP_READ
-            elif r.name in SyscallConsts.WRITE_SYSCALLS:
-                r.operation = IORequest.OP_WRITE
-            elif r.name in SyscallConsts.SYNC_SYSCALLS:
-                r.operation = IORequest.OP_SYNC
-            else:
-                continue
-            r.iotype = IORequest.IO_SYSCALL
-            r.begin = s["start"]
-            r.duration = end_ns - s["start"]
-            r.proc = tid
-            r.pending = True
-            pending_rq.append(r)
-        return pending_rq
-
     def compute_syscalls_latency_stats(self, args, end_ns):
         s = Syscalls_stats()
         for tid in self.state.tids.values():
@@ -599,8 +581,6 @@ class IOTop():
                 self.account_syscall_iorequests(args, s, fd.iorequests)
             for fd in tid.closed_fds.values():
                 self.account_syscall_iorequests(args, s, fd.iorequests)
-        r = self.account_pending_syscalls(args, end_ns)
-        self.account_syscall_iorequests(args, s, r)
         return s
 
     def iostats_output_syscalls(self, args):
@@ -643,6 +623,7 @@ class IOTop():
                                        sortkey, reverse):
         limit = args.top
         count = 0
+        outrange_legend = False
         if len(rq_list) == 0:
             return
         print(title)
@@ -655,7 +636,7 @@ class IOTop():
             extra_title = ""
         title_fmt = "{:<19} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} " + \
             extra_fmt + "{:<14}"
-        fmt = "{:<40} {:<15} {:>16} {:>12}  {:<24} {:<8} " + \
+        fmt = "{:<40} {:<16} {:>16} {:>12}  {:<24} {:<8} " + \
             extra_fmt + "{:<14}"
         print(title_fmt.format("Begin", "End", "Name", "Duration (usec)",
                                "Size", "Proc", "PID", extra_title, "Filename"))
@@ -681,18 +662,29 @@ class IOTop():
             else:
                 filename = rq.fd.filename
                 fd = rq.fd.fd
-            if rq.pending:
-                end = "??:??:??.?????????"
-            else:
-                end = ns_to_hour_nsec(rq.end, args.multi_day, args.gmt)
+            end = ns_to_hour_nsec(rq.end, args.multi_day, args.gmt)
+
+            outrange = " "
+            duration = rq.duration
+            if args.begin and rq.begin < args.begin:
+                outrange = "*"
+                outrange_legend = True
+            if args.end and rq.end > args.end:
+                outrange = "*"
+                outrange_legend = True
+
             print(fmt.format("[" + ns_to_hour_nsec(rq.begin, args.multi_day,
-                                                   args.gmt) + "," + end + "]",
+                                                   args.gmt) + "," +
+                             end + "]" + outrange,
                              name,
-                             "%0.03f" % (rq.duration/1000),
+                             "%0.03f" % (duration/1000) + outrange,
                              size, rq.proc.comm,
                              rq.proc.pid, extra,
                              "%s (fd=%s)" % (filename, fd)))
             count += 1
+        if outrange_legend:
+            print("*: Syscalls started and/or completed outside of the "
+                  "range specified")
 
     def iolatency_syscalls_top_output(self, args):
         s = self.syscalls_stats
@@ -761,6 +753,8 @@ class IOTop():
 
         for tid in self.state.tids.values():
             for fd in tid.fds.values():
+                fd.init_counts()
+            for fd in tid.closed_fds.values():
                 fd.init_counts()
             tid.init_counts()
 
