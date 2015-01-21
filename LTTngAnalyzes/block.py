@@ -50,6 +50,7 @@ class Block():
         rq["rq_time"] = event.timestamp
         rq["iorequest"] = IORequest()
         rq["iorequest"].iotype = IORequest.IO_BLOCK
+        rq["iorequest"].begin = event.timestamp
         rq["iorequest"].size = nr_sector * block_size
 
         d = None
@@ -112,6 +113,7 @@ class Block():
         time_per_sector = (event.timestamp - rq["rq_time"]) / rq["nr_sector"]
         d.request_time += time_per_sector
         rq["iorequest"].duration = time_per_sector
+        rq["iorequest"].end = event.timestamp
         d.rq_list.append(rq["iorequest"])
         if "pid" in rq.keys():
             rq["pid"].iorequests.append(rq["iorequest"])
