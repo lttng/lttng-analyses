@@ -4,6 +4,7 @@ import time
 import datetime
 import socket
 import struct
+import sys
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
@@ -445,6 +446,27 @@ def date_to_epoch_nsec(handle, date, gmt):
     if gmt:
         d = d + datetime.timedelta(seconds=time.timezone)
     return int(d.timestamp()) * NSEC_PER_SEC + int(nsec)
+
+
+def process_date_args(args, handle):
+    args.multi_day = is_multi_day_trace_collection(handle)
+    if args.timerange:
+        (args.begin, args.end) = extract_timerange(handle, args.timerange,
+                                                   args.gmt)
+        if args.begin is None or args.end is None:
+            print("Invalid timeformat")
+            sys.exit(1)
+    else:
+        if args.begin:
+            args.begin = date_to_epoch_nsec(handle, args.begin, args.gmt)
+            if args.begin is None:
+                print("Invalid timeformat")
+                sys.exit(1)
+        if args.end:
+            args.end = date_to_epoch_nsec(handle, args.end, args.gmt)
+            if args.end is None:
+                print("Invalid timeformat")
+                sys.exit(1)
 
 
 def ns_to_asctime(ns):

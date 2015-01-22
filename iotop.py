@@ -23,8 +23,8 @@ except ImportError:
     from babeltrace import TraceCollection
 from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
-    ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection, \
-    IORequest, Syscalls_stats, ns_to_hour_nsec, str_to_bytes, extract_timerange
+    ns_to_asctime, IORequest, Syscalls_stats, ns_to_hour_nsec, str_to_bytes, \
+    process_date_args
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -822,24 +822,7 @@ if __name__ == "__main__":
     if handle is None:
         sys.exit(1)
 
-    args.multi_day = is_multi_day_trace_collection(handle)
-    if args.timerange:
-        (args.begin, args.end) = extract_timerange(handle, args.timerange,
-                                                   args.gmt)
-        if args.begin is None or args.end is None:
-            print("Invalid timeformat")
-            sys.exit(1)
-    else:
-        if args.begin:
-            args.begin = date_to_epoch_nsec(handle, args.begin, args.gmt)
-            if args.begin is None:
-                print("Invalid timeformat")
-                sys.exit(1)
-        if args.end:
-            args.end = date_to_epoch_nsec(handle, args.end, args.gmt)
-            if args.end is None:
-                print("Invalid timeformat")
-                sys.exit(1)
+    process_date_args(args, handle)
 
     if args.max == -1:
         args.max = None
