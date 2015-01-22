@@ -364,6 +364,21 @@ def trace_collection_date(handle):
         return (y, m, d)
 
 
+def extract_timerange(handle, timerange, gmt):
+    p = re.compile('^\[(?P<begin>.*),(?P<end>.*)\]$')
+    if not p.match(timerange):
+        return None
+    b = p.search(timerange).group("begin").strip()
+    e = p.search(timerange).group("end").strip()
+    begin = date_to_epoch_nsec(handle, b, gmt)
+    if begin is None:
+        return (None, None)
+    end = date_to_epoch_nsec(handle, e, gmt)
+    if end is None:
+        return (None, None)
+    return (begin, end)
+
+
 def date_to_epoch_nsec(handle, date, gmt):
     # match 2014-12-12 17:29:43.802588035 or 2014-12-12T17:29:43.802588035
     p1 = re.compile('^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'

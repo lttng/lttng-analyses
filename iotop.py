@@ -24,7 +24,7 @@ except ImportError:
 from LTTngAnalyzes.state import State
 from LTTngAnalyzes.common import convert_size, MSEC_PER_NSEC, NSEC_PER_SEC, \
     ns_to_asctime, date_to_epoch_nsec, is_multi_day_trace_collection, \
-    IORequest, Syscalls_stats, ns_to_hour_nsec, str_to_bytes
+    IORequest, Syscalls_stats, ns_to_hour_nsec, str_to_bytes, extract_timerange
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from ascii_graph import Pyasciigraph
@@ -780,6 +780,7 @@ if __name__ == "__main__":
                         'of local time')
     parser.add_argument('--begin', type=str, help='start time')
     parser.add_argument('--end', type=str, help='end time')
+    parser.add_argument('--timerange', type=str, help='time range')
     parser.add_argument('--seconds', action="store_true",
                         help='display time in seconds since epoch')
     parser.add_argument('--stats', action="store_true",
@@ -819,10 +820,23 @@ if __name__ == "__main__":
         sys.exit(1)
 
     args.multi_day = is_multi_day_trace_collection(handle)
-    if args.begin:
-        args.begin = date_to_epoch_nsec(handle, args.begin, args.gmt)
-    if args.end:
-        args.end = date_to_epoch_nsec(handle, args.end, args.gmt)
+    if args.timerange:
+        (args.begin, args.end) = extract_timerange(handle, args.timerange,
+                                                   args.gmt)
+        if args.begin is None or args.end is None:
+            print("Invalid timeformat")
+            sys.exit(1)
+    else:
+        if args.begin:
+            args.begin = date_to_epoch_nsec(handle, args.begin, args.gmt)
+        if args.begin is None:
+            print("Invalid timeformat")
+            sys.exit(1)
+        if args.end:
+            args.end = date_to_epoch_nsec(handle, args.end, args.gmt)
+        if args.end is None:
+            print("Invalid timeformat")
+            sys.exit(1)
 
     if args.max == -1:
         args.max = None
