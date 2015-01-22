@@ -38,7 +38,7 @@ class IOTop():
         self.latency_hist = {}
         self.state = State()
 
-    def process_event(self, event, started):
+    def process_event(self, event):
         if self.start_ns == 0:
             self.start_ns = event.timestamp
         if self.trace_start_ts == 0:
@@ -68,7 +68,7 @@ class IOTop():
             self.state.mem.page_alloc(event)
         elif event.name == "exit_syscall" or \
                 event.name[0:13] == "syscall_exit_":
-            self.state.syscall.exit(event, started)
+            self.state.syscall.exit(event)
         elif event.name == "block_rq_complete":
             self.state.block.complete(event)
         elif event.name == "block_rq_issue":
@@ -113,7 +113,7 @@ class IOTop():
             if args.end and event.timestamp > args.end and \
                     len(self.state.pending_syscalls) == 0:
                 break
-            self.process_event(event, started)
+            self.process_event(event)
         progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace

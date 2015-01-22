@@ -425,7 +425,7 @@ class Syscalls():
         if len(cleaned) > 0:
             current_syscall["pages_cleared"] = cleaned
 
-    def track_rw_latency(self, name, ret, c, ts, started, event):
+    def track_rw_latency(self, name, ret, c, ts, event):
         current_syscall = self.tids[c.current_tid].current_syscall
         rq = current_syscall["iorequest"]
 #       FIXME: useless ?
@@ -475,7 +475,7 @@ class Syscalls():
             self.track_sync(name, event, cpu_id)
         return ret_string
 
-    def exit(self, event, started):
+    def exit(self, event):
         cpu_id = event["cpu_id"]
         ret_string = ""
         if cpu_id not in self.cpus:
@@ -504,16 +504,14 @@ class Syscalls():
             current_syscall["fd"].fdtype = current_syscall["fdtype"]
             current_syscall["iorequest"].operation = IORequest.OP_OPEN
             self.track_rw_latency(name, ret, c,
-                                  event.timestamp, started, event)
+                                  event.timestamp, event)
         elif name in SyscallConsts.READ_SYSCALLS or \
                 name in SyscallConsts.WRITE_SYSCALLS:
             self.track_read_write_return(name, ret, c)
-            self.track_rw_latency(name, ret, c, event.timestamp,
-                                  started, event)
+            self.track_rw_latency(name, ret, c, event.timestamp, event)
         elif name in SyscallConsts.SYNC_SYSCALLS:
             current_syscall["iorequest"].operation = IORequest.OP_SYNC
-            self.track_rw_latency(name, ret, c, event.timestamp,
-                                  started, event)
+            self.track_rw_latency(name, ret, c, event.timestamp, event)
             if name in ["sys_sync", "syscall_entry_sync"]:
                 t = self.tids[c.current_tid]
                 t.iorequests.append(current_syscall["iorequest"])
