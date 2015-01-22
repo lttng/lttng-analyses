@@ -20,7 +20,8 @@ except ImportError:
     sys.path.append("/usr/local/lib/python%d.%d/site-packages" %
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
-from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime
+from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, \
+    process_date_args
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from LTTngAnalyzes.state import State
@@ -41,8 +42,18 @@ class MemTop():
         self.end_ns = 0
 
         progressbar_setup(self, args)
+        if not args.begin:
+            started = 1
+        else:
+            started = 0
         for event in self.traces.events:
             progressbar_update(self, args)
+            if args.begin and started == 0 and event.timestamp >= args.begin:
+                started = 1
+                self.trace_start_ts = event.timestamp
+                self.reset_total(event.timestamp)
+            if args.end and event.timestamp > args.end:
+                break
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
             if self.trace_start_ts == 0:
@@ -128,12 +139,23 @@ if __name__ == "__main__":
                         help='Limit to top X TIDs (default = 10)')
     parser.add_argument('--no-progress', action="store_true",
                         help='Don\'t display the progress bar')
+    parser.add_argument('--gmt', action="store_true",
+                        help='Manipulate timestamps based on GMT instead '
+                        'of local time')
+    parser.add_argument('--begin', type=str, help='start time: '
+                                                  'hh:mm:ss[.nnnnnnnnn]')
+    parser.add_argument('--end', type=str, help='end time: '
+                                                'hh:mm:ss[.nnnnnnnnn]')
+    parser.add_argument('--timerange', type=str, help='time range: '
+                                                      '[begin,end]')
     args = parser.parse_args()
 
     traces = TraceCollection()
     handle = traces.add_traces_recursive(args.path, "ctf")
     if handle is None:
         sys.exit(1)
+
+    process_date_args(args, handle)
 
     c = MemTop(traces)
 
