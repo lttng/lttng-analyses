@@ -778,9 +778,12 @@ if __name__ == "__main__":
     parser.add_argument('--gmt', action="store_true",
                         help='Manipulate timestamps based on GMT instead '
                         'of local time')
-    parser.add_argument('--begin', type=str, help='start time')
-    parser.add_argument('--end', type=str, help='end time')
-    parser.add_argument('--timerange', type=str, help='time range')
+    parser.add_argument('--begin', type=str, help='start time: '
+                                                  'hh:mm:ss[.nnnnnnnnn]')
+    parser.add_argument('--end', type=str, help='end time: '
+                                                'hh:mm:ss[.nnnnnnnnn]')
+    parser.add_argument('--timerange', type=str, help='time range: '
+                                                      '[begin,end]')
     parser.add_argument('--seconds', action="store_true",
                         help='display time in seconds since epoch')
     parser.add_argument('--stats', action="store_true",
@@ -829,14 +832,14 @@ if __name__ == "__main__":
     else:
         if args.begin:
             args.begin = date_to_epoch_nsec(handle, args.begin, args.gmt)
-        if args.begin is None:
-            print("Invalid timeformat")
-            sys.exit(1)
+            if args.begin is None:
+                print("Invalid timeformat")
+                sys.exit(1)
         if args.end:
             args.end = date_to_epoch_nsec(handle, args.end, args.gmt)
-        if args.end is None:
-            print("Invalid timeformat")
-            sys.exit(1)
+            if args.end is None:
+                print("Invalid timeformat")
+                sys.exit(1)
 
     if args.max == -1:
         args.max = None
