@@ -22,7 +22,7 @@ except ImportError:
                     (sys.version_info.major, sys.version_info.minor))
     from babeltrace import TraceCollection
 from LTTngAnalyzes.common import NSEC_PER_SEC, ns_to_asctime, IRQ, \
-    ns_to_hour_nsec, is_multi_day_trace_collection
+    ns_to_hour_nsec, process_date_args
 from LTTngAnalyzes.progressbar import progressbar_setup, progressbar_update, \
     progressbar_finish
 from LTTngAnalyzes.state import State
@@ -43,8 +43,18 @@ class IrqStats():
         self.end_ns = 0
 
         progressbar_setup(self, args)
+        if not args.begin:
+            started = 1
+        else:
+            started = 0
         for event in self.traces.events:
             progressbar_update(self, args)
+            if args.begin and started == 0 and event.timestamp >= args.begin:
+                started = 1
+                self.trace_start_ts = event.timestamp
+                self.reset_total(event.timestamp)
+            if args.end and event.timestamp > args.end:
+                break
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
             if self.trace_start_ts == 0:
@@ -264,6 +274,7 @@ class IrqStats():
     def reset_total(self, start_ts):
         self.state.interrupts["hard_count"] = 0
         self.state.interrupts["soft_count"] = 0
+        self.state.interrupts["irq-list"] = []
         for i in self.state.interrupts["hard-irqs"].keys():
             self.state.interrupts["hard-irqs"][i] = self.state.irq.init_irq()
         for i in self.state.interrupts["soft-irqs"].keys():
@@ -301,6 +312,12 @@ if __name__ == "__main__":
     parser.add_argument('--log', action="store_true",
                         help='Display the interrupt in the order they were '
                              'handled')
+    parser.add_argument('--begin', type=str, help='start time: '
+                                                  'hh:mm:ss[.nnnnnnnnn]')
+    parser.add_argument('--end', type=str, help='end time: '
+                                                'hh:mm:ss[.nnnnnnnnn]')
+    parser.add_argument('--timerange', type=str, help='time range: '
+                                                      '[begin,end]')
     args = parser.parse_args()
 
     args.irq_filter_list = None
@@ -324,7 +341,7 @@ if __name__ == "__main__":
     if handle is None:
         sys.exit(1)
 
-    args.multi_day = is_multi_day_trace_collection(handle)
+    process_date_args(args, handle)
 
     c = IrqStats(traces)
 
