@@ -148,17 +148,6 @@ class Command:
 
         self._validate_transform_common_args(args)
 
-        # common validation
-#        if args.begin != 'begin':
-#            self._cmdline_error('begin argument should be "begin"')
-
-#        if args.end != 'end':
-#            self._cmdline_error('end argument should be "end"')
-
-        # transform and save arguments
-#        self._arg_begin = len(args.begin)
-#        self._arg_end = len(args.end)
-
         # save all arguments
         self._args = args
 
