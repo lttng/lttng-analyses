@@ -1,12 +1,12 @@
 from .net import NetStateProvider
+from .sched import SchedStateProvider
 
 
 class State:
     def __init__(self):
-        self.hello = 23
-
-    def _incr_hello(self):
-        self.hello += 5
+        self.cpus = {}
+        self.tids = {}
+        self.dirty_pages = {}
 
 
 class Automaton:
@@ -14,6 +14,7 @@ class Automaton:
         self._state = State()
         self._state_providers = [
             NetStateProvider(self._state),
+            SchedStateProvider(self._state),
         ]
 
     def process_event(self, ev):
