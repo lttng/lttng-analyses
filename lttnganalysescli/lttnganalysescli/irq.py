@@ -1,0 +1,274 @@
+from .command import Command
+import lttnganalyses.irq
+from linuxautomaton import common, sv
+from ascii_graph import Pyasciigraph
+import statistics
+
+
+class IrqAnalysis(Command):
+    _VERSION = '0.1.0'
+    _DESC = """The irq command."""
+
+    def __init__(self):
+        super().__init__(self._add_arguments, enable_max_min_args=True)
+
+    def _validate_transform_args(self):
+        self._automaton.state.max = self._arg_max
+        self._automaton.state.min = self._arg_min
+        self._arg_irq_filter_list = None
+        self._arg_softirq_filter_list = None
+        if self._args.irq:
+            self._arg_irq_filter_list = self._args.irq.split(",")
+        if self._args.softirq:
+            self._arg_softirq_filter_list = self._args.softirq.split(",")
+        if self._arg_irq_filter_list is None and \
+                self._arg_softirq_filter_list is None:
+            self._arg_irq_filter_list = []
+            self._arg_softirq_filter_list = []
+        self._arg_freq = self._args.freq
+        self._arg_freq_resolution = self._args.freq_resolution
+        self._arg_log = self._args.log
+
+    def run(self):
+        # parse arguments first
+        self._parse_args()
+        # validate, transform and save specific arguments
+        self._validate_transform_args()
+        # open the trace
+        self._open_trace()
+        # create the appropriate analysis/analyses
+        self._create_analysis()
+        # run the analysis
+        self._run_analysis(self._reset_total, self._refresh)
+        # process the results
+        self._compute_stats()
+        # print results
+        self._print_results(self.start_ns, self.trace_end_ts, final=1)
+        # close the trace
+        self._close_trace()
+
+    def _create_analysis(self):
+        self._analysis = lttnganalyses.irq.IrqAnalysis(self._automaton.state)
+
+    def compute_stdev(self, irq):
+        values = []
+        raise_delays = []
+        stdev = {}
+        for j in irq["list"]:
+            delay = j.stop_ts - j.start_ts
+            values.append(delay)
+            if j.raise_ts == -1:
+                continue
+            # Raise latency (only for some softirqs)
+            r_d = j.start_ts - j.raise_ts
+            raise_delays.append(r_d)
+        if irq["count"] < 2:
+            stdev["duration"] = "?"
+        else:
+            stdev["duration"] = "%0.03f" % (statistics.stdev(values) / 1000)
+        # format string for the raise if present
+        if irq["raise_count"] >= 2:
+            stdev["raise"] = "%0.03f" % (statistics.stdev(raise_delays)/1000)
+        return stdev
+
+    def irq_list_to_freq(self, irq, _min, _max, res):
+        step = (_max - _min) / res
+        if step == 0:
+            return
+        buckets = []
+        values = []
+        graph = Pyasciigraph()
+        for i in range(res):
+            buckets.append(i * step)
+            values.append(0)
+        for i in irq["list"]:
+            v = (i.stop_ts - i.start_ts) / 1000
+            b = min(int((v-_min)/step), res - 1)
+            values[b] += 1
+        g = []
+        i = 0
+        for v in values:
+            g.append(("%0.03f" % (i * step + _min), v))
+            i += 1
+        for line in graph.graph('Frequency distribution', g, info_before=True):
+            print(line)
+        print("")
+
+    # FIXME: there must be a way to make that more complicated/ugly
+    def filter_irq(self, i):
+        if i.irqclass == sv.IRQ.HARD_IRQ:
+            if self._arg_irq_filter_list is not None:
+                if len(self._arg_irq_filter_list) > 0 and \
+                        str(i.nr) not in self._arg_irq_filter_list:
+                    return False
+                else:
+                    return True
+            if self._arg_softirq_filter_list is not None and \
+                    len(self._arg_softirq_filter_list) > 0:
+                return False
+        else:
+            if self._arg_softirq_filter_list is not None:
+                if len(self._arg_softirq_filter_list) > 0 and \
+                        str(i.nr) not in self._arg_softirq_filter_list:
+                    return False
+                else:
+                    return True
+            if self._arg_irq_filter_list is not None and \
+                    len(self._arg_irq_filter_list) > 0:
+                return False
+        raise Exception("WTF")
+
+    def log_irq(self):
+        fmt = "[{:<18}, {:<18}] {:>15} {:>4}  {:<9} {:>4}  {:<22}"
+        title_fmt = "{:<20} {:<19} {:>15} {:>4}  {:<9} {:>4}  {:<22}"
+        print(title_fmt.format("Begin", "End", "Duration (us)", "CPU",
+                               "Type", "#", "Name"))
+        for i in self.state.interrupts["irq-list"]:
+            if not self.filter_irq(i):
+                continue
+            if i.irqclass == sv.IRQ.HARD_IRQ:
+                name = self.state.interrupts["names"][i.nr]
+                irqtype = "IRQ"
+            else:
+                name = sv.IRQ.soft_names[i.nr]
+                irqtype = "SoftIRQ"
+            if i.raise_ts != -1:
+                raise_ts = " (raised at %s)" % \
+                           (common.ns_to_hour_nsec(i.raise_ts,
+                                                   self._arg_multi_day,
+                                                   self._arg_gmt))
+            else:
+                raise_ts = ""
+            print(fmt.format(common.ns_to_hour_nsec(i.start_ts,
+                                                    self._arg_multi_day,
+                                                    self._arg_gmt),
+                             common.ns_to_hour_nsec(i.stop_ts,
+                                                    self._arg_multi_day,
+                                                    self._arg_gmt),
+                             "%0.03f" % ((i.stop_ts - i.start_ts) / 1000),
+                             "%d" % i.cpu_id, irqtype, i.nr, name + raise_ts))
+
+    def print_irq_stats(self, dic, name_table, filter_list, header):
+        header_output = 0
+        for i in sorted(dic.keys()):
+            if len(filter_list) > 0 and str(i) not in filter_list:
+                continue
+            name = name_table[i]
+            stdev = self.compute_stdev(dic[i])
+
+            # format string for the raise if present
+            if dic[i]["raise_count"] < 2:
+                raise_stats = " |"
+            else:
+                r_avg = dic[i]["raise_total"] / (dic[i]["raise_count"] * 1000)
+                raise_stats = " | {:>6} {:>12} {:>12} {:>12} {:>12}".format(
+                    dic[i]["raise_count"],
+                    "%0.03f" % (dic[i]["raise_min"] / 1000),
+                    "%0.03f" % r_avg,
+                    "%0.03f" % (dic[i]["raise_max"] / 1000),
+                    stdev["raise"])
+
+            # final output
+            if dic[i]["count"] == 0:
+                continue
+            avg = "%0.03f" % (dic[i]["total"] / (dic[i]["count"] * 1000))
+            format_str = '{:<3} {:<18} {:>5} {:>12} {:>12} {:>12} ' \
+                         '{:>12} {:<60}'
+            s = format_str.format("%d:" % i, "<%s>" % name, dic[i]["count"],
+                                  "%0.03f" % (dic[i]["min"] / 1000),
+                                  "%s" % (avg),
+                                  "%0.03f" % (dic[i]["max"] / 1000),
+                                  "%s" % (stdev["duration"]),
+                                  raise_stats)
+            if self._arg_freq or header_output == 0:
+                print(header)
+                header_output = 1
+            print(s)
+            if self._arg_freq:
+                self.irq_list_to_freq(dic[i], dic[i]["min"] / 1000,
+                                      dic[i]["max"] / 1000,
+                                      self._arg_freq_resolution)
+
+    def _print_results(self, begin_ns, end_ns, final=0):
+        self.state = self._automaton.state
+        if self._arg_no_progress:
+            clear_screen = ""
+        else:
+            clear_screen = "\r" + self.pbar.term_width * " " + "\r"
+        date = '%s to %s' % (common.ns_to_asctime(begin_ns),
+                             common.ns_to_asctime(end_ns))
+        print(clear_screen + date)
+        if self._arg_irq_filter_list is not None:
+            header = ""
+            header += '{:<52} {:<12}\n'.format("Hard IRQ", "Duration (us)")
+            header += '{:<22} {:<14} {:<12} {:<12} {:<10} ' \
+                      '{:<12}\n'.format("", "count", "min", "avg", "max",
+                                        "stdev")
+            header += ('-'*82 + "|")
+            self.print_irq_stats(self.state.interrupts["hard-irqs"],
+                                 self.state.interrupts["names"],
+                                 self._arg_irq_filter_list, header)
+            print("")
+
+        if self._arg_softirq_filter_list is not None:
+            header = ""
+            header += '{:<52} {:<52} {:<12}\n'.format("Soft IRQ",
+                                                      "Duration (us)",
+                                                      "Raise latency (us)")
+            header += '{:<22} {:<14} {:<12} {:<12} {:<10} {:<4} {:<3} {:<14} '\
+                      '{:<12} {:<12} {:<10} ' \
+                      '{:<12}\n'.format("", "count", "min", "avg", "max",
+                                        "stdev", " |", "count", "min",
+                                        "avg", "max", "stdev")
+            header += '-' * 82 + "|" + '-' * 60
+            self.print_irq_stats(self.state.interrupts["soft-irqs"],
+                                 sv.IRQ.soft_names,
+                                 self._arg_softirq_filter_list,
+                                 header)
+            print("")
+
+        if self._arg_log:
+            self.log_irq()
+
+    def _compute_stats(self):
+        pass
+
+    def _reset_total(self, start_ts):
+        self.state = self._automaton.state
+        self.state.interrupts["hard_count"] = 0
+        self.state.interrupts["soft_count"] = 0
+        self.state.interrupts["irq-list"] = []
+        for i in self.state.interrupts["hard-irqs"].keys():
+            self.state.interrupts["hard-irqs"][i] = self.state.irq.init_irq()
+        for i in self.state.interrupts["soft-irqs"].keys():
+            self.state.interrupts["soft-irqs"][i] = self.state.irq.init_irq()
+
+    def _refresh(self, begin, end):
+        self._compute_stats()
+        self._print_results(begin, end, final=0)
+        self._reset_total(end)
+
+    def _add_arguments(self, ap):
+        ap.add_argument('--irq', type=str, default=0,
+                        help='Show results only for the list of IRQ')
+        ap.add_argument('--softirq', type=str, default=0,
+                        help='Show results only for the list of '
+                             'SoftIRQ')
+        ap.add_argument('--freq', action="store_true",
+                        help='Show the frequency distribution of '
+                             'handler duration')
+        ap.add_argument('--freq-resolution', type=int, default=20,
+                        help='Frequency distribution resolution '
+                             '(default 20)')
+        ap.add_argument('--log', action="store_true",
+                        help='Display the interrupt in the order they '
+                             'were handled')
+
+
+# entry point
+def run():
+    # create command
+    irqcmd = IrqAnalysis()
+
+    # execute command
+    irqcmd.run()

@@ -10,7 +10,7 @@ class Cputop(Command):
     _DESC = """The cputop command."""
 
     def __init__(self):
-        super().__init__(self._add_arguments, True)
+        super().__init__(self._add_arguments, enable_proc_filter_args=True)
 
     def _validate_transform_args(self):
         pass

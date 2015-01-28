@@ -7,10 +7,10 @@ import operator
 
 class Memtop(Command):
     _VERSION = '0.1.0'
-    _DESC = """The cputop command."""
+    _DESC = """The memtop command."""
 
     def __init__(self):
-        super().__init__(self._add_arguments, True)
+        super().__init__(self._add_arguments, enable_proc_filter_args=True)
 
     def _validate_transform_args(self):
         pass

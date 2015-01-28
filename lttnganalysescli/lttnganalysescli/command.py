@@ -7,10 +7,11 @@ import sys
 
 
 class Command:
-    def __init__(self, add_arguments_cb, enable_proc_filter_args):
+    def __init__(self, add_arguments_cb, enable_proc_filter_args=False,
+                 enable_max_min_args=False):
         self._add_arguments_cb = add_arguments_cb
-        if enable_proc_filter_args:
-            self._enable_proc_filter_args = True
+        self._enable_proc_filter_args = enable_proc_filter_args
+        self._enable_max_min_arg = enable_max_min_args
         self._create_automaton()
 
     def _error(self, msg, exit_code=1):
@@ -63,10 +64,10 @@ class Command:
             self.end_ns = event.timestamp
             self._check_refresh(event, refresh_cb)
             self.trace_end_ts = event.timestamp
-            # feed automaton
-            self._automaton.process_event(event)
             # feed analysis
             self._analysis.process_event(event)
+            # feed automaton
+            self._automaton.process_event(event)
         progressbar.progressbar_finish(self)
 
     def _check_refresh(self, event, refresh_cb):
@@ -84,12 +85,6 @@ class Command:
 
     def _validate_transform_common_args(self, args):
         self._arg_path = args.path
-        self._arg_proc_list = None
-        if args.procname:
-            self._arg_proc_list = args.procname.split(",")
-        self._arg_pid_list = None
-        if args.pid:
-            self._arg_pid_list = args.pid.split(",")
         if args.limit:
             self._arg_limit = args.limit
         self._arg_begin = None
@@ -106,6 +101,24 @@ class Command:
             self._arg_gmt = args.gmt
         self._arg_refresh = args.refresh
         self._arg_no_progress = args.no_progress
+
+        if self._enable_proc_filter_args:
+            self._arg_proc_list = None
+            if args.procname:
+                self._arg_proc_list = args.procname.split(",")
+            self._arg_pid_list = None
+            if args.pid:
+                self._arg_pid_list = args.pid.split(",")
+
+        if self._enable_max_min_arg:
+            if args.max == -1:
+                self._arg_max = None
+            else:
+                self._arg_max = args.max
+            if args.min == -1:
+                self._arg_min = None
+            else:
+                self._arg_min = args.min
 
     def _parse_args(self):
         ap = argparse.ArgumentParser(description=self._DESC)
@@ -135,6 +148,12 @@ class Command:
             ap.add_argument('--pid', type=str, default=0,
                             help='Filter the results only for this list '
                                  'of PIDs')
+
+        if self._enable_max_min_arg:
+            ap.add_argument('--max', type=float, default=-1,
+                            help='Filter out, duration longer than max usec')
+            ap.add_argument('--min', type=float, default=-1,
+                            help='Filter out, duration shorter than min usec')
 
         # specific arguments
         self._add_arguments_cb(ap)

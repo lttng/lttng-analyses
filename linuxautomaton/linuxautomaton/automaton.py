@@ -1,5 +1,6 @@
 from .sched import SchedStateProvider
 from .mem import MemStateProvider
+from .irq import IrqStateProvider
 
 
 class State:
@@ -21,6 +22,7 @@ class Automaton:
         self._state_providers = [
             SchedStateProvider(self._state),
             MemStateProvider(self._state),
+            IrqStateProvider(self._state),
         ]
 
     def process_event(self, ev):
