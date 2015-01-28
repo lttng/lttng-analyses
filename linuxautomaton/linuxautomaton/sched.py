@@ -8,10 +8,11 @@ class SchedStateProvider(sp.StateProvider):
         self.cpus = state.cpus
         self.tids = state.tids
         self.dirty_pages = state.dirty_pages
-        self._cbs = {
+        cbs = {
             'sched_switch': self._process_sched_switch,
             'sched_migrate_task': self._process_sched_migrate_task,
         }
+        self._register_cbs(cbs)
 
     def process_event(self, ev):
         self._process_event_cb(ev)

@@ -1,20 +1,26 @@
-from .net import NetStateProvider
 from .sched import SchedStateProvider
+from .mem import MemStateProvider
 
 
 class State:
     def __init__(self):
         self.cpus = {}
         self.tids = {}
+        self.disks = {}
+        self.syscalls = {}
+        self.mm = {}
+        self.ifaces = {}
         self.dirty_pages = {}
+        self.interrupts = {}
+        self.pending_syscalls = []
 
 
 class Automaton:
     def __init__(self):
         self._state = State()
         self._state_providers = [
-            NetStateProvider(self._state),
             SchedStateProvider(self._state),
+            MemStateProvider(self._state),
         ]
 
     def process_event(self, ev):
