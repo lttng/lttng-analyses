@@ -28,6 +28,7 @@ class SyscallsStateProvider(sp.StateProvider):
         cbs = {
             'syscall_entry': self._process_syscall_entry,
             'syscall_exit': self._process_syscall_exit,
+            'writeback_pages_written': self._process_writeback_pages_written,
         }
         self._register_cbs(cbs)
 
@@ -519,7 +520,7 @@ class SyscallsStateProvider(sp.StateProvider):
             self.pending_syscalls.remove(self.tids[c.current_tid])
         return ret_string
 
-    def wb_pages(self, event):
+    def _process_writeback_pages_written(self, event):
         """writeback_pages_written"""
         for c in self.cpus.values():
             if c.current_tid <= 0:
