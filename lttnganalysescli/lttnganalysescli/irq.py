@@ -10,11 +10,17 @@ class IrqAnalysis(Command):
     _DESC = """The irq command."""
 
     def __init__(self):
-        super().__init__(self._add_arguments, enable_max_min_args=True)
+        super().__init__(self._add_arguments,
+                         enable_max_min_args=True,
+                         enable_freq_arg=True,
+                         enable_log_arg=True)
 
     def _validate_transform_args(self):
+        # We need the min/max in the automaton to filter
+        # at the source.
         self._automaton.state.max = self._arg_max
         self._automaton.state.min = self._arg_min
+
         self._arg_irq_filter_list = None
         self._arg_softirq_filter_list = None
         if self._args.irq:
@@ -25,9 +31,6 @@ class IrqAnalysis(Command):
                 self._arg_softirq_filter_list is None:
             self._arg_irq_filter_list = []
             self._arg_softirq_filter_list = []
-        self._arg_freq = self._args.freq
-        self._arg_freq_resolution = self._args.freq_resolution
-        self._arg_log = self._args.log
 
     def run(self):
         # parse arguments first
@@ -254,15 +257,6 @@ class IrqAnalysis(Command):
         ap.add_argument('--softirq', type=str, default=0,
                         help='Show results only for the list of '
                              'SoftIRQ')
-        ap.add_argument('--freq', action="store_true",
-                        help='Show the frequency distribution of '
-                             'handler duration')
-        ap.add_argument('--freq-resolution', type=int, default=20,
-                        help='Frequency distribution resolution '
-                             '(default 20)')
-        ap.add_argument('--log', action="store_true",
-                        help='Display the interrupt in the order they '
-                             'were handled')
 
 
 # entry point

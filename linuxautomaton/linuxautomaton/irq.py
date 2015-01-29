@@ -104,9 +104,11 @@ class IrqStateProvider(sp.StateProvider):
 
         # filter out max/min
         duration = i.stop_ts - i.start_ts
-        if self.state.max and duration > self.state.max * 1000:
+        if hasattr(self.state, "max") and self.state.max is not None and \
+                duration > self.state.max * 1000:
             return False
-        if self.state.min and duration < self.state.min * 1000:
+        if hasattr(self.state, "min") and self.state.min is not None and \
+                duration < self.state.min * 1000:
             return False
         self.irq[irq_type][i.nr]["list"].append(i)
         self.compute_stats(self.irq[irq_type][i.nr], i)

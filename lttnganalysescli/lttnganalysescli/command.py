@@ -7,11 +7,20 @@ import sys
 
 
 class Command:
-    def __init__(self, add_arguments_cb, enable_proc_filter_args=False,
-                 enable_max_min_args=False):
+    def __init__(self, add_arguments_cb,
+                 enable_proc_filter_args=False,
+                 enable_max_min_args=False,
+                 enable_max_min_size_arg=False,
+                 enable_freq_arg=False,
+                 enable_log_arg=False,
+                 enable_stats_arg=False):
         self._add_arguments_cb = add_arguments_cb
         self._enable_proc_filter_args = enable_proc_filter_args
         self._enable_max_min_arg = enable_max_min_args
+        self._enable_max_min_size_arg = enable_max_min_size_arg
+        self._enable_freq_arg = enable_freq_arg
+        self._enable_log_arg = enable_log_arg
+        self._enable_stats_arg = enable_stats_arg
         self._create_automaton()
 
     def _error(self, msg, exit_code=1):
@@ -120,6 +129,26 @@ class Command:
             else:
                 self._arg_min = args.min
 
+        if self._enable_max_min_size_arg:
+            if args.maxsize == -1:
+                self._arg_maxsize = None
+            else:
+                self._arg_maxsize = args.maxsize
+            if args.minsize == -1:
+                self._arg_minsize = None
+            else:
+                self._arg_minsize = args.minsize
+
+        if self._enable_freq_arg:
+            self._arg_freq = args.freq
+            self._arg_freq_resolution = args.freq_resolution
+
+        if self._enable_log_arg:
+            self._arg_log = args.log
+
+        if self._enable_stats_arg:
+            self._arg_stats = args.stats
+
     def _parse_args(self):
         ap = argparse.ArgumentParser(description=self._DESC)
 
@@ -154,6 +183,31 @@ class Command:
                             help='Filter out, duration longer than max usec')
             ap.add_argument('--min', type=float, default=-1,
                             help='Filter out, duration shorter than min usec')
+
+        if self._enable_max_min_size_arg:
+            ap.add_argument('--maxsize', type=float, default=-1,
+                            help='Filter out, I/O operations working with '
+                                 'more that maxsize bytes')
+            ap.add_argument('--minsize', type=float, default=-1,
+                            help='Filter out, I/O operations working with '
+                                 'less that minsize bytes')
+
+        if self._enable_freq_arg:
+            ap.add_argument('--freq', action="store_true",
+                            help='Show the frequency distribution of '
+                                 'handler duration')
+            ap.add_argument('--freq-resolution', type=int, default=20,
+                            help='Frequency distribution resolution '
+                                 '(default 20)')
+
+        if self._enable_log_arg:
+            ap.add_argument('--log', action="store_true",
+                            help='Display the events in the order they '
+                                 'appeared')
+
+        if self._enable_stats_arg:
+            ap.add_argument('--stats', action="store_true",
+                            help='Display the statistics')
 
         # specific arguments
         self._add_arguments_cb(ap)

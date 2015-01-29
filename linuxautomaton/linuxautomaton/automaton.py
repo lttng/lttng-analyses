@@ -1,6 +1,7 @@
 from .sched import SchedStateProvider
 from .mem import MemStateProvider
 from .irq import IrqStateProvider
+from .syscalls import SyscallsStateProvider
 
 
 class State:
@@ -23,6 +24,7 @@ class Automaton:
             SchedStateProvider(self._state),
             MemStateProvider(self._state),
             IrqStateProvider(self._state),
+            SyscallsStateProvider(self._state),
         ]
 
     def process_event(self, ev):
