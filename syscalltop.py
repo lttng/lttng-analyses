@@ -57,7 +57,7 @@ class SyscallTop():
                 self.state.syscall.entry(event)
             elif (event.name == "exit_syscall" or event.name[0:13] ==
                     "syscall_exit_"):
-                self.state.syscall.exit(event, 1)
+                self.state.syscall.exit(event)
         progressbar_finish(self, args)
         if args.refresh == 0:
             # stats for the whole trace
