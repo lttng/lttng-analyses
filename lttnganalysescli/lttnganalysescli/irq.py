@@ -13,7 +13,8 @@ class IrqAnalysis(Command):
         super().__init__(self._add_arguments,
                          enable_max_min_args=True,
                          enable_freq_arg=True,
-                         enable_log_arg=True)
+                         enable_log_arg=True,
+                         enable_stats_arg=True)
 
     def _validate_transform_args(self):
         # We need the min/max in the automaton to filter
@@ -32,11 +33,21 @@ class IrqAnalysis(Command):
             self._arg_irq_filter_list = []
             self._arg_softirq_filter_list = []
 
-    def run(self):
+    def _default_args(self, stats, log, freq):
+        if stats:
+            self._arg_stats = True
+        if log:
+            self._arg_log = True
+        if freq:
+            self._arg_freq = True
+
+    def run(self, stats=False, log=False, freq=False):
         # parse arguments first
         self._parse_args()
         # validate, transform and save specific arguments
         self._validate_transform_args()
+        # handle the default args for different executables
+        self._default_args(stats, log, freq)
         # open the trace
         self._open_trace()
         # create the appropriate analysis/analyses
@@ -50,8 +61,18 @@ class IrqAnalysis(Command):
         # close the trace
         self._close_trace()
 
+    def run_stats(self):
+        self.run(stats=True)
+
+    def run_log(self):
+        self.run(log=True)
+
+    def run_freq(self):
+        self.run(freq=True)
+
     def _create_analysis(self):
         self._analysis = lttnganalyses.irq.IrqAnalysis(self._automaton.state)
+        self.state = self._automaton.state
 
     def compute_stdev(self, irq):
         values = []
@@ -74,7 +95,7 @@ class IrqAnalysis(Command):
             stdev["raise"] = "%0.03f" % (statistics.stdev(raise_delays)/1000)
         return stdev
 
-    def irq_list_to_freq(self, irq, _min, _max, res):
+    def irq_list_to_freq(self, irq, _min, _max, res, name, nr):
         step = (_max - _min) / res
         if step == 0:
             return
@@ -93,7 +114,8 @@ class IrqAnalysis(Command):
         for v in values:
             g.append(("%0.03f" % (i * step + _min), v))
             i += 1
-        for line in graph.graph('Frequency distribution', g, info_before=True):
+        for line in graph.graph('Frequency distribution %s (%s)' % (name, nr),
+                                g, info_before=True):
             print(line)
         print("")
 
@@ -183,17 +205,23 @@ class IrqAnalysis(Command):
                                   "%0.03f" % (dic[i]["max"] / 1000),
                                   "%s" % (stdev["duration"]),
                                   raise_stats)
-            if self._arg_freq or header_output == 0:
+            if self._arg_stats and (self._arg_freq or header_output == 0):
                 print(header)
                 header_output = 1
-            print(s)
+            if self._arg_stats:
+                print(s)
             if self._arg_freq:
                 self.irq_list_to_freq(dic[i], dic[i]["min"] / 1000,
                                       dic[i]["max"] / 1000,
-                                      self._arg_freq_resolution)
+                                      self._arg_freq_resolution, name, str(i))
 
     def _print_results(self, begin_ns, end_ns, final=0):
-        self.state = self._automaton.state
+        if self._arg_stats or self._arg_freq:
+            self._print_stats(begin_ns, end_ns, final)
+        if self._arg_log:
+            self.log_irq()
+
+    def _print_stats(self, begin_ns, end_ns, final):
         if self._arg_no_progress:
             clear_screen = ""
         else:
@@ -230,9 +258,6 @@ class IrqAnalysis(Command):
                                  header)
             print("")
 
-        if self._arg_log:
-            self.log_irq()
-
     def _compute_stats(self):
         pass
 
@@ -260,9 +285,22 @@ class IrqAnalysis(Command):
 
 
 # entry point
-def run():
+def runstats():
     # create command
     irqcmd = IrqAnalysis()
-
     # execute command
-    irqcmd.run()
+    irqcmd.run_stats()
+
+
+def runlog():
+    # create command
+    irqcmd = IrqAnalysis()
+    # execute command
+    irqcmd.run_log()
+
+
+def runfreq():
+    # create command
+    irqcmd = IrqAnalysis()
+    # execute command
+    irqcmd.run_freq()

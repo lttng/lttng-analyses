@@ -8,4 +8,4 @@ import lttnganalysescli.irq
 
 
 if __name__ == '__main__':
-    lttnganalysescli.irq.runstats()
+    lttnganalysescli.irq.runlog()
