@@ -11,6 +11,8 @@ class SchedStateProvider(sp.StateProvider):
         cbs = {
             'sched_switch': self._process_sched_switch,
             'sched_migrate_task': self._process_sched_migrate_task,
+            'sched_wakeup': self._process_sched_wakeup,
+            'sched_wakeup_new': self._process_sched_wakeup,
         }
         self._register_cbs(cbs)
 
@@ -184,7 +186,7 @@ class SchedStateProvider(sp.StateProvider):
             p = self.tids[tid]
         p.migrate_count += 1
 
-    def wakeup(self, event):
+    def _process_sched_wakeup(self, event):
         """Stores the sched_wakeup infos to compute scheduling latencies"""
         target_cpu = event["target_cpu"]
         tid = event["tid"]
