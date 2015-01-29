@@ -53,17 +53,28 @@ class Memtop(Command):
         self._print_results(begin, end, final=0)
         self._reset_total(end)
 
+    def filter_process(self, proc):
+        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
+            return False
+        if self._arg_pid_list and str(proc.pid) not in self._arg_pid_list:
+            return False
+        return True
+
     def _print_results(self, begin_ns, end_ns, final=0):
         count = 0
         limit = self._arg_limit
         graph = Pyasciigraph()
         values = []
         self.state = self._automaton.state
+        alloc = 0
+        freed = 0
         print('%s to %s' % (common.ns_to_asctime(begin_ns),
                             common.ns_to_asctime(end_ns)))
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('allocated_pages'),
                           reverse=True):
+            if not self.filter_process(tid):
+                continue
             values.append(("%s (%d)" % (tid.comm, tid.tid),
                           tid.allocated_pages))
             count = count + 1
@@ -78,15 +89,31 @@ class Memtop(Command):
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('freed_pages'),
                           reverse=True):
+            if not self.filter_process(tid):
+                continue
             values.append(("%s (%d)" % (tid.comm, tid.tid), tid.freed_pages))
             count = count + 1
+            freed += tid.freed_pages
             if limit > 0 and count >= limit:
                 break
         for line in graph.graph("Per-TID Memory Deallocation", values,
                                 unit=" pages"):
             print(line)
+
+        for tid in sorted(self.state.tids.values(),
+                          key=operator.attrgetter('allocated_pages'),
+                          reverse=True):
+            if not self.filter_process(tid):
+                continue
+            alloc += tid.allocated_pages
+        for tid in sorted(self.state.tids.values(),
+                          key=operator.attrgetter('freed_pages'),
+                          reverse=True):
+            if not self.filter_process(tid):
+                continue
+            freed += tid.freed_pages
         print("\nTotal memory usage:\n- %d pages allocated\n- %d pages freed" %
-              (self.state.mm["allocated_pages"], self.state.mm["freed_pages"]))
+             (alloc, freed))
 
     def _add_arguments(self, ap):
         # specific argument
