@@ -32,7 +32,8 @@ class IoAnalysis(Command):
         # create the appropriate analysis/analyses
         self._create_analysis()
         # run the analysis
-        self._run_analysis(self._reset_total, self._refresh)
+        self._run_analysis(self._reset_total, self._refresh,
+                           break_cb=self._breakcb)
         # process the results
         self._compute_stats()
         # print results
@@ -43,10 +44,15 @@ class IoAnalysis(Command):
     def _create_analysis(self):
         self._analysis = lttnganalyses.syscalls.SyscallsAnalysis(
             self._automaton.state)
+        self.state = self._automaton.state
 
     def _compute_stats(self):
-        self.state = self._automaton.state
         pass
+
+    def _breakcb(self):
+        if len(self.state.pending_syscalls) > 0:
+            return False
+        return True
 
     def _refresh(self, begin, end):
         self._compute_stats()
@@ -558,7 +564,7 @@ class IoAnalysis(Command):
             extra_title = ""
         title_fmt = "{:<19} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} " + \
             extra_fmt + "{:<14}"
-        fmt = "{:<40} {:<16} {:>16} {:>12}  {:<24} {:<8} " + \
+        fmt = "{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} " + \
             extra_fmt + "{:<14}"
         print(title_fmt.format("Begin", "End", "Name", "Duration (usec)",
                                "Size", "Proc", "PID", extra_title, "Filename"))

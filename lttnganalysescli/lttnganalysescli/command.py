@@ -46,7 +46,7 @@ class Command:
         for h in self._handle.values():
             self._traces.remove_trace(h)
 
-    def _run_analysis(self, reset_cb, refresh_cb):
+    def _run_analysis(self, reset_cb, refresh_cb, break_cb=None):
         self.trace_start_ts = 0
         self.trace_end_ts = 0
         self.current_sec = 0
@@ -65,7 +65,12 @@ class Command:
                 self.start_ns = event.timestamp
                 reset_cb(event.timestamp)
             if self._arg_end and event.timestamp > self._arg_end:
-                break
+                if break_cb is not None:
+                    # check if we really can break here
+                    if break_cb():
+                        break
+                else:
+                    break
             if self.start_ns == 0:
                 self.start_ns = event.timestamp
             if self.trace_start_ts == 0:
