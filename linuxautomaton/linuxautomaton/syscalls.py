@@ -29,6 +29,7 @@ class SyscallsStateProvider(sp.StateProvider):
             'syscall_entry': self._process_syscall_entry,
             'syscall_exit': self._process_syscall_exit,
             'writeback_pages_written': self._process_writeback_pages_written,
+            'mm_vmscan_wakeup_kswapd': self._process_mm_vmscan_wakeup_kswapd,
         }
         self._register_cbs(cbs)
 
@@ -530,7 +531,7 @@ class SyscallsStateProvider(sp.StateProvider):
                 continue
             current_syscall["pages_written"] = event["pages"]
 
-    def wakeup_kswapd(self, event):
+    def _process_mm_vmscan_wakeup_kswapd(self, event):
         """mm_vmscan_wakeup_kswapd"""
         cpu_id = event["cpu_id"]
         if cpu_id not in self.cpus:
