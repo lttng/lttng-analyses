@@ -30,6 +30,7 @@ class SyscallsStateProvider(sp.StateProvider):
             'syscall_exit': self._process_syscall_exit,
             'writeback_pages_written': self._process_writeback_pages_written,
             'mm_vmscan_wakeup_kswapd': self._process_mm_vmscan_wakeup_kswapd,
+            'mm_page_free': self._process_mm_page_free,
         }
         self._register_cbs(cbs)
 
@@ -544,7 +545,7 @@ class SyscallsStateProvider(sp.StateProvider):
             return
         current_syscall["wakeup_kswapd"] = 1
 
-    def page_free(self, event):
+    def _process_mm_page_free(self, event):
         """mm_page_free"""
         for c in self.cpus.values():
             if c.current_tid <= 0:

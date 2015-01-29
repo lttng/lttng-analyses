@@ -13,6 +13,8 @@ class SchedStateProvider(sp.StateProvider):
             'sched_migrate_task': self._process_sched_migrate_task,
             'sched_wakeup': self._process_sched_wakeup,
             'sched_wakeup_new': self._process_sched_wakeup,
+            'sched_process_fork': self._process_sched_process_fork,
+            'sched_process_exec': self._process_sched_process_exec,
         }
         self._register_cbs(cbs)
 
@@ -231,7 +233,7 @@ class SchedStateProvider(sp.StateProvider):
         f.fdtype = fd.fdtype
         return f
 
-    def process_fork(self, event):
+    def _process_sched_process_fork(self, event):
         child_tid = event["child_tid"]
         child_pid = event["child_pid"]
         child_comm = event["child_comm"]
@@ -252,7 +254,7 @@ class SchedStateProvider(sp.StateProvider):
 
         self.tids[child_tid] = f
 
-    def process_exec(self, event):
+    def _process_sched_process_exec(self, event):
         tid = event["tid"]
         if tid not in self.tids:
             p = sv.Process()
