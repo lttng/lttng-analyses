@@ -3,6 +3,8 @@ from .mem import MemStateProvider
 from .irq import IrqStateProvider
 from .syscalls import SyscallsStateProvider
 from .statedump import StatedumpStateProvider
+from .block import BlockStateProvider
+from .net import NetStateProvider
 
 
 class State:
@@ -27,6 +29,8 @@ class Automaton:
             IrqStateProvider(self._state),
             SyscallsStateProvider(self._state),
             StatedumpStateProvider(self._state),
+            BlockStateProvider(self._state),
+            NetStateProvider(self._state),
         ]
 
     def process_event(self, ev):

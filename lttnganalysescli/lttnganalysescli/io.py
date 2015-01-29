@@ -304,7 +304,7 @@ class IoAnalysis(Command):
             if disk.completed_requests == 0:
                 continue
             total = (disk.request_time / disk.completed_requests) \
-                / sv.MSEC_PER_NSEC
+                / common.MSEC_PER_NSEC
             total = float("%0.03f" % total)
             values.append(("%s" % disk.prettyname, total))
         for line in graph.graph('Disk request time/sector', values, sort=2,
