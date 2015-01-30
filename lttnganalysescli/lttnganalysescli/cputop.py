@@ -78,8 +78,11 @@ class Cputop(Command):
         total_ns = end_ns - begin_ns
         graph = Pyasciigraph()
         values = []
-        print('%s to %s' % (common.ns_to_asctime(begin_ns),
-                            common.ns_to_asctime(end_ns)))
+        print('Timerange: [%s, %s]' % (
+            common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
+                                   multi_day=True),
+            common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
+                                   multi_day=True)))
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('cpu_ns'), reverse=True):
             if self._arg_proc_list and tid.comm not in self._arg_proc_list:

@@ -68,8 +68,11 @@ class Memtop(Command):
         self.state = self._automaton.state
         alloc = 0
         freed = 0
-        print('%s to %s' % (common.ns_to_asctime(begin_ns),
-                            common.ns_to_asctime(end_ns)))
+        print('Timerange: [%s, %s]' % (
+            common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
+                                   multi_day=True),
+            common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
+                                   multi_day=True)))
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('allocated_pages'),
                           reverse=True):
