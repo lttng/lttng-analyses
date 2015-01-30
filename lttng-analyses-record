@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Helper to setup a local LTTng tracing session with the appropriate
+# settings for the lttng analyses scripts
+
+SESSION_NAME="lttng-analysis-$RANDOM"
+
+destroy()
+{
+	lttng destroy $SESSION_NAME >/dev/null
+	echo ""
+	echo "You can now launch the analyses scripts on /$TRACEPATH"
+	exit 0
+}
+
+if test "$1" = "-h" -o "$1" = "--help"; then
+	echo "usage : $0"
+	exit 0
+fi
+
+pgrep -u root lttng-sessiond >/dev/null
+if test $? != 0; then
+	echo "Starting lttng-sessiond as root (trying sudo, start manually if \
+it fails)"
+	sudo lttng-sessiond -d
+	if test $? != 0; then
+		exit 1
+	fi
+fi
+
+SUDO=""
+groups|grep tracing >/dev/null
+if test $? != 0; then
+	echo "You are not a member of the tracing group, so you need root \
+access, the script will try with sudo"
+	SUDO="sudo"
+fi
+
+# check if lttng command if in the path
+# check if the user can execute the command (with sudo if not in tracing group)
+# check if lttng-modules is installed
+$SUDO lttng list -k | grep sched_switch >/dev/null
+if test $? != 0; then
+	echo "Something went wrong executing \"$SUDO lttng list -k | grep sched_switch\", \
+try to fix the problem manually and then start the script again"
+fi
+
+# if our random session name was already in use, add more randomness...
+$SUDO lttng list | grep $SESSION_NAME
+if test $? = 0; then
+	SESSION_NAME="$SESSION_NAME-$RANDOM"
+fi
+$SUDO lttng list | grep $SESSION_NAME
+if test $? = 0; then
+	echo "Cannot create a random session name, something must be wrong"
+	exit 2
+fi
+
+lttng create $SESSION_NAME >/tmp/lttngout
+[[ $? != 0 ]] && exit 2
+TRACEPATH=$(grep Traces /tmp/lttngout | cut -d'/' -f2-)
+rm /tmp/lttngout
+
+trap "destroy" SIGINT SIGTERM
+
+lttng enable-channel -k chan1 --subbuf-size=8M
+lttng enable-event -s $SESSION_NAME -k sched_switch,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device,writeback_pages_written,mm_vmscan_wakeup_kswapd,mm_page_free,mm_page_alloc,block_dirty_buffer,irq_handler_entry,irq_handler_exit,softirq_entry,softirq_exit,softirq_raise -c chan1 >/dev/null
+[[ $? != 0 ]] && exit 2
+lttng enable-event -s $SESSION_NAME -k -c chan1 --syscall -a >/dev/null
+[[ $? != 0 ]] && exit 2
+# if you want to add Perf counters, do something like that :
+#lttng add-context -s $SESSION_NAME -k -t perf:cache-misses -t perf:major-faults -t perf:branch-load-misses >/dev/null
+
+lttng start $SESSION_NAME >/dev/null
+[[ $? != 0 ]] && exit 2
+
+echo -n "The trace is now recording, press ctrl+c to stop it "
+
+while true; do
+	echo -n "."
+	sleep 1
+done
+
+destroy
