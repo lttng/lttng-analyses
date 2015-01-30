@@ -165,7 +165,7 @@ class Analyzes():
                   "syscall_exit_") and (args.global_syscalls or
                                         args.tid_syscalls or
                                         args.fds):
-                self.state.syscall.exit(event, 1)
+                self.state.syscall.exit(event)
             elif event.name == "block_rq_complete":
                 self.state.block.complete(event)
             elif event.name == "block_rq_issue":

@@ -54,7 +54,7 @@ class ProcInfo():
                 payload = self.state.syscall.entry(event)
             elif event.name == "exit_syscall" or \
                     event.name[0:13] == "syscall_exit_":
-                payload = self.state.syscall.exit(event, 1)
+                payload = self.state.syscall.exit(event)
             elif event.name == "block_complete" or \
                     event.name == "block_rq_complete":
                 self.state.block.complete(event)

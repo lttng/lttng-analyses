@@ -58,7 +58,7 @@ class NetTop():
             self.state.syscall.entry(event)
         elif event.name == 'exit_syscall' or \
                 event.name[0:13] == "syscall_exit_":
-            self.state.syscall.exit(event, False)
+            self.state.syscall.exit(event)
 
     def run(self, args):
         progressbar_setup(self, args)
