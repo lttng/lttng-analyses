@@ -15,18 +15,32 @@ class IoAnalysis(Command):
                          enable_proc_filter_args=True,
                          enable_max_min_args=True,
                          enable_max_min_size_arg=True,
-                         enable_freq_arg=True,
-                         enable_log_arg=True,
-                         enable_stats_arg=True)
+                         enable_log_arg=True)
 
     def _validate_transform_args(self):
         self._arg_extra = self._args.extra
+        self._arg_usage = self._args.usage
+        self._arg_stats = self._args.latencystats
+        self._arg_freq = self._args.latencyfreq
+        self._arg_freq_resolution = self._args.freq_resolution
 
-    def run(self):
+    def _default_args(self, stats, log, freq, usage):
+        if stats:
+            self._arg_stats = True
+        if log:
+            self._arg_log = True
+        if freq:
+            self._arg_freq = True
+        if usage:
+            self._arg_usage = True
+
+    def run(self, stats=False, log=False, freq=False, usage=False):
         # parse arguments first
         self._parse_args()
         # validate, transform and save specific arguments
         self._validate_transform_args()
+        # handle the default args for different executables
+        self._default_args(stats, log, freq, usage)
         # open the trace
         self._open_trace()
         # create the appropriate analysis/analyses
@@ -40,6 +54,18 @@ class IoAnalysis(Command):
         self._print_results(self.start_ns, self.trace_end_ts, final=1)
         # close the trace
         self._close_trace()
+
+    def run_stats(self):
+        self.run(stats=True)
+
+    def run_log(self):
+        self.run(log=True)
+
+    def run_freq(self):
+        self.run(freq=True)
+
+    def run_usage(self):
+        self.run(usage=True)
 
     def _create_analysis(self):
         self._analysis = lttnganalyses.syscalls.SyscallsAnalysis(
@@ -663,7 +689,8 @@ class IoAnalysis(Command):
     def _print_results(self, begin_ns, end_ns, final=0):
         print('%s to %s' % (common.ns_to_asctime(begin_ns),
                             common.ns_to_asctime(end_ns)))
-        self.iotop_output()
+        if self._arg_usage:
+            self.iotop_output()
         self.syscalls_stats = self.compute_syscalls_latency_stats(end_ns)
         if self._arg_stats:
             self.iostats_output()
@@ -689,6 +716,15 @@ class IoAnalysis(Command):
             tid.init_counts()
 
     def _add_arguments(self, ap):
+        ap.add_argument('--usage', action="store_true",
+                        help='Show the I/O usage')
+        ap.add_argument('--latencystats', action="store_true",
+                        help='Show the I/O latency statistics')
+        ap.add_argument('--latencyfreq', action="store_true",
+                        help='Show the I/O latency frequency distribution')
+        ap.add_argument('--freq-resolution', type=int, default=20,
+                        help='Frequency distribution resolution '
+                             '(default 20)')
         ap.add_argument('--extra', type=str, default=0,
                         help='Show extra information in stats (beta)')
         # specific argument
@@ -696,9 +732,29 @@ class IoAnalysis(Command):
 
 
 # entry point
-def run():
+def runstats():
     # create command
     iocmd = IoAnalysis()
-
     # execute command
-    iocmd.run()
+    iocmd.run_stats()
+
+
+def runlog():
+    # create command
+    iocmd = IoAnalysis()
+    # execute command
+    iocmd.run_log()
+
+
+def runfreq():
+    # create command
+    iocmd = IoAnalysis()
+    # execute command
+    iocmd.run_freq()
+
+
+def runusage():
+    # create command
+    iocmd = IoAnalysis()
+    # execute command
+    iocmd.run_usage()
