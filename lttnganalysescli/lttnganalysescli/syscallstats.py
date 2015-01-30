@@ -51,6 +51,13 @@ class SyscallsAnalysis(Command):
         self._print_results(begin, end, final=0)
         self._reset_total(end)
 
+    def filter_process(self, proc):
+        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
+            return False
+        if self._arg_pid_list and str(proc.pid) not in self._arg_pid_list:
+            return False
+        return True
+
     def _print_results(self, begin_ns, end_ns, final=0):
         count = 0
         limit = self._arg_limit
@@ -60,8 +67,9 @@ class SyscallsAnalysis(Command):
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('total_syscalls'),
                           reverse=True):
-
-            print("%s (%d), %d syscalls:" % (tid.comm, tid.tid,
+            if not self.filter_process(tid):
+                continue
+            print("%s (%d), %d syscalls:" % (tid.comm, tid.pid,
                                              tid.total_syscalls))
             for syscall in sorted(tid.syscalls.values(),
                                   key=operator.attrgetter('count'),
