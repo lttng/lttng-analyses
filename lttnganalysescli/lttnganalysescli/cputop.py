@@ -87,6 +87,8 @@ class Cputop(Command):
                           key=operator.attrgetter('cpu_ns'), reverse=True):
             if self._arg_proc_list and tid.comm not in self._arg_proc_list:
                 continue
+            if tid.tid == 0:
+                continue
             pc = float("%0.02f" % ((tid.cpu_ns * 100) / total_ns))
             if tid.migrate_count > 0:
                 migrations = ", %d migrations" % (tid.migrate_count)
