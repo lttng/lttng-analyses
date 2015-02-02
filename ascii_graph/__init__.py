@@ -87,13 +87,14 @@ class Pyasciigraph:
             return info + self._u(' ') * number_of_space
 
     def _gen_value_string(self, value, start_value, start_info, unit):
+        v = str("%0.02f" % value)
         number_space = start_info -\
             start_value -\
-            len(str(value)) -\
+            len(v) -\
             self.separator_length
 
         return ' ' * number_space +\
-            str(value) + str(unit) +\
+            v + str(unit) +\
             ' ' * self.separator_length
 
     def _sanitize_string(self, string):

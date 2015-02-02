@@ -50,7 +50,8 @@ def convert_size(size, padding_after=False, padding_before=False):
     s = round(size/p, 2)
     if (s > 0):
         try:
-            return '%s %s%s%s' % (s, space_before, size_name[i], space_after)
+            v = "%0.02f" % s
+            return '%s %s%s%s' % (v, space_before, size_name[i], space_after)
         except:
             print(i, size_name)
             raise Exception("Too big to be true")
