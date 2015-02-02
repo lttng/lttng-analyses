@@ -60,7 +60,8 @@ class SchedStateProvider(sp.StateProvider):
         # per-tid usage
         if prev_tid in self.tids:
             p = self.tids[prev_tid]
-            p.cpu_ns += (ts - p.last_sched)
+            if p.last_sched is not None:
+                p.cpu_ns += (ts - p.last_sched)
             # perf PMU counters checks
             for context in event.field_list_with_scope(
                     CTFScope.STREAM_EVENT_CONTEXT):
