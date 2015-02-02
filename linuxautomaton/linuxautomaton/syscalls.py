@@ -1,6 +1,7 @@
 import socket
 import operator
 from linuxautomaton import sp, sv, common
+from babeltrace import CTFScope
 
 
 class IOCategory():
@@ -175,6 +176,27 @@ class SyscallsStateProvider(sp.StateProvider):
 
         self.close_fd(proc, fd)
 
+    def _fix_context_pid(self, event, t):
+        for context in event.field_list_with_scope(
+                CTFScope.STREAM_EVENT_CONTEXT):
+            if context != "pid":
+                continue
+            # make sure the "pid" field is not also in the event
+            # payload, otherwise we might clash
+            for context in event.field_list_with_scope(
+                    CTFScope.EVENT_FIELDS):
+                if context == "pid":
+                    return
+            if t.pid == -1:
+                t.pid == event["pid"]
+                if event["pid"] != t.tid:
+                    t.pid = event["pid"]
+                    p = sv.Process()
+                    p.tid = t.pid
+                    p.pid = t.pid
+                    p.comm = t.comm
+                    self.tids[p.pid] = p
+
     def track_fds(self, name, event, cpu_id):
         # we don't know which process is currently on this CPU
         ret_string = ""
@@ -185,15 +207,7 @@ class SyscallsStateProvider(sp.StateProvider):
             return
         t = self.tids[c.current_tid]
         # check if we can fix the pid from a context
-        if t.pid == -1 and "pid" in event.keys():
-            t.pid == event["pid"]
-            if event["pid"] != t.tid:
-                t.pid = event["pid"]
-                p = sv.Process()
-                p.tid = t.pid
-                p.pid = t.pid
-                p.comm = t.comm
-                self.tids[p.pid] = p
+        self._fix_context_pid(event, t)
         # if it's a thread, we want the parent
         if t.pid != -1 and t.tid != t.pid:
             t = self.tids[t.pid]
