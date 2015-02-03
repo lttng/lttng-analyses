@@ -28,6 +28,7 @@ from linuxautomaton import common
 from babeltrace import TraceCollection
 import argparse
 import sys
+import subprocess
 
 
 class Command:
@@ -65,10 +66,21 @@ class Command:
         self._handle = handle
         self._traces = traces
         common.process_date_args(self)
+        if not self._arg_skip_validation:
+            self._check_lost_events()
 
     def _close_trace(self):
         for h in self._handle.values():
             self._traces.remove_trace(h)
+
+    def _check_lost_events(self):
+        print("Checking the trace for lost events...")
+        try:
+            subprocess.check_output("babeltrace %s" % self._arg_path,
+                                    shell=True)
+        except subprocess.CalledProcessError:
+            print("Error running babeltrace on the trace, cannot verify if "
+                  "events were lost during the trace recording")
 
     def _run_analysis(self, reset_cb, refresh_cb, break_cb=None):
         self.trace_start_ts = 0
@@ -139,6 +151,7 @@ class Command:
             self._arg_gmt = args.gmt
         self._arg_refresh = args.refresh
         self._arg_no_progress = args.no_progress
+        self._arg_skip_validation = args.skip_validation
 
         if self._enable_proc_filter_args:
             self._arg_proc_list = None
@@ -189,6 +202,8 @@ class Command:
                         help='Limit to top X (default = 10)')
         ap.add_argument('--no-progress', action="store_true",
                         help='Don\'t display the progress bar')
+        ap.add_argument('--skip-validation', action="store_true",
+                        help='Skip the trace validation')
         ap.add_argument('--gmt', action="store_true",
                         help='Manipulate timestamps based on GMT instead '
                              'of local time')
