@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # The MIT License (MIT)
 #
@@ -22,9 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from setuptools import setup
-import sys
 
+import sys
+from setuptools import setup
 
 # make sure we run Python 3+ here
 v = sys.version_info
@@ -34,21 +34,35 @@ if v.major < 3:
 
 packages = [
     'lttnganalysescli',
+    'ascii_graph',
+]
+
+install_requires = [
+    'linuxautomaton',
+    'lttnganalyses',
 ]
 
 entry_points = {
     'console_scripts': [
-        'iotop = lttnganalysescli.iotop:run'
+        'lttng-cputop = lttnganalysescli.cputop:run',
+        'lttng-iolatencyfreq = lttnganalysescli.io:runfreq',
+        'lttng-iolatencystats = lttnganalysescli.io:runstats',
+        'lttng-iolatencytop = lttnganalysescli.io:runlatencytop',
+        'lttng-iolog = lttnganalysescli.io:runlog',
+        'lttng-iousagetop = lttnganalysescli.io:runusage',
+        'lttng-irqfreq = lttnganalysescli.irq:runfreq',
+        'lttng-irqlog = lttnganalysescli.irq:runlog',
+        'lttng-irqstats = lttnganalysescli.irq:runstats',
+        'lttng-memtop = lttnganalysescli.memtop:run',
+        'lttng-syscallstats = lttnganalysescli.syscallstats:run',
     ],
 }
 
-import lttnganalysescli
-
 setup(name='lttnganalysescli',
-      version=lttnganalysescli.__version__,
-      description='LTTng analyses command line interfaces',
+      version='0.0.1',
+      description='LTTng analyses CLI',
       author='Julien Desfossez',
       author_email='jdesfossez@efficios.com',
-      url='https://github.com/jdesfossez/lttng-analyses',
       packages=packages,
+      install_requires=install_requires,
       entry_points=entry_points)

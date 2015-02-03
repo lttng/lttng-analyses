@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # The MIT License (MIT)
 #
@@ -22,9 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from setuptools import setup
-import sys
 
+import sys
+from setuptools import setup
 
 # make sure we run Python 3+ here
 v = sys.version_info
@@ -36,13 +36,12 @@ packages = [
     'linuxautomaton',
 ]
 
-import linuxautomaton
+install_requires = [
+]
 
 setup(name='linuxautomaton',
-      version=linuxautomaton.__version__,
-      description='Linux kernel finite state machine with trace events '
-                  'as inputs',
+      version='0.0.1',
+      description='Linux kernel FSM using LTTng events',
       author='Julien Desfossez',
       author_email='jdesfossez@efficios.com',
-      url='https://github.com/jdesfossez/lttng-analyses',
       packages=packages)
