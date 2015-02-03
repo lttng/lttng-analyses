@@ -26,10 +26,6 @@ apt-get update
 apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar
 ```
 
-Note: If your user is part of the tracing group, you can avoid needing to be
-root next, after a fresh install it requires to logout, login and restart
-lttng-sessiond.
-
 ```bash
 git clone https://github.com/lttng/lttng-analyses.git
 ```
@@ -322,7 +318,7 @@ An other example when running the 'sync' command:
                                                  - unknown (origin not found) : 12 pages
 ```
 
-Postgresql with 'sys_fdatasync':
+PostgreSQL with 'sys_fdatasync':
 ```
 [13:49:39.908599447 - 13:49:39.915930730] postgres (1137) sys_fdatasync(fd = 7 </var/lib/postgresql/9.1/main/pg_xlog/000000010000000000000008>) = 0, 7.331 ms
                                           2 pages allocated during the period
