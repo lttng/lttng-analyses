@@ -45,10 +45,11 @@ class IoAnalysis(Command):
         self._arg_extra = self._args.extra
         self._arg_usage = self._args.usage
         self._arg_stats = self._args.latencystats
+        self._arg_latencytop = self._args.latencytop
         self._arg_freq = self._args.latencyfreq
         self._arg_freq_resolution = self._args.freq_resolution
 
-    def _default_args(self, stats, log, freq, usage):
+    def _default_args(self, stats, log, freq, usage, latencytop):
         if stats:
             self._arg_stats = True
         if log:
@@ -57,14 +58,17 @@ class IoAnalysis(Command):
             self._arg_freq = True
         if usage:
             self._arg_usage = True
+        if latencytop:
+            self._arg_latencytop = True
 
-    def run(self, stats=False, log=False, freq=False, usage=False):
+    def run(self, stats=False, log=False, freq=False, usage=False,
+            latencytop=False):
         # parse arguments first
         self._parse_args()
         # validate, transform and save specific arguments
         self._validate_transform_args()
         # handle the default args for different executables
-        self._default_args(stats, log, freq, usage)
+        self._default_args(stats, log, freq, usage, latencytop)
         # open the trace
         self._open_trace()
         # create the appropriate analysis/analyses
@@ -81,6 +85,9 @@ class IoAnalysis(Command):
 
     def run_stats(self):
         self.run(stats=True)
+
+    def run_latencytop(self):
+        self.run(latencytop=True)
 
     def run_log(self):
         self.run(log=True)
@@ -721,6 +728,7 @@ class IoAnalysis(Command):
         self.syscalls_stats = self.compute_syscalls_latency_stats(end_ns)
         if self._arg_stats:
             self.iostats_output()
+        if self._arg_latencytop:
             self.iolatency_syscalls_top_output()
         if self._arg_freq:
             self.iolatency_syscalls_output()
@@ -747,6 +755,8 @@ class IoAnalysis(Command):
                         help='Show the I/O usage')
         ap.add_argument('--latencystats', action="store_true",
                         help='Show the I/O latency statistics')
+        ap.add_argument('--latencytop', action="store_true",
+                        help='Show the I/O latency top')
         ap.add_argument('--latencyfreq', action="store_true",
                         help='Show the I/O latency frequency distribution')
         ap.add_argument('--freq-resolution', type=int, default=20,
@@ -764,6 +774,13 @@ def runstats():
     iocmd = IoAnalysis()
     # execute command
     iocmd.run_stats()
+
+
+def runlatencytop():
+    # create command
+    iocmd = IoAnalysis()
+    # execute command
+    iocmd.run_latencytop()
 
 
 def runlog():
