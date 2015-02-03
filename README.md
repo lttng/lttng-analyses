@@ -30,6 +30,10 @@ git clone https://github.com/lttng/lttng-analyses.git
 ```
 
 ## Trace creation
+Here are the basic commands to create a trace, for more information on the
+LTTng setup, please refer to the [LTTng
+documentation](http://lttng.org/docs/#doc-tracing-the-linux-kernel)
+
 ### Automatic
 From the cloned git tree:
 ```bash
