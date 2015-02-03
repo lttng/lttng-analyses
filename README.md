@@ -3,20 +3,19 @@
 This repository contains various scripts to extract monitoring data and metrics
 from LTTng kernel traces.
 
-Compared to other diagnostics/monitoring solutions, this approach is designed
-to allow users to record the activity of their system with a low overhead, wait
-for a problem to appear and then diagnose offline to identify the performance
-problem they encountered.
+As opposed to other diagnostics/monitoring solutions, this approach is designed
+to allow users to record their system's activity with a low overhead, wait
+for a problem to occur and then diagnose its cause offline.
 
 With this solution, we target really hard to find problems and dig until we
-found the root cause.
+find the root cause.
 
 This README describes the analyses implemented and the usage of the whole
 project.
 
 ## Requirements
 * LTTng >= 2.5
-* Babeltrace >= 1.2 (with python bindings compiled)
+* Babeltrace >= 1.2 (with python bindings built)
 * Python >= 3.4
 
 ## Install on Ubuntu (12.04 and 14.04 at least)
@@ -25,14 +24,17 @@ apt-get install -y software-properties-common (or python-software-properties on 
 apt-add-repository -y ppa:lttng/ppa
 apt-get update
 apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar
+```
+
+Note: If your user is part of the tracing group, you can avoid needing to be
+root next, after a fresh install it requires to logout, login and restart
+lttng-sessiond.
+
+```bash
 git clone https://github.com/lttng/lttng-analyses.git
 ```
 
 ## Trace creation
-Here are the basic commands to create a trace, for more information on the
-LTTng setup, please refer to the [LTTng
-documentation](http://lttng.org/docs/#doc-tracing-the-linux-kernel)
-
 ### Automatic
 From the cloned git tree:
 ```bash
@@ -53,8 +55,8 @@ lttng destroy
 
 ### Remote trace creation
 You can also create a trace on a server and send it to a remote host. The
-remote host only need to run `lttng-relayd -d` and be reachable by network.
-The only difference with the above commands is the trace session creation:
+remote host only need to run `lttng-relayd -d` and be reachable over the network.
+The only difference from the above commands is the tracing session's creation:
 ```bash
 lttng create -U net://<remote-host>
 ```
@@ -77,18 +79,19 @@ lttng create -U net://<remote-host>
 * SoftIRQ handler latency statistics
 * Syscalls usage statistics
 
-All of the analyses share the same code architecture, so it is possible
-to filter by timerange, process name, PID, min and max values with the
-same options. Also, all the timestamp reported can optionally be output
-in the GMT timezone to allow easy sharing between teams.
+All of the analyses share the same code architecture making it possible
+to filter by timerange, process name, PID, min and max values using the
+same command-line options. Also note that reported timestamps can
+optionally be expressed in the GMT timezone to allow easy sharing between
+teams.
 
-The code architecture allows to easily add new analyses and an external
-tool can import the analysis backend and output the results in its own
-way (instead of text).
+The project's architecture makes it easy to add new analyses or to reuse
+the analysis backend in external tools which may then present the results
+in their own format (as opposed to text).
 
 ## Examples
-Once you have collected your trace, you can run any script from the repository
-directly, following are some examples.
+After having collected your trace, any script contained in this repository
+can be used to run an analysis. Read on for some examples!
 
 ### I/O
 #### I/O latency stats
@@ -319,7 +322,7 @@ An other example when running the 'sync' command:
                                                  - unknown (origin not found) : 12 pages
 ```
 
-PostgreSQL with 'sys_fdatasync':
+Postgresql with 'sys_fdatasync':
 ```
 [13:49:39.908599447 - 13:49:39.915930730] postgres (1137) sys_fdatasync(fd = 7 </var/lib/postgresql/9.1/main/pg_xlog/000000010000000000000008>) = 0, 7.331 ms
                                           2 pages allocated during the period
@@ -334,7 +337,7 @@ PostgreSQL with 'sys_fdatasync':
                                                  - base/11951/18410_fsm : 6 pages
 ```
 
-Detecting a fight for the I/O between a huge write and PostgreSQL:
+Detecting a fight for the I/O between a huge write and postgresql:
 ```
 [13:49:47.242730583 - 13:49:47.442835037] python (2353) sys_write(fd = 3 </root/bla>, count = 102395904) = 102395904, 200.104 ms
                                           34760 pages allocated during the period
@@ -352,18 +355,18 @@ Detecting a fight for the I/O between a huge write and PostgreSQL:
 
 The main limitation of this project is the fact that it can be quite slow to
 process a large trace. This project is a work in progress and we focus on the
-problem-solving approach. So for now we didn't spend much time on the
-performance of the analyses but rather the features.
+problem-solving aspect. We didn't spend much time on improving the analyses'
+performance yet.
 
-One other aspect is the fact that the state is not persistent, so when the
-script exits, it has to re-process the trace if we start another script on the
-same trace. Some scripts of the same category allow to combine multiple
-analyses into one pass (see ```--freq```, ```--log```, ```--usage```,
+One other aspect is the fact that the state is not persistent; the trace has
+to be re-processed if another analysis script is to be used on the same trace.
+Some scripts belonging to the same category allow the combination of multiple
+analyses into a single pass (see ```--freq```, ```--log```, ```--usage```,
 ```--latencystats```, etc). We are planning to add a way to save the state
 and/or create an interactive environment to allow the user to run multiple
 analyses on the same trace without having to process the trace every time.
 
 
 ## Conclusion
-We hope you have fun trying it and please remember it is a work in progress,
-feedback, bug reports and improvement ideas are always welcome !
+We hope you have fun trying this project and please remember it is a work in
+progress; feedback, bug reports and improvement ideas are always welcome!
