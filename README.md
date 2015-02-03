@@ -31,8 +31,8 @@ git clone https://github.com/lttng/lttng-analyses.git
 Please refer to the [LTTng documentation](http://lttng.org/download/) to
 install LTTng and the [Babeltrace
 README](http://git.efficios.com/?p=babeltrace.git;a=blob_plain;f=README;hb=HEAD)
-to install babeltrace with the python bindings. Optionally install the
-```progressbar``` python module.
+to install ```babeltrace``` with the python bindings. Optionally install the
+```progressbar``` python module and then:
 
 ```bash
 git clone https://github.com/lttng/lttng-analyses.git
