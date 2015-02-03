@@ -140,7 +140,7 @@ class IrqAnalysis(Command):
             i += 1
         for line in graph.graph('Handler duration frequency distribution %s '
                                 '(%s) (usec)' % (name, nr),
-                                g, info_before=True):
+                                g, info_before=True, count=True):
             print(line)
         print("")
 

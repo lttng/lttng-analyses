@@ -432,7 +432,7 @@ class IoAnalysis(Command):
         for v in values:
             g.append(("%0.03f" % (i * step + _min), v))
             i += 1
-        for line in graph.graph(title, g, info_before=True):
+        for line in graph.graph(title, g, info_before=True, count=True):
             print(line)
         print("")
 

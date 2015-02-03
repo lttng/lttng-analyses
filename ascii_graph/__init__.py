@@ -86,8 +86,12 @@ class Pyasciigraph:
         else:
             return info + self._u(' ') * number_of_space
 
-    def _gen_value_string(self, value, start_value, start_info, unit):
-        v = str("%0.02f" % value)
+    def _gen_value_string(self, value, start_value, start_info, unit, count):
+        if not count:
+            v = str("%0.02f" % value)
+        else:
+            # we don't want to add .00 to count values (only integers)
+            v = str(value)
         number_space = start_info -\
             start_value -\
             len(v) -\
@@ -122,7 +126,7 @@ class Pyasciigraph:
         return ret
 
     def graph(self, label, data, sort=0, with_value=True, unit="",
-              info_before=False):
+              info_before=False, count=False):
         """function generating the graph
 
         :param string label: the label of the graph
@@ -201,7 +205,7 @@ class Pyasciigraph:
                 value_string = self._gen_value_string(
                     value,
                     start_value,
-                    start_info, unit)
+                    start_info, unit, count)
             else:
                 value_string = ""
 
