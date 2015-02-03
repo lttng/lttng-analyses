@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 #
-# Copyright 2014 Julien Desfossez <jdesfossez@efficios.com>
+# The MIT License (MIT)
 #
-# This script takes a trace in argument and generates a Python parser ready to
-# process the events (and all the fields) of the trace. It is used to generate
-# all the boilerplate required to create an analysis script of a CTF trace in
-# Python and allow the user to focus on the core logic of the analysis.
-#
-# The default resulting script can process all the events of the trace, and
-# print all the fields for each event (except if you pass -q/--quiet). At the
-# end of the trace, it displays also global statistics about the number of each
-# event encountered.
+# Copyright (C) 2015 - Julien Desfossez <jdesfosez@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +13,14 @@
 #
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 import sys
 import os
