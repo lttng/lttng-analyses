@@ -3,37 +3,47 @@
 This repository contains various scripts to extract monitoring data and metrics
 from LTTng kernel traces.
 
-This README only describes the usage for iotop.py, but the procedure is pretty-much
-the same for the other scripts.
+Compared to other diagnostics/monitoring solutions, this approach is designed
+to allow users to record the activity of their system with a low overhead, wait
+for a problem to appear and then diagnose offline to identify the performance
+problem they encountered.
 
-`iotop.py` displays the I/O usage in the trace, per-disk, per-network interface,
-per-FD and per-process. It tracks the number of bytes and requests performed
-and the latency of the I/O syscalls and block devices.
+With this solution, we target really hard to find problems and dig until we
+found the root cause.
 
-The user can specify a threshold to see the requests that took more than a
-certain time to complete, this extracts the timestamp begin and end of the
-requests, so it is then easier to dig into the trace and understand why this
-latency happened. It is also possible to see all the I/O requests performed by
-a list of processes (see `--name` parameter).
+This README describes the analyses implemented and the usage of the whole
+project.
 
 ## Requirements
-* LTTng 2.5
-* Babeltrace 1.2 (with python bindings compiled)
-* Python 3.4+
+* LTTng >= 2.5
+* Babeltrace >= 1.2 (with python bindings compiled)
+* Python >= 3.4
 
 ## Install on Ubuntu (12.04 and 14.04 at least)
-```
+```bash
 apt-get install -y software-properties-common (or python-software-properties on 12.04)
 apt-add-repository -y ppa:lttng/ppa
 apt-get update
 apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar
 ```
 
-(If your user is part of the tracing group, you can avoid needing to be root
-next, after a fresh install it requires to logout and login)
+Note: If your user is part of the tracing group, you can avoid needing to be
+root next, after a fresh install it requires to logout, login and restart
+lttng-sessiond.
+
+```bash
+git clone https://github.com/lttng/lttng-analyses.git
+```
 
 ## Trace creation
+### Automatic
+From the cloned git tree:
+```bash
+./lttng-analyses-record
 ```
+
+### Manual
+```bash
 lttng create
 lttng enable-channel -k bla --subbuf-size=4M
 lttng enable-event -k sched_switch,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device,writeback_pages_written,mm_vmscan_wakeup_kswapd,mm_page_free,mm_page_alloc,block_dirty_buffer,irq_handler_entry,irq_handler_exit,softirq_entry,softirq_exit,softirq_raise -c bla
@@ -44,143 +54,240 @@ lttng stop
 lttng destroy
 ```
 
-## Remote trace creation
+### Remote trace creation
 You can also create a trace on a server and send it to a remote host. The
 remote host only need to run `lttng-relayd -d` and be reachable by network.
-The only difference with the above commands is the trace session creation :
-```
+The only difference with the above commands is the trace session creation:
+```bash
 lttng create -U net://<remote-host>
 ```
 
-## Run the analysis
-Once you have collected your trace, you can run iotop.py on it. In this
-example, we want to extract all the I/O requests that took more than 50ms to
-complete and also display the general statistics. The use-case in this example
-is concurrent read and writes in a postgresql database. Here is some extracts
-from the output of the script :
+## Implemented analyses
 
+* CPU usage for the whole system
+* CPU usage per-process
+* Process CPU migration count
+* Memory usage per-process (as seen by the kernel)
+* Memory usage system-wide (as seen by the kernel)
+* I/O usage (syscalls, disk, network)
+* I/O operations log (with latency and usage)
+* I/O latency statistics (open, read, write, sync operations)
+* I/O latency frequency distribution
+* Interrupt handler duration statistics (count, min, max, average stdev)
+* Interrupt handler duration top
+* Interrupt handler duration log
+* Interrupt handler duration frequency distribution
+* SoftIRQ handler latency statistics
+* Syscalls usage statistics
+
+All of the analyses share the same code architecture, so it is possible
+to filter by timerange, process name, PID, min and max values with the
+same options. Also, all the timestamp reported can optionally be output
+in the GMT timezone to allow easy sharing between teams.
+
+The code architecture allows to easily add new analyses and an external
+tool can import the analysis backend and output the results in its own
+way (instead of text).
+
+## Example
+Once you have collected your trace, you can run any script from the repository
+directly, following are some examples.
+
+### I/O
+#### I/O latency stats
+```bash
+$ ./iolatencystats mytrace/
+Timerange: [2015-01-06 10:58:26.140545481, 2015-01-06 10:58:27.229358936]
+Syscalls latency statistics (usec):
+Type                    Count            Min        Average            Max          Stdev
+-----------------------------------------------------------------------------------------
+Open                       45          5.562         13.835         77.683         15.263
+Read                      109          0.316          5.774         62.569          9.277
+Write                     101          0.256          7.060         48.531          8.555
+Sync                      207         19.384         40.664        160.188         21.201
+
+Disk latency statistics (usec):
+Name                    Count            Min        Average            Max          Stdev
+-----------------------------------------------------------------------------------------
+dm-0                      108          0.001          0.004          0.007          1.306
 ```
-./iotop.py --no-progress --latency 50  /home/julien/lttng-traces/reddit-postgres01/pgread-writes/kernel/ 
-[16:36:02.916132296 - 16:36:02.994389303] postgres (1348) syscall_entry_recvfrom(fd = 9 <socket:[8893]>, count = 5) = 5, 78.257 ms
-[16:36:03.007633298 - 16:36:03.091402482] postgres (1348) syscall_entry_recvfrom(fd = 9 <socket:[8893]>, count = 5) = 5, 83.769 ms
-[16:36:03.107392794 - 16:36:03.200894697] postgres (1348) syscall_entry_recvfrom(fd = 9 <socket:[8893]>, count = 5) = 5, 93.502 ms
-[...]
-[16:36:09.580490482 - 16:36:09.897385130] postgres (4219) syscall_entry_recvfrom(fd = 9 <socket>, count = 5) = 5, 316.895 ms
-                                          2715 pages allocated during the period
-[16:36:09.614727970 - 16:36:09.914140692] postgres (4220) syscall_entry_recvfrom(fd = 9 <socket>, count = 5) = 5, 299.413 ms
-                                          2396 pages allocated during the period
-[16:36:09.750251458 - 16:36:09.950608296] postgres (4224) syscall_entry_recvfrom(fd = 9 <socket>, count = 5) = 5, 200.357 ms
-                                          904 pages allocated during the period
-[...]
-[16:36:06.783206662 - 16:36:11.748147198] postgres (1348) syscall_entry_recvfrom(fd = 9 <socket:[8893]>, count = 5) = 5, 4964.941 ms
-                                          3541 pages allocated during the period
-Tue Oct  7 16:36:00 2014 to Tue Oct  7 16:36:18 2014
-Syscall I/O Read
-################################################################################################################################################
-██████████████████████████████████████████████████  16777220  16.0 MB lttng-consumerd (2619), 0 B disk, 4.0 B net, 0 B block, 16.0 MB unknown   
-█████                                                1804880  1.72 MB lttng-consumerd (2623), 0 B disk, 0 B net, 0 B block, 1.72 MB unknown     
-█                                                     407686  398.13 KB postgres (4219), 121.05 KB disk, 277.07 KB net, 0 B block, 8.0 B unknown
-                                                      262235  256.09 KB postgres (1348), 0 B disk, 255.97 KB net, 0 B block, 117.0 B unknown    
-                                                      209730  204.81 KB postgres (4218), 204.81 KB disk, 0 B net, 0 B block, 0 B unknown        
-                                                      126737  123.77 KB postgres (4220), 117.5 KB disk, 6.26 KB net, 0 B block, 8.0 B unknown   
-                                                      124579  121.66 KB postgres (4226), 117.5 KB disk, 4.15 KB net, 0 B block, 8.0 B unknown   
-                                                      124189  121.28 KB postgres (4221), 117.5 KB disk, 3.77 KB net, 0 B block, 8.0 B unknown   
-                                                      124125  121.22 KB postgres (4222), 117.5 KB disk, 3.71 KB net, 0 B block, 8.0 B unknown   
-                                                      124125  121.22 KB postgres (4224), 117.5 KB disk, 3.71 KB net, 0 B block, 8.0 B unknown   
-Syscall I/O Write
-###################################################################################################################################################
-██████████████████████████████████████████████████  16777336  16.0 MB lttng-consumerd (2619), 0 B disk, 8.0 MB net, 0 B block, 8.0 MB unknown      
-██████                                               2304240  2.2 MB postgres (4219), 2.0 MB disk, 202.23 KB net, 1.76 MB block, 0 B unknown       
-█████                                                1812800  1.73 MB lttng-consumerd (2623), 0 B disk, 887.73 KB net, 0 B block, 882.58 KB unknown
-██                                                    743760  726.33 KB postgres (1165), 8.0 KB disk, 6.33 KB net, 0 B block, 712.0 KB unknown     
-                                                      162500  158.69 KB postgres (1168), 158.69 KB disk, 0 B net, 160.0 KB block, 0 B unknown      
-                                                       82592  80.66 KB postgres (1348), 0 B disk, 80.66 KB net, 0 B block, 0 B unknown             
-                                                       40960  40.0 KB postgres (1166), 0 B disk, 0 B net, 40.0 KB block, 40.0 KB unknown           
-                                                       13156  12.85 KB lttng (4227), 12.85 KB disk, 0 B net, 0 B block, 0 B unknown                
-                                                       12256  11.97 KB postgres (4220), 2.0 B disk, 11.97 KB net, 0 B block, 0 B unknown           
-                                                       10450  10.21 KB postgres (4226), 2.0 B disk, 10.2 KB net, 0 B block, 0 B unknown            
+
+#### I/O latency frequency distribution
+```bash
+$ ./iolatencyfreq mytrace/
+Timerange: [2015-01-06 10:58:26.140545481, 2015-01-06 10:58:27.229358936]
+Open latency distribution (usec)
+###############################################################################
+ 5.562 ███████████████████████████████████████████████████████████████████  25  
+ 9.168 ██████████                                                            4  
+12.774 █████████████████████                                                 8  
+16.380 ████████                                                              3  
+19.986 █████                                                                 2  
+23.592                                                                       0  
+27.198                                                                       0  
+30.804                                                                       0  
+34.410 ██                                                                    1  
+38.016                                                                       0  
+41.623                                                                       0  
+45.229                                                                       0  
+48.835                                                                       0  
+52.441                                                                       0  
+56.047                                                                       0  
+59.653                                                                       0  
+63.259                                                                       0  
+66.865                                                                       0  
+70.471                                                                       0  
+74.077 █████                                                                 2  
+```
+
+#### I/O operations log
+```bash
+$ ./iolog mytrace/
+[10:58:26.221618530,10:58:26.221620659]  write                      2.129       8.00 B  /usr/bin/x-term          11793    anon_inode:[eventfd] (fd=5)
+[10:58:26.221623609,10:58:26.221628055]  read                       4.446      50.00 B  /usr/bin/x-term          11793    /dev/ptmx (fd=24)
+[10:58:26.221638929,10:58:26.221640008]  write                      1.079       8.00 B  /usr/bin/x-term          11793    anon_inode:[eventfd] (fd=5)
+[10:58:26.221676232,10:58:26.221677385]  read                       1.153       8.00 B  /usr/bin/x-term          11793    anon_inode:[eventfd] (fd=5)
+[10:58:26.223401804,10:58:26.223411683]  open                       9.879          N/A  sleep                    12420    /etc/ld.so.cache (fd=3)
+[10:58:26.223448060,10:58:26.223455577]  open                       7.517          N/A  sleep                    12420    /lib/x86_64-linux-gnu/libc.so.6 (fd=3)
+[10:58:26.223456522,10:58:26.223458898]  read                       2.376     832.00 B  sleep                    12420    /lib/x86_64-linux-gnu/libc.so.6 (fd=3)
+[10:58:26.223918068,10:58:26.223929316]  open                      11.248          N/A  sleep                    12420     (fd=3)       
+[10:58:26.231881565,10:58:26.231895970]  writev                    14.405      16.00 B  /usr/bin/x-term          11793    socket:[45650] (fd=4)
+[10:58:26.231979636,10:58:26.231988446]  recvmsg                    8.810      16.00 B  Xorg                     1827     socket:[47480] (fd=38)
+```
+
+
+#### I/O usage top
+```bash
+$ ./iousagetop traces/pgread-writes
+Timerange: [2014-10-07 16:36:00.733214969, 2014-10-07 16:36:18.804584183]
+Per-process I/O Read
+###############################################################################
+██████████████████████████████████████████████████    16.00 MB lttng-consumerd (2619)         0 B  file   4.00 B  net  16.00 MB unknown
+█████                                                  1.72 MB lttng-consumerd (2619)         0 B  file      0 B  net   1.72 MB unknown
+█                                                    398.13 KB postgres (4219)           121.05 KB file 277.07 KB net   8.00 B  unknown
+                                                     256.09 KB postgres (1348)                0 B  file 255.97 KB net 117.00 B  unknown
+                                                     204.81 KB postgres (4218)           204.81 KB file      0 B  net      0 B  unknown
+                                                     123.77 KB postgres (4220)           117.50 KB file   6.26 KB net   8.00 B  unknown
+Per-process I/O Write
+###############################################################################
+██████████████████████████████████████████████████    16.00 MB lttng-consumerd (2619)         0 B  file   8.00 MB net   8.00 MB unknown 
+██████                                                 2.20 MB postgres (4219)             2.00 MB file 202.23 KB net      0 B  unknown 
+█████                                                  1.73 MB lttng-consumerd (2619)         0 B  file 887.73 KB net 882.58 KB unknown 
+██                                                   726.33 KB postgres (1165)             8.00 KB file   6.33 KB net 712.00 KB unknown 
+                                                     158.69 KB postgres (1168)           158.69 KB file      0 B  net      0 B  unknown 
+                                                      80.66 KB postgres (1348)                0 B  file  80.66 KB net      0 B  unknown 
+Files Read
+###############################################################################
+██████████████████████████████████████████████████     8.00 MB anon_inode:[lttng_stream] (lttng-consumerd) 'fd 32 in lttng-consumerd (2619)'
+█████                                                834.41 KB base/16384/pg_internal.init 'fd 7 in postgres (4219)', 'fd 7 in postgres (4220)', 'fd 7 in postgres (4221)', 'fd 7 in postgres (4222)', 'fd 7 in postgres (4223)', 'fd 7 in postgres (4224)', 'fd 7 in postgres (4225)', 'fd 7 in postgres (4226)'
+█                                                    256.09 KB socket:[8893] (postgres) 'fd 9 in postgres (1348)'
+█                                                    174.69 KB pg_stat_tmp/pgstat.stat 'fd 9 in postgres (4218)', 'fd 9 in postgres (1167)'
+                                                     109.48 KB global/pg_internal.init 'fd 7 in postgres (4218)', 'fd 7 in postgres (4219)', 'fd 7 in postgres (4220)', 'fd 7 in postgres (4221)', 'fd 7 in postgres (4222)', 'fd 7 in postgres (4223)', 'fd 7 in postgres (4224)', 'fd 7 in postgres (4225)', 'fd 7 in postgres (4226)'
+                                                     104.30 KB base/11951/pg_internal.init 'fd 7 in postgres (4218)'
+                                                      12.85 KB socket (lttng-sessiond) 'fd 30 in lttng-sessiond (384)'
+                                                       4.50 KB global/pg_filenode.map 'fd 7 in postgres (4218)', 'fd 7 in postgres (4219)', 'fd 7 in postgres (4220)', 'fd 7 in postgres (4221)', 'fd 7 in postgres (4222)', 'fd 7 in postgres (4223)', 'fd 7 in postgres (4224)', 'fd 7 in postgres (4225)', 'fd 7 in postgres (4226)'
+                                                       4.16 KB socket (postgres) 'fd 9 in postgres (4226)'
+                                                       4.00 KB /proc/interrupts 'fd 3 in irqbalance (1104)'
+Files Write
+###############################################################################
+██████████████████████████████████████████████████     8.00 MB socket:[56371] (lttng-consumerd) 'fd 30 in lttng-consumerd (2619)'
+█████████████████████████████████████████████████      8.00 MB pipe:[53306] (lttng-consumerd) 'fd 12 in lttng-consumerd (2619)'
+██████████                                             1.76 MB pg_xlog/00000001000000000000000B 'fd 31 in postgres (4219)'
+█████                                                887.82 KB socket:[56369] (lttng-consumerd) 'fd 26 in lttng-consumerd (2619)'
+█████                                                882.58 KB pipe:[53309] (lttng-consumerd) 'fd 18 in lttng-consumerd (2619)'
+                                                     160.00 KB /var/lib/postgresql/9.1/main/base/16384/16602 'fd 14 in postgres (1165)'
+                                                     158.69 KB pg_stat_tmp/pgstat.tmp 'fd 3 in postgres (1168)'
+                                                     144.00 KB /var/lib/postgresql/9.1/main/base/16384/16613 'fd 12 in postgres (1165)'
+                                                      88.00 KB /var/lib/postgresql/9.1/main/base/16384/16609 'fd 11 in postgres (1165)'
+                                                      78.28 KB socket:[8893] (postgres) 'fd 9 in postgres (1348)'
 Block I/O Read
 ###############################################################################
-                                                        0  0 B init (1)        
-                                                        0  0 B kthreadd (2)    
-                                                        0  0 B ksoftirqd/0 (3) 
-                                                        0  0 B kworker/0:0 (4) 
-                                                        0  0 B kworker/0:0H (5)
-                                                        0  0 B rcu_sched (7)   
-                                                        0  0 B rcuos/0 (8)     
-                                                        0  0 B rcuos/1 (9)     
-                                                        0  0 B rcuos/2 (10)    
-                                                        0  0 B rcuos/3 (11)    
 Block I/O Write
-#########################################################################################
-██████████████████████████████████████████████████  1843200  1.76 MB postgres (4219)     
-████                                                 163840  160.0 KB postgres (1168)    
-██                                                   102400  100.0 KB kworker/u8:0 (1540)
-██                                                    98304  96.0 KB jbd2/vda1-8 (257)   
-█                                                     40960  40.0 KB postgres (1166)     
-                                                       8192  8.0 KB kworker/u9:0 (4197)  
-                                                       4096  4.0 KB kworker/u9:2 (1381)  
-                                                          0  0 B init (1)                
-                                                          0  0 B kthreadd (2)            
-                                                          0  0 B ksoftirqd/0 (3)         
-Files Read
-##########################################################################################################################
-██████████████████████████████████████████████████  9289728  anon_inode:[lttng_stream] (lttng-consumerd) 8.86 MB (31 2619)
-█████████████████████████████████████████████       8388608  pipe:[53306] (lttng-consumerd) 8.0 MB (11 2619)              
-████                                                 903760  pipe:[53309] (lttng-consumerd) 882.58 KB (17 2619)           
-█                                                    325340  socket (postgres) 317.71 KB (9 4219)                         
-█                                                    262235  socket:[8893] (postgres) 256.09 KB (9 1348)                  
-                                                      76600  socket:[10713] (postgres) 74.8 KB (8 4218)                   
-                                                         52  /dev/ptmx 52.0 B (17 1)                                      
-                                                         48  socket:[54589] (sshd) 48.0 B (3 3329)                        
-                                                         32  /root/trace2.sh 32.0 B (255 4211)                            
-                                                          1  /dev/pts/1 1.0 B (0 4211)                                    
-Files Write
-###########################################################################################################################
-██████████████████████████████████████████████████  9289728  anon_inode:[lttng_stream] (lttng-consumerd) 8.86 MB (31 2619) 
-█████████████████████████████████████████████       8388608  pipe:[53306] (lttng-consumerd) 8.0 MB (11 2619)               
-████                                                 903760  pipe:[53309] (lttng-consumerd) 882.58 KB (17 2619)            
-█                                                    325340  socket (postgres) 317.71 KB (9 4219)                          
-█                                                    262235  socket:[8893] (postgres) 256.09 KB (9 1348)                   
-                                                      76600  socket:[10713] (postgres) 74.8 KB (8 4218)                    
-                                                      65536  /var/lib/postgresql/9.1/main/base/16384/16611 64.0 KB (9 1165)
-                                                         52  /dev/ptmx 52.0 B (17 1)                                       
-                                                         48  socket:[54589] (sshd) 48.0 B (3 3329)                         
-                                                         32  /root/trace2.sh 32.0 B (255 4211)                             
-                                                          1  /dev/pts/1 1.0 B (0 4211)                                     
+###############################################################################
+██████████████████████████████████████████████████     1.76 MB postgres (pid=4219)   
+████                                                 160.00 KB postgres (pid=1168)   
+██                                                   100.00 KB kworker/u8:0 (pid=1540)
+██                                                    96.00 KB jbd2/vda1-8 (pid=257) 
+█                                                     40.00 KB postgres (pid=1166)   
+                                                       8.00 KB kworker/u9:0 (pid=4197)
+                                                       4.00 KB kworker/u9:2 (pid=1381)
 Disk nr_sector
 ###############################################################################
-███████████████████████████████████████████████████████████████████  4416  vda1
+███████████████████████████████████████████████████████████████████  4416.00 sectors  vda1
 Disk nr_requests
 ###############################################################################
-████████████████████████████████████████████████████████████████████  177  vda1
+████████████████████████████████████████████████████████████████████  177.00 requests  vda1
 Disk request time/sector
 ###############################################################################
-███████████████████████████████████████████████████████████████  0.014  ms vda1
-                                                                   0.0  ms 0   
+██████████████████████████████████████████████████████████████████   0.01 ms  vda1
 Network recv_bytes
 ###############################################################################
-████████████████████████████████████████████████████████  757250  739.5 KB eth0
-██████                                                     82200  80.27 KB lo  
+███████████████████████████████████████████████████████  739.50 KB eth0
+█████                                                    80.27 KB lo   
 Network sent_bytes
 ###############################################################################
-████████████████████████████████████████████████████████  9811620  9.36 MB eth0
-                                                            85000  83.01 KB lo 
-trace2.sh requests latency (ms)
-####################################################################################
-██████████████████████████████████████████████████  18011.544456  16:36:00.788362068
-postgres requests latency (ms)
-###################################################################################
-                                                      78.257007  16:36:02.916132296
-                                                      83.769184  16:36:03.007633298
-                                                      93.501903  16:36:03.107392794
-[...]
-███                                                  316.894648  16:36:09.580490482
-███                                                  299.412722  16:36:09.614727970
-██                                                   200.356838  16:36:09.750251458
-[...]
-██████████████████████████████████████████████████  4964.940536  16:36:06.783206662
+████████████████████████████████████████████████████████  9.36 MB eth0
 ```
+
+### IRQ
+#### Handler duration and raise latency statistics
+```bash
+$ ./irqstats mytrace/
+Timerange: [2014-03-11 16:05:41.314824752, 2014-03-11 16:05:45.041994298]
+Hard IRQ                                             Duration (us)
+                       count          min          avg          max        stdev       
+----------------------------------------------------------------------------------|
+1:  <i8042>               30       10.901       45.500       64.510       18.447  |                                                          
+42: <ahci>               259        3.203        7.863       21.426        3.183  |                                                          
+43: <eth0>                 2        3.859        3.976        4.093        0.165  |                                                          
+44: <iwlwifi>             92        0.300        3.995        6.542        2.181  |                                                          
+
+Soft IRQ                                             Duration (us)                                        Raise latency (us)
+                       count          min          avg          max        stdev  |  count          min          avg          max        stdev       
+----------------------------------------------------------------------------------|------------------------------------------------------------
+1:  <TIMER_SOFTIRQ>      495        0.202       21.058       51.060       11.047  |     53        2.141       11.217       20.005        7.233
+3:  <NET_RX_SOFTIRQ>      14        0.133        9.177       32.774       10.483  |     14        0.763        3.703       10.902        3.448
+4:  <BLOCK_SOFTIRQ>      257        5.981       29.064      125.862       15.891  |    257        0.891        3.104       15.054        2.046
+6:  <TASKLET_SOFTIRQ>     26        0.309        1.198        1.748        0.329  |     26        9.636       39.222       51.430       11.246
+7:  <SCHED_SOFTIRQ>      299        1.185       14.768       90.465       15.992  |    298        1.286       31.387       61.700       11.866
+9:  <RCU_SOFTIRQ>        338        0.592        3.387       13.745        1.356  |    147        2.480       29.299       64.453       14.286
+```
+
+#### Handler duration frequency distribution
+```bash
+$ ./irqfreq --timerange [16:05:42,16:05:45] --irq 44 --stats mytrace/
+Timerange: [2014-03-11 16:05:42.042034570, 2014-03-11 16:05:44.998914297] 
+Hard IRQ                                             Duration (us)
+                       count          min          avg          max        stdev       
+----------------------------------------------------------------------------------|
+44: <iwlwifi>             72        0.300        4.018        6.542        2.164  |                                                          
+Frequency distribution iwlwifi (44)
+###############################################################################
+0.300 █████                                                                 1.00  
+0.612 ██████████████████████████████████████████████████████████████        12.00  
+0.924 ████████████████████                                                  4.00  
+1.236 ██████████                                                            2.00  
+1.548                                                                       0.00  
+1.861 █████                                                                 1.00  
+2.173                                                                       0.00  
+2.485 █████                                                                 1.00  
+2.797 ██████████████████████████                                            5.00  
+3.109 █████                                                                 1.00  
+3.421 ███████████████                                                       3.00  
+3.733                                                                       0.00  
+4.045 █████                                                                 1.00  
+4.357 █████                                                                 1.00  
+4.669 ██████████                                                            2.00  
+4.981 ██████████                                                            2.00  
+5.294 █████████████████████████████████████████                             8.00  
+5.606 ████████████████████████████████████████████████████████████████████  13.00  
+5.918 ██████████████████████████████████████████████████████████████        12.00  
+6.230 ███████████████                                                       3.00  
+```
+
+### Others
+There are a lot of other scripts, we encourage you to try them and read the
+```--help``` to see all the available options.
 
 ## Work in progress
 Track the page cache and extract the latencies associated with pages flush to disk.
@@ -244,5 +351,22 @@ Detecting a fight for the I/O between a huge write and postgresql:
                                                  - base/11951/18419 : 72 pages
 ```
 
+## Limitations
+
+The main limitation of this project is the fact that it can be quite slow to
+process a large trace. This project is a work in progress and we focus on the
+problem-solving approach. So for now we didn't spend much time on the
+performance of the analyses but rather the features.
+
+One other aspect is the fact that the state is not persistent, so when the
+script exits, it has to re-process the trace if we start another script on the
+same trace. Some scripts of the same category allow to combine multiple
+analyses into one pass (see ```--freq```, ```--log```, ```--usage```,
+```--latencystats```, etc). We are planning to add a way to save the state
+and/or create an interactive environment to allow the user to run multiple
+analyses on the same trace without having to process the trace every time.
+
+
 ## Conclusion
-Hope you have fun trying it and please remember it is a work in progress, feedbacks, bug reports and ideas are alway welcome !
+We hope you have fun trying it and please remember it is a work in progress,
+feedbacks, bug reports and improvement ideas are always welcome !
