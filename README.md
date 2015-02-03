@@ -25,17 +25,14 @@ apt-get install -y software-properties-common (or python-software-properties on 
 apt-add-repository -y ppa:lttng/ppa
 apt-get update
 apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar
-```
-
-Note: If your user is part of the tracing group, you can avoid needing to be
-root next, after a fresh install it requires to logout, login and restart
-lttng-sessiond.
-
-```bash
 git clone https://github.com/lttng/lttng-analyses.git
 ```
 
 ## Trace creation
+Here are the basic commands to create a trace, for more information on the
+LTTng setup, please refer to the [LTTng
+documentation](http://lttng.org/docs/#doc-tracing-the-linux-kernel)
+
 ### Automatic
 From the cloned git tree:
 ```bash
