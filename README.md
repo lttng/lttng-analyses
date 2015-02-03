@@ -89,14 +89,14 @@ The code architecture allows to easily add new analyses and an external
 tool can import the analysis backend and output the results in its own
 way (instead of text).
 
-## Example
+## Examples
 Once you have collected your trace, you can run any script from the repository
 directly, following are some examples.
 
 ### I/O
 #### I/O latency stats
 ```bash
-$ ./iolatencystats mytrace/
+$ ./lttng-iolatencystats mytrace/
 Timerange: [2015-01-06 10:58:26.140545481, 2015-01-06 10:58:27.229358936]
 Syscalls latency statistics (usec):
 Type                    Count            Min        Average            Max          Stdev
@@ -114,7 +114,7 @@ dm-0                      108          0.001          0.004          0.007      
 
 #### I/O latency frequency distribution
 ```bash
-$ ./iolatencyfreq mytrace/
+$ ./lttng-iolatencyfreq mytrace/
 Timerange: [2015-01-06 10:58:26.140545481, 2015-01-06 10:58:27.229358936]
 Open latency distribution (usec)
 ###############################################################################
@@ -142,7 +142,7 @@ Open latency distribution (usec)
 
 #### I/O operations log
 ```bash
-$ ./iolog mytrace/
+$ ./lttng-iolog mytrace/
 [10:58:26.221618530,10:58:26.221620659]  write                      2.129       8.00 B  /usr/bin/x-term          11793    anon_inode:[eventfd] (fd=5)
 [10:58:26.221623609,10:58:26.221628055]  read                       4.446      50.00 B  /usr/bin/x-term          11793    /dev/ptmx (fd=24)
 [10:58:26.221638929,10:58:26.221640008]  write                      1.079       8.00 B  /usr/bin/x-term          11793    anon_inode:[eventfd] (fd=5)
@@ -158,7 +158,7 @@ $ ./iolog mytrace/
 
 #### I/O usage top
 ```bash
-$ ./iousagetop traces/pgread-writes
+$ ./lttng-iousagetop traces/pgread-writes
 Timerange: [2014-10-07 16:36:00.733214969, 2014-10-07 16:36:18.804584183]
 Per-process I/O Read
 ###############################################################################
@@ -232,7 +232,7 @@ Network sent_bytes
 ### IRQ
 #### Handler duration and raise latency statistics
 ```bash
-$ ./irqstats mytrace/
+$ ./lttng-irqstats mytrace/
 Timerange: [2014-03-11 16:05:41.314824752, 2014-03-11 16:05:45.041994298]
 Hard IRQ                                             Duration (us)
                        count          min          avg          max        stdev       
@@ -255,7 +255,7 @@ Soft IRQ                                             Duration (us)              
 
 #### Handler duration frequency distribution
 ```bash
-$ ./irqfreq --timerange [16:05:42,16:05:45] --irq 44 --stats mytrace/
+$ ./lttng-irqfreq --timerange [16:05:42,16:05:45] --irq 44 --stats mytrace/
 Timerange: [2014-03-11 16:05:42.042034570, 2014-03-11 16:05:44.998914297] 
 Hard IRQ                                             Duration (us)
                        count          min          avg          max        stdev       
