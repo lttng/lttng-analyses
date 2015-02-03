@@ -93,7 +93,7 @@ lttng enable-event -s $SESSION_NAME -k sched_switch,block_rq_complete,block_rq_i
 
 # events that might fail on specific kernels and that are not mandatory
 lttng enable-event -s $SESSION_NAME -k writeback_pages_written -c chan1 >/dev/null 2>&1
-[[ $? != 0 ]] && echo "Warning: Optional event writeback_pages_written could not be enabled, everything will still work"
+[[ $? != 0 ]] && echo "Warning: Optional event writeback_pages_written could not be enabled, everything will still work (experimental feature)"
 
 lttng enable-event -s $SESSION_NAME -k -c chan1 --syscall -a >/dev/null
 [[ $? != 0 ]] && exit 2
