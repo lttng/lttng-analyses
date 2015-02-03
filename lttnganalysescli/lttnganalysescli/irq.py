@@ -138,7 +138,8 @@ class IrqAnalysis(Command):
         for v in values:
             g.append(("%0.03f" % (i * step + _min), v))
             i += 1
-        for line in graph.graph('Frequency distribution %s (%s)' % (name, nr),
+        for line in graph.graph('Handler duration frequency distribution %s '
+                                '(%s) (usec)' % (name, nr),
                                 g, info_before=True):
             print(line)
         print("")
