@@ -319,7 +319,7 @@ An other example when running the 'sync' command:
                                                  - unknown (origin not found) : 12 pages
 ```
 
-Postgresql with 'sys_fdatasync':
+PostgreSQL with 'sys_fdatasync':
 ```
 [13:49:39.908599447 - 13:49:39.915930730] postgres (1137) sys_fdatasync(fd = 7 </var/lib/postgresql/9.1/main/pg_xlog/000000010000000000000008>) = 0, 7.331 ms
                                           2 pages allocated during the period
@@ -334,7 +334,7 @@ Postgresql with 'sys_fdatasync':
                                                  - base/11951/18410_fsm : 6 pages
 ```
 
-Detecting a fight for the I/O between a huge write and postgresql:
+Detecting a fight for the I/O between a huge write and PostgreSQL:
 ```
 [13:49:47.242730583 - 13:49:47.442835037] python (2353) sys_write(fd = 3 </root/bla>, count = 102395904) = 102395904, 200.104 ms
                                           34760 pages allocated during the period
@@ -366,4 +366,4 @@ analyses on the same trace without having to process the trace every time.
 
 ## Conclusion
 We hope you have fun trying it and please remember it is a work in progress,
-feedbacks, bug reports and improvement ideas are always welcome !
+feedback, bug reports and improvement ideas are always welcome !
