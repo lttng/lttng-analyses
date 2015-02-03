@@ -3,15 +3,14 @@
 This repository contains various scripts to extract monitoring data and metrics
 from LTTng kernel traces.
 
-As opposed to other diagnostics/monitoring solutions, this approach is designed
+As opposed to other diagnostic or monitoring solutions, this approach is designed
 to allow users to record their system's activity with a low overhead, wait
 for a problem to occur and then diagnose its cause offline.
 
-With this solution, we target really hard to find problems and dig until we
-find the root cause.
+This solution allows the user to target hard to find problems and dig until the
+root cause is found.
 
-This README describes the analyses implemented and the usage of the whole
-project.
+This README describes the implemented analyses as well as how to use them.
 
 ## Requirements
 * LTTng >= 2.5
@@ -51,8 +50,8 @@ lttng destroy
 
 ### Remote trace creation
 You can also create a trace on a server and send it to a remote host. The
-remote host only need to run `lttng-relayd -d` and be reachable over the network.
-The only difference from the above commands is the tracing session's creation:
+remote host only needs to run `lttng-relayd -d` and be reachable over the network.
+The only difference with the above commands is the tracing session's creation:
 ```bash
 lttng create -U net://<remote-host>
 ```
@@ -114,26 +113,26 @@ $ ./lttng-iolatencyfreq mytrace/
 Timerange: [2015-01-06 10:58:26.140545481, 2015-01-06 10:58:27.229358936]
 Open latency distribution (usec)
 ###############################################################################
- 5.562 ███████████████████████████████████████████████████████████████████  25  
- 9.168 ██████████                                                            4  
-12.774 █████████████████████                                                 8  
-16.380 ████████                                                              3  
-19.986 █████                                                                 2  
-23.592                                                                       0  
-27.198                                                                       0  
-30.804                                                                       0  
-34.410 ██                                                                    1  
-38.016                                                                       0  
-41.623                                                                       0  
-45.229                                                                       0  
-48.835                                                                       0  
-52.441                                                                       0  
-56.047                                                                       0  
-59.653                                                                       0  
-63.259                                                                       0  
-66.865                                                                       0  
-70.471                                                                       0  
-74.077 █████                                                                 2  
+ 5.562 ███████████████████████████████████████████████████████████████████  25
+ 9.168 ██████████                                                            4
+12.774 █████████████████████                                                 8
+16.380 ████████                                                              3
+19.986 █████                                                                 2
+23.592                                                                       0
+27.198                                                                       0
+30.804                                                                       0
+34.410 ██                                                                    1
+38.016                                                                       0
+41.623                                                                       0
+45.229                                                                       0
+48.835                                                                       0
+52.441                                                                       0
+56.047                                                                       0
+59.653                                                                       0
+63.259                                                                       0
+66.865                                                                       0
+70.471                                                                       0
+74.077 █████                                                                 2
 ```
 
 #### I/O operations log
@@ -146,7 +145,7 @@ $ ./lttng-iolog mytrace/
 [10:58:26.223401804,10:58:26.223411683]  open                       9.879          N/A  sleep                    12420    /etc/ld.so.cache (fd=3)
 [10:58:26.223448060,10:58:26.223455577]  open                       7.517          N/A  sleep                    12420    /lib/x86_64-linux-gnu/libc.so.6 (fd=3)
 [10:58:26.223456522,10:58:26.223458898]  read                       2.376     832.00 B  sleep                    12420    /lib/x86_64-linux-gnu/libc.so.6 (fd=3)
-[10:58:26.223918068,10:58:26.223929316]  open                      11.248          N/A  sleep                    12420     (fd=3)       
+[10:58:26.223918068,10:58:26.223929316]  open                      11.248          N/A  sleep                    12420     (fd=3)
 [10:58:26.231881565,10:58:26.231895970]  writev                    14.405      16.00 B  /usr/bin/x-term          11793    socket:[45650] (fd=4)
 [10:58:26.231979636,10:58:26.231988446]  recvmsg                    8.810      16.00 B  Xorg                     1827     socket:[47480] (fd=38)
 ```
@@ -166,12 +165,12 @@ Per-process I/O Read
                                                      123.77 KB postgres (4220)           117.50 KB file   6.26 KB net   8.00 B  unknown
 Per-process I/O Write
 ###############################################################################
-██████████████████████████████████████████████████    16.00 MB lttng-consumerd (2619)         0 B  file   8.00 MB net   8.00 MB unknown 
-██████                                                 2.20 MB postgres (4219)             2.00 MB file 202.23 KB net      0 B  unknown 
-█████                                                  1.73 MB lttng-consumerd (2619)         0 B  file 887.73 KB net 882.58 KB unknown 
-██                                                   726.33 KB postgres (1165)             8.00 KB file   6.33 KB net 712.00 KB unknown 
-                                                     158.69 KB postgres (1168)           158.69 KB file      0 B  net      0 B  unknown 
-                                                      80.66 KB postgres (1348)                0 B  file  80.66 KB net      0 B  unknown 
+██████████████████████████████████████████████████    16.00 MB lttng-consumerd (2619)         0 B  file   8.00 MB net   8.00 MB unknown
+██████                                                 2.20 MB postgres (4219)             2.00 MB file 202.23 KB net      0 B  unknown
+█████                                                  1.73 MB lttng-consumerd (2619)         0 B  file 887.73 KB net 882.58 KB unknown
+██                                                   726.33 KB postgres (1165)             8.00 KB file   6.33 KB net 712.00 KB unknown
+                                                     158.69 KB postgres (1168)           158.69 KB file      0 B  net      0 B  unknown
+                                                      80.66 KB postgres (1348)                0 B  file  80.66 KB net      0 B  unknown
 Files Read
 ###############################################################################
 ██████████████████████████████████████████████████     8.00 MB anon_inode:[lttng_stream] (lttng-consumerd) 'fd 32 in lttng-consumerd (2619)'
@@ -200,11 +199,11 @@ Block I/O Read
 ###############################################################################
 Block I/O Write
 ###############################################################################
-██████████████████████████████████████████████████     1.76 MB postgres (pid=4219)   
-████                                                 160.00 KB postgres (pid=1168)   
+██████████████████████████████████████████████████     1.76 MB postgres (pid=4219)
+████                                                 160.00 KB postgres (pid=1168)
 ██                                                   100.00 KB kworker/u8:0 (pid=1540)
-██                                                    96.00 KB jbd2/vda1-8 (pid=257) 
-█                                                     40.00 KB postgres (pid=1166)   
+██                                                    96.00 KB jbd2/vda1-8 (pid=257)
+█                                                     40.00 KB postgres (pid=1166)
                                                        8.00 KB kworker/u9:0 (pid=4197)
                                                        4.00 KB kworker/u9:2 (pid=1381)
 Disk nr_sector
@@ -219,7 +218,7 @@ Disk request time/sector
 Network recv_bytes
 ###############################################################################
 ███████████████████████████████████████████████████████  739.50 KB eth0
-█████                                                    80.27 KB lo   
+█████                                                    80.27 KB lo
 Network sent_bytes
 ###############################################################################
 ████████████████████████████████████████████████████████  9.36 MB eth0
@@ -231,15 +230,15 @@ Network sent_bytes
 $ ./lttng-irqstats mytrace/
 Timerange: [2014-03-11 16:05:41.314824752, 2014-03-11 16:05:45.041994298]
 Hard IRQ                                             Duration (us)
-                       count          min          avg          max        stdev       
+                       count          min          avg          max        stdev
 ----------------------------------------------------------------------------------|
-1:  <i8042>               30       10.901       45.500       64.510       18.447  |                                                          
-42: <ahci>               259        3.203        7.863       21.426        3.183  |                                                          
-43: <eth0>                 2        3.859        3.976        4.093        0.165  |                                                          
-44: <iwlwifi>             92        0.300        3.995        6.542        2.181  |                                                          
+1:  <i8042>               30       10.901       45.500       64.510       18.447  |
+42: <ahci>               259        3.203        7.863       21.426        3.183  |
+43: <eth0>                 2        3.859        3.976        4.093        0.165  |
+44: <iwlwifi>             92        0.300        3.995        6.542        2.181  |
 
 Soft IRQ                                             Duration (us)                                        Raise latency (us)
-                       count          min          avg          max        stdev  |  count          min          avg          max        stdev       
+                       count          min          avg          max        stdev  |  count          min          avg          max        stdev
 ----------------------------------------------------------------------------------|------------------------------------------------------------
 1:  <TIMER_SOFTIRQ>      495        0.202       21.058       51.060       11.047  |     53        2.141       11.217       20.005        7.233
 3:  <NET_RX_SOFTIRQ>      14        0.133        9.177       32.774       10.483  |     14        0.763        3.703       10.902        3.448
@@ -252,33 +251,33 @@ Soft IRQ                                             Duration (us)              
 #### Handler duration frequency distribution
 ```bash
 $ ./lttng-irqfreq --timerange [16:05:42,16:05:45] --irq 44 --stats mytrace/
-Timerange: [2014-03-11 16:05:42.042034570, 2014-03-11 16:05:44.998914297] 
+Timerange: [2014-03-11 16:05:42.042034570, 2014-03-11 16:05:44.998914297]
 Hard IRQ                                             Duration (us)
-                       count          min          avg          max        stdev       
+                       count          min          avg          max        stdev
 ----------------------------------------------------------------------------------|
-44: <iwlwifi>             72        0.300        4.018        6.542        2.164  |                                                          
+44: <iwlwifi>             72        0.300        4.018        6.542        2.164  |
 Frequency distribution iwlwifi (44)
 ###############################################################################
-0.300 █████                                                                 1.00  
-0.612 ██████████████████████████████████████████████████████████████        12.00  
-0.924 ████████████████████                                                  4.00  
-1.236 ██████████                                                            2.00  
-1.548                                                                       0.00  
-1.861 █████                                                                 1.00  
-2.173                                                                       0.00  
-2.485 █████                                                                 1.00  
-2.797 ██████████████████████████                                            5.00  
-3.109 █████                                                                 1.00  
-3.421 ███████████████                                                       3.00  
-3.733                                                                       0.00  
-4.045 █████                                                                 1.00  
-4.357 █████                                                                 1.00  
-4.669 ██████████                                                            2.00  
-4.981 ██████████                                                            2.00  
-5.294 █████████████████████████████████████████                             8.00  
-5.606 ████████████████████████████████████████████████████████████████████  13.00  
-5.918 ██████████████████████████████████████████████████████████████        12.00  
-6.230 ███████████████                                                       3.00  
+0.300 █████                                                                 1.00
+0.612 ██████████████████████████████████████████████████████████████        12.00
+0.924 ████████████████████                                                  4.00
+1.236 ██████████                                                            2.00
+1.548                                                                       0.00
+1.861 █████                                                                 1.00
+2.173                                                                       0.00
+2.485 █████                                                                 1.00
+2.797 ██████████████████████████                                            5.00
+3.109 █████                                                                 1.00
+3.421 ███████████████                                                       3.00
+3.733                                                                       0.00
+4.045 █████                                                                 1.00
+4.357 █████                                                                 1.00
+4.669 ██████████                                                            2.00
+4.981 ██████████                                                            2.00
+5.294 █████████████████████████████████████████                             8.00
+5.606 ████████████████████████████████████████████████████████████████████  13.00
+5.918 ██████████████████████████████████████████████████████████████        12.00
+6.230 ███████████████                                                       3.00
 ```
 
 ### Others
@@ -351,8 +350,8 @@ Detecting a fight for the I/O between a huge write and postgresql:
 
 The main limitation of this project is the fact that it can be quite slow to
 process a large trace. This project is a work in progress and we focus on the
-problem-solving aspect. We didn't spend much time on improving the analyses'
-performance yet.
+problem-solving aspect. Therefore, features have been prioritized over
+performance for now.
 
 One other aspect is the fact that the state is not persistent; the trace has
 to be re-processed if another analysis script is to be used on the same trace.
