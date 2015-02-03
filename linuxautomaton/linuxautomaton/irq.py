@@ -53,19 +53,6 @@ class IrqStateProvider(sp.StateProvider):
     def process_event(self, ev):
         self._process_event_cb(ev)
 
-    def init_irq(self):
-        irq = {}
-        irq["list"] = []
-        irq["max"] = 0
-        irq["min"] = -1
-        irq["count"] = 0
-        irq["total"] = 0
-        irq["raise_max"] = 0
-        irq["raise_min"] = -1
-        irq["raise_count"] = 0
-        irq["raise_total"] = 0
-        return irq
-
     def entry(self, event, irqclass, idfield):
         cpu_id = event["cpu_id"]
         i = sv.IRQ()
@@ -124,7 +111,7 @@ class IrqStateProvider(sp.StateProvider):
             return
         i.stop_ts = event.timestamp
         if not i.nr in self.irq[irq_type].keys():
-            self.irq[irq_type][i.nr] = self.init_irq()
+            self.irq[irq_type][i.nr] = sv.IRQ.init_irq_instance()
 
         # filter out max/min
         duration = i.stop_ts - i.start_ts

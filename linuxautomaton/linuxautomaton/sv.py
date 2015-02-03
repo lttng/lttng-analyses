@@ -187,6 +187,20 @@ class IRQ():
         self.raise_ts = -1
         self.cpu_id = -1
 
+    # used to track statistics about individual IRQs
+    def init_irq_instance():
+        irq = {}
+        irq["list"] = []
+        irq["max"] = 0
+        irq["min"] = -1
+        irq["count"] = 0
+        irq["total"] = 0
+        irq["raise_max"] = 0
+        irq["raise_min"] = -1
+        irq["raise_count"] = 0
+        irq["raise_total"] = 0
+        return irq
+
 
 class IORequest():
     # I/O "type"

@@ -294,9 +294,9 @@ class IrqAnalysis(Command):
         self.state.interrupts["soft_count"] = 0
         self.state.interrupts["irq-list"] = []
         for i in self.state.interrupts["hard-irqs"].keys():
-            self.state.interrupts["hard-irqs"][i] = self.state.irq.init_irq()
+            self.state.interrupts["hard-irqs"][i] = sv.IRQ.init_irq_instance()
         for i in self.state.interrupts["soft-irqs"].keys():
-            self.state.interrupts["soft-irqs"][i] = self.state.irq.init_irq()
+            self.state.interrupts["soft-irqs"][i] = sv.IRQ.init_irq_instance()
 
     def _refresh(self, begin, end):
         self._compute_stats()
