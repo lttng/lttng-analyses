@@ -306,6 +306,7 @@ find (22785)                          Count            Min        Average       
  - newuname                               1          1.240          1.240        1.240          ?  {'success': 1}
 Total:                                71847
 -----------------------------------------------------------------------------------------------------------------
+apache2 (31517)                       Count            Min        Average          Max      Stdev  Return values
  - fcntl                                192              ?          0.000        0.000          ?  {}
  - newfstat                             156          0.237          0.484        1.102      0.222  {'success': 156}
  - read                                 144          0.307          1.602       16.307      1.698  {'success': 117, 'EAGAIN': 27}
