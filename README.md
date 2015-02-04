@@ -275,6 +275,50 @@ Network sent_bytes
 ████████████████████████████████████████████████████████  9.36 MB eth0
 ```
 
+### Syscalls
+#### Statistics
+```bash
+$ ./lttng-syscallstats mytrace/
+Timerange: [2015-01-15 12:18:37.216484041, 2015-01-15 12:18:53.821580313]
+Per-TID syscalls statistics (usec)
+find (22785), 71847 syscalls                    Count            Min        Average          Max      Stdev  Return values
+syscall_entry_getdents                          14240          0.380        364.301    43372.450   1629.390  {'success': 14240}
+syscall_entry_close                             14236          0.233          0.506        4.932      0.217  {'success': 14236}
+syscall_entry_fchdir                            14231          0.252          0.407        5.769      0.117  {'success': 14231}
+syscall_entry_open                               7123          0.779          2.321       12.697      0.936  {'ENOENT': 4, 'success': 7119}
+syscall_entry_newfstatat                         7118          1.457        143.562    28103.532   1410.281  {'success': 7118}
+syscall_entry_openat                             7118          1.525          2.411        9.107      0.771  {'success': 7118}
+syscall_entry_newfstat                           7117          0.272          0.654        8.707      0.248  {'success': 7117}
+syscall_entry_write                               573          0.298          0.715        8.584      0.391  {'success': 573}
+syscall_entry_brk                                  27          0.615          5.768       30.792      7.830  {'success': 27}
+syscall_entry_rt_sigaction                         22          0.227          0.283        0.589      0.098  {'success': 22}
+syscall_entry_mmap                                 12          1.116          2.116        3.597      0.762  {'success': 12}
+syscall_entry_mprotect                              6          1.185          2.235        3.923      1.148  {'success': 6}
+syscall_entry_read                                  5          0.925          2.101        6.300      2.351  {'success': 5}
+syscall_entry_access                                4          1.166          2.530        4.202      1.527  {'ENOENT': 4}
+syscall_entry_ioctl                                 4          0.342          1.151        2.280      0.873  {'ENOTTY': 2, 'success': 2}
+syscall_entry_rt_sigprocmask                        3          0.325          0.570        0.979      0.357  {'success': 3}
+syscall_entry_munmap                                2          3.006          5.399        7.792          ?  {'success': 2}
+syscall_entry_dup2                                  2          0.250          0.562        0.874          ?  {'success': 2}
+syscall_entry_setpgid                               1          0.945          0.945        0.945          ?  {'success': 1}
+syscall_entry_newuname                              1          1.240          1.240        1.240          ?  {'success': 1}
+syscall_entry_execve                                1       7277.974       7277.974     7277.974          ?  {'success': 1}
+syscall_entry_fcntl                                 1              ?          0.000        0.000          ?  {}
+-----------------------------------------------------------------------------------------------------------------
+apache2 (31517), 1131 syscalls                  Count            Min        Average          Max      Stdev  Return values
+syscall_entry_fcntl                               192              ?          0.000        0.000          ?  {}
+syscall_entry_newfstat                            156          0.237          0.484        1.102      0.222  {'success': 156}
+syscall_entry_read                                144          0.307          1.602       16.307      1.698  {'EAGAIN': 27, 'success': 117}
+syscall_entry_access                               96          0.705          1.580        3.364      0.670  {'ENOENT': 84, 'success': 12}
+syscall_entry_newlstat                             84          0.459          0.738        1.456      0.186  {'ENOENT': 21, 'success': 63}
+syscall_entry_newstat                              74          0.735          2.266       11.212      1.772  {'ENOENT': 24, 'success': 50}
+syscall_entry_lseek                                72          0.317          0.522        0.915      0.112  {'success': 72}
+syscall_entry_close                                39          0.471          0.615        0.867      0.069  {'success': 39}
+syscall_entry_open                                 36          2.219      12162.689   437697.753  72948.868  {'success': 36}
+syscall_entry_getcwd                               28          0.287          0.701        1.331      0.277  {'success': 28}
+syscall_entry_poll                                 27          1.080       1139.669     2851.163    856.723  {'success': 27}
+```
+
 ### IRQ
 #### Handler duration and raise latency statistics
 ```bash

@@ -86,9 +86,24 @@ class CPU():
 
 
 class Syscall():
+    # One instance for each unique syscall name per process
     def __init__(self):
         self.name = ""
         self.count = 0
+        # duration min/max
+        self.min = None
+        self.max = 0
+        self.total_duration = 0
+        # list of all syscall events (SyscallEvent)
+        self.rq = []
+
+
+class SyscallEvent():
+    def __init__(self):
+        self.entry_ts = None
+        self.exit_ts = None
+        self.ret = None
+        self.duration = None
 
 
 class Disk():
@@ -314,6 +329,9 @@ class SyscallConsts():
                       "sys_sendmsg", "syscall_entry_sendmsg",
                       "sys_sendto", "syscall_entry_sendto",
                       "sys_writev", "syscall_entry_writev"]
+    # All I/O related syscalls
+    IO_SYSCALLS = OPEN_SYSCALLS + CLOSE_SYSCALLS + READ_SYSCALLS + \
+        WRITE_SYSCALLS
     # generic names assigned to special FDs, don't try to match these in the
     # closed_fds dict
     GENERIC_NAMES = ["unknown", "socket"]

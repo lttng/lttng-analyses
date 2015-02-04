@@ -26,6 +26,8 @@ from .command import Command
 import lttnganalyses.syscalls
 from linuxautomaton import common
 import operator
+import statistics
+import errno
 
 
 class SyscallsAnalysis(Command):
@@ -83,29 +85,53 @@ class SyscallsAnalysis(Command):
         return True
 
     def _print_results(self, begin_ns, end_ns, final=0):
-        count = 0
-        limit = self._arg_limit
         print('Timerange: [%s, %s]' % (
             common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
                                    multi_day=True),
             common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
                                    multi_day=True)))
-        print("Per-TID syscalls usage")
+        strformat = "{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}"
+        print("Per-TID syscalls statistics (usec)")
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('total_syscalls'),
                           reverse=True):
             if not self.filter_process(tid):
                 continue
-            print("%s (%d), %d syscalls:" % (tid.comm, tid.pid,
-                                             tid.total_syscalls))
+            if tid.total_syscalls == 0:
+                continue
+            print(strformat.format("%s (%d), %d syscalls" % (
+                tid.comm, tid.pid, tid.total_syscalls),
+                "Count", "Min", "Average", "Max", "Stdev", "Return values"))
             for syscall in sorted(tid.syscalls.values(),
                                   key=operator.attrgetter('count'),
                                   reverse=True):
-                print("- %s : %d" % (syscall.name, syscall.count))
-            count = count + 1
-            if limit > 0 and count >= limit:
-                break
-            print("")
+                sysvalues = []
+                rets = {}
+                for s in syscall.rq:
+                    sysvalues.append(s.duration)
+                    if s.ret >= 0:
+                        key = "success"
+                    else:
+                        key = errno.errorcode[-s.ret]
+                    if key in rets.keys():
+                        rets[key] += 1
+                    else:
+                        rets[key] = 1
+                if syscall.min is None:
+                    syscallmin = "?"
+                else:
+                    syscallmin = "%0.03f" % (syscall.min / 1000)
+                syscallmax = "%0.03f" % (syscall.max / 1000)
+                syscallavg = "%0.03f" % \
+                    (syscall.total_duration/(syscall.count*1000))
+                if len(sysvalues) > 2:
+                    stdev = "%0.03f" % (statistics.stdev(sysvalues) / 1000)
+                else:
+                    stdev = "?"
+                print(strformat.format(syscall.name, syscall.count,
+                                       syscallmin, syscallavg, syscallmax,
+                                       stdev, str(rets)))
+            print("-" * 113)
 
         print("\nTotal syscalls: %d" % (self.state.syscalls["total"]))
 

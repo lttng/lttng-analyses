@@ -102,7 +102,7 @@ class SyscallsStateProvider(sp.StateProvider):
         s.count += 1
         self.syscalls["total"] += 1
 
-    def per_tid_syscall_entry(self, name, cpu_id):
+    def per_tid_syscall_entry(self, name, cpu_id, event):
         # we don't know which process is currently on this CPU
         if cpu_id not in self.cpus:
             return
@@ -118,6 +118,9 @@ class SyscallsStateProvider(sp.StateProvider):
         else:
             s = t.syscalls[name]
         s.count += 1
+        current_syscall = t.current_syscall
+        current_syscall["name"] = name
+        current_syscall["start"] = event.timestamp
 
     def track_open(self, name, proc, event, cpu):
         self.tids[cpu.current_tid].current_syscall = {}
@@ -503,12 +506,27 @@ class SyscallsStateProvider(sp.StateProvider):
             if "pages_cleared" in current_syscall.keys():
                 rq.page_cleared = len(current_syscall["pages_cleared"])
 
+    def _per_tid_syscall_exit(self, name, ret, event, c):
+        t = self.tids[c.current_tid]
+        s = sv.SyscallEvent()
+        s.ret = ret
+        s.entry_ts = t.current_syscall["start"]
+        s.exit_ts = event.timestamp
+        s.duration = s.exit_ts - s.entry_ts
+        t_syscall = t.syscalls[name]
+        if t_syscall.min is None or t_syscall.min > s.duration:
+            t_syscall.min = s.duration
+        if t_syscall.max < s.duration:
+            t_syscall.max = s.duration
+        t_syscall.total_duration += s.duration
+        t_syscall.rq.append(s)
+
     def _process_syscall_entry(self, event):
         name = event.name
         ret_string = ""
         cpu_id = event["cpu_id"]
         self.global_syscall_entry(name)
-        self.per_tid_syscall_entry(name, cpu_id)
+        self.per_tid_syscall_entry(name, cpu_id, event)
         ret_string = self.track_fds(name, event, cpu_id)
         if name in sv.SyscallConsts.READ_SYSCALLS or \
                 name in sv.SyscallConsts.WRITE_SYSCALLS:
@@ -530,6 +548,11 @@ class SyscallsStateProvider(sp.StateProvider):
             return
         name = current_syscall["name"]
         ret = event["ret"]
+        self._per_tid_syscall_exit(name, ret, event, c)
+
+        if name not in sv.SyscallConsts.IO_SYSCALLS:
+            return
+
         current_syscall["iorequest"] = sv.IORequest()
         current_syscall["iorequest"].iotype = sv.IORequest.IO_SYSCALL
         current_syscall["iorequest"].name = name
