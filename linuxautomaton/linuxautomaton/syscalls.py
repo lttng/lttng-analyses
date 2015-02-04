@@ -508,6 +508,8 @@ class SyscallsStateProvider(sp.StateProvider):
 
     def _per_tid_syscall_exit(self, name, ret, event, c):
         t = self.tids[c.current_tid]
+        if not name in t.syscalls:
+            return
         s = sv.SyscallEvent()
         s.ret = ret
         s.entry_ts = t.current_syscall["start"]
