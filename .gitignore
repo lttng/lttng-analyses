@@ -5,3 +5,6 @@ proc.db
 .\#*
 tags
 *.swp
+build/
+dist/
+*.egg-info/
