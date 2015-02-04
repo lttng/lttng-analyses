@@ -14,8 +14,10 @@ cd lttnganalysescli
 ./setup.py install
 cd ..
 
-echo "Install lttng-analyses-record in /usr/local/bin/ ? [Yn]"
-read a
+echo
+echo -n "Install lttng-analyses-record in /usr/local/bin/ ? [Y/n] "
+read -n 1 a
+echo
 if test "$a" = 'y' -o "$a" = 'Y' -o "$a" = ''; then
 	install lttng-analyses-record /usr/local/bin/lttng-analyses-record
 fi
