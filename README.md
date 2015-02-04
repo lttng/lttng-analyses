@@ -281,42 +281,58 @@ Network sent_bytes
 $ ./lttng-syscallstats mytrace/
 Timerange: [2015-01-15 12:18:37.216484041, 2015-01-15 12:18:53.821580313]
 Per-TID syscalls statistics (usec)
-find (22785), 71847 syscalls                    Count            Min        Average          Max      Stdev  Return values
-syscall_entry_getdents                          14240          0.380        364.301    43372.450   1629.390  {'success': 14240}
-syscall_entry_close                             14236          0.233          0.506        4.932      0.217  {'success': 14236}
-syscall_entry_fchdir                            14231          0.252          0.407        5.769      0.117  {'success': 14231}
-syscall_entry_open                               7123          0.779          2.321       12.697      0.936  {'ENOENT': 4, 'success': 7119}
-syscall_entry_newfstatat                         7118          1.457        143.562    28103.532   1410.281  {'success': 7118}
-syscall_entry_openat                             7118          1.525          2.411        9.107      0.771  {'success': 7118}
-syscall_entry_newfstat                           7117          0.272          0.654        8.707      0.248  {'success': 7117}
-syscall_entry_write                               573          0.298          0.715        8.584      0.391  {'success': 573}
-syscall_entry_brk                                  27          0.615          5.768       30.792      7.830  {'success': 27}
-syscall_entry_rt_sigaction                         22          0.227          0.283        0.589      0.098  {'success': 22}
-syscall_entry_mmap                                 12          1.116          2.116        3.597      0.762  {'success': 12}
-syscall_entry_mprotect                              6          1.185          2.235        3.923      1.148  {'success': 6}
-syscall_entry_read                                  5          0.925          2.101        6.300      2.351  {'success': 5}
-syscall_entry_access                                4          1.166          2.530        4.202      1.527  {'ENOENT': 4}
-syscall_entry_ioctl                                 4          0.342          1.151        2.280      0.873  {'ENOTTY': 2, 'success': 2}
-syscall_entry_rt_sigprocmask                        3          0.325          0.570        0.979      0.357  {'success': 3}
-syscall_entry_munmap                                2          3.006          5.399        7.792          ?  {'success': 2}
-syscall_entry_dup2                                  2          0.250          0.562        0.874          ?  {'success': 2}
-syscall_entry_setpgid                               1          0.945          0.945        0.945          ?  {'success': 1}
-syscall_entry_newuname                              1          1.240          1.240        1.240          ?  {'success': 1}
-syscall_entry_execve                                1       7277.974       7277.974     7277.974          ?  {'success': 1}
-syscall_entry_fcntl                                 1              ?          0.000        0.000          ?  {}
+find (22785)                          Count            Min        Average          Max      Stdev  Return values
+ - getdents                           14240          0.380        364.301    43372.450   1629.390  {'success': 14240}
+ - close                              14236          0.233          0.506        4.932      0.217  {'success': 14236}
+ - fchdir                             14231          0.252          0.407        5.769      0.117  {'success': 14231}
+ - open                                7123          0.779          2.321       12.697      0.936  {'success': 7119, 'ENOENT': 4}
+ - newfstatat                          7118          1.457        143.562    28103.532   1410.281  {'success': 7118}
+ - openat                              7118          1.525          2.411        9.107      0.771  {'success': 7118}
+ - newfstat                            7117          0.272          0.654        8.707      0.248  {'success': 7117}
+ - write                                573          0.298          0.715        8.584      0.391  {'success': 573}
+ - brk                                   27          0.615          5.768       30.792      7.830  {'success': 27}
+ - rt_sigaction                          22          0.227          0.283        0.589      0.098  {'success': 22}
+ - mmap                                  12          1.116          2.116        3.597      0.762  {'success': 12}
+ - mprotect                               6          1.185          2.235        3.923      1.148  {'success': 6}
+ - read                                   5          0.925          2.101        6.300      2.351  {'success': 5}
+ - ioctl                                  4          0.342          1.151        2.280      0.873  {'success': 2, 'ENOTTY': 2}
+ - access                                 4          1.166          2.530        4.202      1.527  {'ENOENT': 4}
+ - rt_sigprocmask                         3          0.325          0.570        0.979      0.357  {'success': 3}
+ - dup2                                   2          0.250          0.562        0.874          ?  {'success': 2}
+ - munmap                                 2          3.006          5.399        7.792          ?  {'success': 2}
+ - execve                                 1       7277.974       7277.974     7277.974          ?  {'success': 1}
+ - setpgid                                1          0.945          0.945        0.945          ?  {'success': 1}
+ - fcntl                                  1              ?          0.000        0.000          ?  {}
+ - newuname                               1          1.240          1.240        1.240          ?  {'success': 1}
+Total:                                71847
 -----------------------------------------------------------------------------------------------------------------
-apache2 (31517), 1131 syscalls                  Count            Min        Average          Max      Stdev  Return values
-syscall_entry_fcntl                               192              ?          0.000        0.000          ?  {}
-syscall_entry_newfstat                            156          0.237          0.484        1.102      0.222  {'success': 156}
-syscall_entry_read                                144          0.307          1.602       16.307      1.698  {'EAGAIN': 27, 'success': 117}
-syscall_entry_access                               96          0.705          1.580        3.364      0.670  {'ENOENT': 84, 'success': 12}
-syscall_entry_newlstat                             84          0.459          0.738        1.456      0.186  {'ENOENT': 21, 'success': 63}
-syscall_entry_newstat                              74          0.735          2.266       11.212      1.772  {'ENOENT': 24, 'success': 50}
-syscall_entry_lseek                                72          0.317          0.522        0.915      0.112  {'success': 72}
-syscall_entry_close                                39          0.471          0.615        0.867      0.069  {'success': 39}
-syscall_entry_open                                 36          2.219      12162.689   437697.753  72948.868  {'success': 36}
-syscall_entry_getcwd                               28          0.287          0.701        1.331      0.277  {'success': 28}
-syscall_entry_poll                                 27          1.080       1139.669     2851.163    856.723  {'success': 27}
+ - fcntl                                192              ?          0.000        0.000          ?  {}
+ - newfstat                             156          0.237          0.484        1.102      0.222  {'success': 156}
+ - read                                 144          0.307          1.602       16.307      1.698  {'success': 117, 'EAGAIN': 27}
+ - access                                96          0.705          1.580        3.364      0.670  {'success': 12, 'ENOENT': 84}
+ - newlstat                              84          0.459          0.738        1.456      0.186  {'success': 63, 'ENOENT': 21}
+ - newstat                               74          0.735          2.266       11.212      1.772  {'success': 50, 'ENOENT': 24}
+ - lseek                                 72          0.317          0.522        0.915      0.112  {'success': 72}
+ - close                                 39          0.471          0.615        0.867      0.069  {'success': 39}
+ - open                                  36          2.219      12162.689   437697.753  72948.868  {'success': 36}
+ - getcwd                                28          0.287          0.701        1.331      0.277  {'success': 28}
+ - poll                                  27          1.080       1139.669     2851.163    856.723  {'success': 27}
+ - times                                 24          0.765          0.956        1.327      0.107  {'success': 24}
+ - setitimer                             24          0.499          5.848       16.668      4.041  {'success': 24}
+ - write                                 24          5.467          6.784       16.827      2.459  {'success': 24}
+ - writev                                24         10.241         17.645       29.817      5.116  {'success': 24}
+ - mmap                                  15          3.060          3.482        4.406      0.317  {'success': 15}
+ - munmap                                15          2.944          3.502        4.154      0.427  {'success': 15}
+ - brk                                   12          0.738          4.579       13.795      4.437  {'success': 12}
+ - chdir                                 12          0.989          1.600        2.353      0.385  {'success': 12}
+ - flock                                  6          0.906          1.282        2.043      0.423  {'success': 6}
+ - rt_sigaction                           6          0.530          0.725        1.123      0.217  {'success': 6}
+ - pwrite64                               6          1.262          1.430        1.692      0.143  {'success': 6}
+ - rt_sigprocmask                         6          0.539          0.650        0.976      0.162  {'success': 6}
+ - shutdown                               3          7.323          8.487       10.281      1.576  {'success': 3}
+ - getsockname                            3          1.015          1.228        1.585      0.311  {'success': 3}
+ - accept4                                3    5174453.611    3450157.282  5176018.235          ?  {'success': 2}
+Total:                                 1131
 ```
 
 ### IRQ

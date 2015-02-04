@@ -90,7 +90,7 @@ class SyscallsAnalysis(Command):
                                    multi_day=True),
             common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
                                    multi_day=True)))
-        strformat = "{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}"
+        strformat = "{:<28} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}"
         print("Per-TID syscalls statistics (usec)")
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('total_syscalls'),
@@ -99,8 +99,8 @@ class SyscallsAnalysis(Command):
                 continue
             if tid.total_syscalls == 0:
                 continue
-            print(strformat.format("%s (%d), %d syscalls" % (
-                tid.comm, tid.pid, tid.total_syscalls),
+            print(strformat.format("%s (%d)" % (
+                tid.comm, tid.pid),
                 "Count", "Min", "Average", "Max", "Stdev", "Return values"))
             for syscall in sorted(tid.syscalls.values(),
                                   key=operator.attrgetter('count'),
@@ -128,9 +128,13 @@ class SyscallsAnalysis(Command):
                     stdev = "%0.03f" % (statistics.stdev(sysvalues) / 1000)
                 else:
                     stdev = "?"
-                print(strformat.format(syscall.name, syscall.count,
+                name = syscall.name.replace("syscall_entry_", "")
+                name = name.replace("sys_", "")
+                print(strformat.format(" - " + name, syscall.count,
                                        syscallmin, syscallavg, syscallmax,
                                        stdev, str(rets)))
+            print(strformat.format("Total:", tid.total_syscalls, "", "", "",
+                                   "", ""))
             print("-" * 113)
 
         print("\nTotal syscalls: %d" % (self.state.syscalls["total"]))
