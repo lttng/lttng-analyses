@@ -59,7 +59,7 @@ entry_points = {
 }
 
 setup(name='lttnganalysescli',
-      version='0.0.1',
+      version='0.1.0',
       description='LTTng analyses CLI',
       author='Julien Desfossez',
       author_email='jdesfossez@efficios.com',

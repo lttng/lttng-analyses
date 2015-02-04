@@ -41,7 +41,7 @@ install_requires = [
 ]
 
 setup(name='lttnganalyses',
-      version='0.0.1',
+      version='0.1.0',
       description='LTTng analyses',
       author='Julien Desfossez',
       author_email='jdesfossez@efficios.com',
