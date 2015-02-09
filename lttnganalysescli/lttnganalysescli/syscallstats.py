@@ -114,7 +114,7 @@ class SyscallsAnalysis(Command):
                     else:
                         try:
                             key = errno.errorcode[-s.ret]
-                        except errno.errorcode:
+                        except:
                             key = str(s.ret)
                     if key in rets.keys():
                         rets[key] += 1
