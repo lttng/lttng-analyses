@@ -102,6 +102,16 @@ class SyscallsStateProvider(sp.StateProvider):
         s.count += 1
         self.syscalls["total"] += 1
 
+    def override_name(self, name, event):
+        if name in ["syscall_entry_epoll_ctl"]:
+            if event["op"] == 1:
+                name = "%s-ADD" % (name)
+            elif event["op"] == 2:
+                name = "%s-DEL" % (name)
+            elif event["op"] == 3:
+                name = "%s-MODE" % (name)
+        return name
+
     def per_tid_syscall_entry(self, name, cpu_id, event):
         # we don't know which process is currently on this CPU
         if cpu_id not in self.cpus:
@@ -119,6 +129,7 @@ class SyscallsStateProvider(sp.StateProvider):
             s = t.syscalls[name]
         s.count += 1
         current_syscall = t.current_syscall
+        name = self.override_name(name, event)
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
 
