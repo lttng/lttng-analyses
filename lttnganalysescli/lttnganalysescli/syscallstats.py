@@ -99,8 +99,8 @@ class SyscallsAnalysis(Command):
                 continue
             if tid.total_syscalls == 0:
                 continue
-            print(strformat.format("%s (%d)" % (
-                tid.comm, tid.pid),
+            print(strformat.format("%s (%d, tid = %d)" % (
+                tid.comm, tid.pid, tid.tid),
                 "Count", "Min", "Average", "Max", "Stdev", "Return values"))
             for syscall in sorted(tid.syscalls.values(),
                                   key=operator.attrgetter('count'),
