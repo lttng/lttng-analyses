@@ -121,6 +121,7 @@ class SyscallsStateProvider(sp.StateProvider):
             return
         t = self.tids[c.current_tid]
         t.total_syscalls += 1
+        name = self.override_name(name, event)
         if name not in t.syscalls:
             s = sv.Syscall()
             s.name = name
@@ -129,9 +130,9 @@ class SyscallsStateProvider(sp.StateProvider):
             s = t.syscalls[name]
         s.count += 1
         current_syscall = t.current_syscall
-        name = self.override_name(name, event)
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
+        self.global_syscall_entry(name)
 
     def track_open(self, name, proc, event, cpu):
         self.tids[cpu.current_tid].current_syscall = {}
@@ -538,7 +539,6 @@ class SyscallsStateProvider(sp.StateProvider):
         name = event.name
         ret_string = ""
         cpu_id = event["cpu_id"]
-        self.global_syscall_entry(name)
         self.per_tid_syscall_entry(name, cpu_id, event)
         ret_string = self.track_fds(name, event, cpu_id)
         if name in sv.SyscallConsts.READ_SYSCALLS or \
