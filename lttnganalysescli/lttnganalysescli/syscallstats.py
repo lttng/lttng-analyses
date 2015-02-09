@@ -112,7 +112,10 @@ class SyscallsAnalysis(Command):
                     if s.ret >= 0:
                         key = "success"
                     else:
-                        key = errno.errorcode[-s.ret]
+                        try:
+                            key = errno.errorcode[-s.ret]
+                        except errno.errorcode:
+                            key = str(s.ret)
                     if key in rets.keys():
                         rets[key] += 1
                     else:
