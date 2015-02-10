@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 from linuxautomaton import sp, sv, common
+from collections import OrderedDict
 
 
 class StatedumpStateProvider(sp.StateProvider):
@@ -49,10 +50,14 @@ class StatedumpStateProvider(sp.StateProvider):
             for fd in p.fds.keys():
                 if fd not in parent.fds.keys():
                     parent.fds[fd] = p.fds[fd]
+                    parent.chrono_fds[fd] = p.chrono_fds[fd]
                 else:
                     # best effort to fix the filename
                     if len(parent.fds[fd].filename) == 0:
                         parent.fds[fd].filename = p.fds[fd].filename
+                        chrono_fd = parent.chrono_fds[fd]
+                        last_ts = next(reversed(chrono_fd))
+                        chrono_fd[last_ts]["filename"] = p.fds[fd].filename
                     # merge the values as they are for the same sv.FD
                     parent.fds[fd].net_read += p.fds[fd].net_read
                     parent.fds[fd].net_write += p.fds[fd].net_write
@@ -63,6 +68,7 @@ class StatedumpStateProvider(sp.StateProvider):
                 toremove.append(fd)
             for fd in toremove:
                 p.fds.pop(fd, None)
+                p.chrono_fds.pop(fd, None)
         if len(p.closed_fds.keys()) != 0:
             for fd in p.closed_fds.keys():
                 if fd not in parent.closed_fds.keys():
@@ -127,9 +133,17 @@ class StatedumpStateProvider(sp.StateProvider):
             # FIXME: we don't have the info, just assume for now
             newfile.cloexec = 1
             p.fds[fd] = newfile
+            p.chrono_fds[fd] = OrderedDict()
+            p.chrono_fds[fd][event.timestamp] = {
+                "filename": newfile.filename,
+                "fdtype": newfile.fdtype
+            }
         else:
             # just fix the filename
             p.fds[fd].filename = filename
+            chrono_fd = p.chrono_fds[fd]
+            last_ts = next(reversed(chrono_fd))
+            chrono_fd[last_ts]["filename"] = filename
 
     def _process_lttng_statedump_block_device(self, event):
         d = common.get_disk(event["dev"], self.disks)
