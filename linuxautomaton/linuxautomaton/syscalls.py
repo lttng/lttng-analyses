@@ -24,6 +24,7 @@
 
 import socket
 import operator
+from collections import OrderedDict
 from linuxautomaton import sp, sv, common
 from babeltrace import CTFScope
 
@@ -377,6 +378,20 @@ class SyscallsStateProvider(sp.StateProvider):
         if "cloexec" in current_syscall.keys():
             fd.cloexec = 1
         t.fds[fd.fd] = fd
+
+        # Track chronological filename/filetype changes
+        chrono_metadata = {}
+        chrono_metadata["filename"] = fd.filename
+        chrono_metadata["fdtype"] = fd.fdtype
+
+        if fd.fd not in t.chrono_fds:
+            t.chrono_fds[fd.fd] = OrderedDict()
+            t.chrono_fds[fd.fd][event["timestamp_begin"]] = chrono_metadata
+        else:
+            chrono_fd = t.chrono_fds[fd.fd]
+            last_ts = next(reversed(chrono_fd))
+            if fd.filename != chrono_fd[last_ts]["filename"]:
+                chrono_fd[event["timestamp_begin"]] = chrono_metadata
 
     def read_append(self, fd, proc, count, rq):
         rq.operation = sv.IORequest.OP_READ

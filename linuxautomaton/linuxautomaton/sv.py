@@ -38,6 +38,9 @@ class Process():
         self.fds = {}
         # indexed by filename
         self.closed_fds = {}
+        # filenames (indexed by timestamp) associated with given fd (top-level
+        # index) at a given point in time
+        self.chrono_fds = {}
         self.current_syscall = {}
         self.init_counts()
 
