@@ -262,13 +262,13 @@ class SyscallsStateProvider(sp.StateProvider):
         elif name in ["sys_connect", "syscall_entry_connect"] \
                 and "family" in event.keys():
             if event["family"] == socket.AF_INET:
-                fd = self.get_fd(t, event["fd"])
+                fd = self.get_fd(t, event["fd"], event)
                 ipport = "%s:%d" % (common.get_v4_addr_str(event["v4addr"]),
                                     event["dport"])
                 fd.filename = ipport
         return ret_string
 
-    def get_fd(self, proc, fd):
+    def get_fd(self, proc, fd, event):
         if fd not in proc.fds.keys():
             f = sv.FD()
             f.fd = fd
@@ -276,6 +276,9 @@ class SyscallsStateProvider(sp.StateProvider):
             proc.fds[fd] = f
         else:
             f = proc.fds[fd]
+
+        proc.track_chrono_fd(fd, f.filename, f.fdtype, event.timestamp)
+
         return f
 
     def track_sync(self, name, event, cpu_id):
@@ -295,7 +298,7 @@ class SyscallsStateProvider(sp.StateProvider):
         current_syscall["start"] = event.timestamp
         if name not in ["sys_sync", "syscall_entry_sync"]:
             fd = event["fd"]
-            f = self.get_fd(t, fd)
+            f = self.get_fd(t, fd, event)
             current_syscall["fd"] = f
             current_syscall["filename"] = f.filename
 
@@ -315,19 +318,19 @@ class SyscallsStateProvider(sp.StateProvider):
         current_syscall["name"] = name
         current_syscall["start"] = event.timestamp
         if name in ["sys_splice", "syscall_entry_splice"]:
-            current_syscall["fd_in"] = self.get_fd(t, event["fd_in"])
-            current_syscall["fd_out"] = self.get_fd(t, event["fd_out"])
+            current_syscall["fd_in"] = self.get_fd(t, event["fd_in"], event)
+            current_syscall["fd_out"] = self.get_fd(t, event["fd_out"], event)
             current_syscall["count"] = event["len"]
             current_syscall["filename"] = current_syscall["fd_in"].filename
             return
         elif name in ["sys_sendfile64", "syscall_entry_sendfile64"]:
-            current_syscall["fd_in"] = self.get_fd(t, event["in_fd"])
-            current_syscall["fd_out"] = self.get_fd(t, event["out_fd"])
+            current_syscall["fd_in"] = self.get_fd(t, event["in_fd"], event)
+            current_syscall["fd_out"] = self.get_fd(t, event["out_fd"], event)
             current_syscall["count"] = event["count"]
             current_syscall["filename"] = current_syscall["fd_in"].filename
             return
         fd = event["fd"]
-        f = self.get_fd(t, fd)
+        f = self.get_fd(t, fd, event)
         current_syscall["fd"] = f
         if name in ["sys_writev", "syscall_entry_writev",
                     "sys_readv", "syscall_entry_readv"]:
@@ -377,6 +380,8 @@ class SyscallsStateProvider(sp.StateProvider):
         if "cloexec" in current_syscall.keys():
             fd.cloexec = 1
         t.fds[fd.fd] = fd
+
+        t.track_chrono_fd(fd.fd, fd.filename, fd.fdtype, event.timestamp)
 
     def read_append(self, fd, proc, count, rq):
         rq.operation = sv.IORequest.OP_READ
@@ -577,7 +582,7 @@ class SyscallsStateProvider(sp.StateProvider):
             if ret < 0:
                 return ret_string
             t = self.tids[c.current_tid]
-            current_syscall["fd"] = self.get_fd(t, ret)
+            current_syscall["fd"] = self.get_fd(t, ret, event)
             current_syscall["count"] = 0
             current_syscall["fd"].fdtype = current_syscall["fdtype"]
             current_syscall["iorequest"].operation = sv.IORequest.OP_OPEN
