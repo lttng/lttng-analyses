@@ -24,7 +24,6 @@
 
 import socket
 import operator
-from collections import OrderedDict
 from linuxautomaton import sp, sv, common
 from babeltrace import CTFScope
 
@@ -275,14 +274,11 @@ class SyscallsStateProvider(sp.StateProvider):
             f.fd = fd
             f.filename = "unknown (origin not found)"
             proc.fds[fd] = f
-
-            chrono_metadata = {}
-            chrono_metadata["filename"] = f.filename
-            chrono_metadata["fdtype"] = f.fdtype
-            proc.chrono_fds[fd] = OrderedDict()
-            proc.chrono_fds[fd][event.timestamp] = chrono_metadata
         else:
             f = proc.fds[fd]
+
+        proc.track_chrono_fd(fd, f.filename, f.fdtype, event.timestamp)
+
         return f
 
     def track_sync(self, name, event, cpu_id):
@@ -385,19 +381,7 @@ class SyscallsStateProvider(sp.StateProvider):
             fd.cloexec = 1
         t.fds[fd.fd] = fd
 
-        # Track chronological filename/filetype changes
-        chrono_metadata = {}
-        chrono_metadata["filename"] = fd.filename
-        chrono_metadata["fdtype"] = fd.fdtype
-
-        if fd.fd not in t.chrono_fds:
-            t.chrono_fds[fd.fd] = OrderedDict()
-            t.chrono_fds[fd.fd][event.timestamp] = chrono_metadata
-        else:
-            chrono_fd = t.chrono_fds[fd.fd]
-            last_ts = next(reversed(chrono_fd))
-            if fd.filename != chrono_fd[last_ts]["filename"]:
-                chrono_fd[event.timestamp] = chrono_metadata
+        t.track_chrono_fd(fd.fd, fd.filename, fd.fdtype, event.timestamp)
 
     def read_append(self, fd, proc, count, rq):
         rq.operation = sv.IORequest.OP_READ

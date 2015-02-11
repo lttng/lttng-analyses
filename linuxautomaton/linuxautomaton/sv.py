@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 import socket
+from collections import OrderedDict
 
 
 class StateVariable:
@@ -76,6 +77,20 @@ class Process():
         # array of IORequest objects for freq analysis later (block and
         # syscalls with no FD like sys_sync)
         self.iorequests = []
+
+    def track_chrono_fd(self, fd, filename, fdtype, timestamp):
+        chrono_metadata = {}
+        chrono_metadata["filename"] = filename
+        chrono_metadata["fdtype"] = fdtype
+
+        if fd not in self.chrono_fds:
+            self.chrono_fds[fd] = OrderedDict()
+            self.chrono_fds[fd][timestamp] = chrono_metadata
+        else:
+            chrono_fd = self.chrono_fds[fd]
+            last_ts = next(reversed(chrono_fd))
+            if filename != chrono_fd[last_ts]["filename"]:
+                chrono_fd[timestamp] = chrono_metadata
 
 
 class CPU():

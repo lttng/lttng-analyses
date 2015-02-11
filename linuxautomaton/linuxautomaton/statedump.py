@@ -23,7 +23,6 @@
 # SOFTWARE.
 
 from linuxautomaton import sp, sv, common
-from collections import OrderedDict
 
 
 class StatedumpStateProvider(sp.StateProvider):
@@ -133,17 +132,13 @@ class StatedumpStateProvider(sp.StateProvider):
             # FIXME: we don't have the info, just assume for now
             newfile.cloexec = 1
             p.fds[fd] = newfile
-            p.chrono_fds[fd] = OrderedDict()
-            p.chrono_fds[fd][event.timestamp] = {
-                "filename": newfile.filename,
-                "fdtype": newfile.fdtype
-            }
+            fdtype = newfile.fdtype
         else:
             # just fix the filename
             p.fds[fd].filename = filename
-            chrono_fd = p.chrono_fds[fd]
-            last_ts = next(reversed(chrono_fd))
-            chrono_fd[last_ts]["filename"] = filename
+            fdtype = p.fds[fd].fdtype
+
+        p.track_chrono_fd(fd, filename, fdtype, event.timestamp)
 
     def _process_lttng_statedump_block_device(self, event):
         d = common.get_disk(event["dev"], self.disks)
