@@ -28,19 +28,6 @@ from linuxautomaton import sp, sv, common
 from babeltrace import CTFScope
 
 
-class IOCategory():
-    """Defines an enumeration mapping IO categories to integer values.
-    Used mainly to export syscall metadata (to JSON)."""
-
-    invalid = 0
-    # Can't use open as a name given that is is a built-in function
-    # TODO: find less stupid name
-    opn = 1
-    close = 2
-    read = 3
-    write = 4
-
-
 class SyscallsStateProvider(sp.StateProvider):
     def __init__(self, state):
         self.state = state
@@ -61,23 +48,6 @@ class SyscallsStateProvider(sp.StateProvider):
 
     def process_event(self, ev):
         self._process_event_cb(ev)
-
-    def get_syscall_category(self, name):
-        """Receives a syscall name and returns an enum value
-        representing its IO category (open, close, read, or write)"
-
-        This is used to produce json data for visualization"""
-
-        if name in sv.SyscallConsts.OPEN_SYSCALLS:
-            return IOCategory.opn
-        if name in sv.SyscallConsts.CLOSE_SYSCALLS:
-            return IOCategory.close
-        if name in sv.SyscallConsts.READ_SYSCALLS:
-            return IOCategory.read
-        if name in sv.SyscallConsts.WRITE_SYSCALLS:
-            return IOCategory.write
-
-        return IOCategory.invalid
 
     def get_fd_type(self, name, family):
         if name in sv.SyscallConsts.NET_OPEN_SYSCALLS:
