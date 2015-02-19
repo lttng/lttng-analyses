@@ -124,11 +124,6 @@ class SchedStateProvider(sp.StateProvider):
 
     def clear_dirty_pages(self, to_clean, reason):
         cleaned = []
-#        print("%s Cleaning nr : %d, current : %d, base : %d,
-#              " cleaning %d, global %d" % \
-#                (ns_to_hour_nsec(event.timestamp), nr, current,
-#                    self.dirty_pages["base_nr_dirty"],
-#                    to_clean, self.dirty_pages["global_nr_dirty"]))
         if to_clean > len(self.dirty_pages["pages"]):
             to_clean = len(self.dirty_pages["pages"])
         for i in range(to_clean):
@@ -157,8 +152,8 @@ class SchedStateProvider(sp.StateProvider):
                 for i in range(len(self.dirty_pages["pages"]) - 1000):
                     self.dirty_pages["pages"].pop(0)
             return
+
         nr = event["nr_dirty"]
-#        current = len(self.dirty_pages["pages"])
 
         if self.dirty_pages["global_nr_dirty"] == -1:
             self.dirty_pages["global_nr_dirty"] = nr
@@ -173,13 +168,7 @@ class SchedStateProvider(sp.StateProvider):
         if nr <= self.dirty_pages["base_nr_dirty"]:
             self.dirty_pages["base_nr_dirty"] = nr
             self.dirty_pages["global_nr_dirty"] = nr
-#            to_clean = current
-#        elif (self.dirty_pages["global_nr_dirty"] - nr) < 0:
-#            to_clean = current
-#        else:
-#            to_clean = self.dirty_pages["global_nr_dirty"] - nr
-#        if to_clean > 0:
-#            self.clear_dirty_pages(to_clean, "counter")
+
         self.dirty_pages["global_nr_dirty"] = nr
 
     def _process_sched_switch(self, event):

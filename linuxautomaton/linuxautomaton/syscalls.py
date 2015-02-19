@@ -166,9 +166,7 @@ class SyscallsStateProvider(sp.StateProvider):
         else:
             proc.closed_fds[filename] = proc.fds[fd]
             proc.closed_fds[filename].close = 1
-#        print("Close sv.FD %s in %d (%d, %d, %d, %d)" %
-#                (filename, proc.tid, proc.fds[fd].read, proc.fds[fd].write,
-#                    proc.fds[fd].open, proc.fds[fd].close))
+
         proc.fds.pop(fd, None)
 
     def track_close(self, name, proc, event, cpu):
@@ -402,62 +400,9 @@ class SyscallsStateProvider(sp.StateProvider):
                 self.write_append(current_syscall["fd"], proc, ret,
                                   current_syscall["iorequest"])
 
-    def get_page_queue_stats(self, page_list):
-        processes = {}
-        for i in page_list:
-            procname = i[0].comm
-            tid = i[0].tid
-            filename = i[2]
-            if tid not in processes.keys():
-                processes[tid] = {}
-                processes[tid]["procname"] = procname
-                processes[tid]["count"] = 1
-                processes[tid]["files"] = {}
-                processes[tid]["files"][filename] = 1
-            else:
-                processes[tid]["count"] += 1
-                if filename not in processes[tid]["files"].keys():
-                    processes[tid]["files"][filename] = 1
-                else:
-                    processes[tid]["files"][filename] += 1
-        return processes
-
-    def print_page_table(self, event, pages):
-        spaces = (41 + 6) * " "
-        for i in pages.keys():
-            p = pages[i]
-            print("%s %s (%d): %d pages" % (spaces, p["procname"],
-                                            i, p["count"]))
-            files = sorted(p["files"].items(), key=operator.itemgetter(1),
-                           reverse=True)
-            for f in files:
-                print("%s  - %s : %d pages" % (spaces, f[0], f[1]))
-
-    def syscall_clear_pages(self, event, name, fd, current_syscall, tid):
-        cleaned = []
-        if name in ["sys_sync", "syscall_entry_sync"]:
-            # remove all the pages
-            for i in range(len(self.dirty_pages["pages"])):
-                cleaned.append(self.dirty_pages["pages"].pop(0))
-        else:
-            # remove only the pages that belong to a specific proc/fd
-            for i in range(len(self.dirty_pages["pages"])):
-                proc = self.dirty_pages["pages"][i][0]
-                page_fd = self.dirty_pages["pages"][i][3]
-                if page_fd == fd and (tid.tid == proc.tid or
-                                      tid.pid == proc.pid):
-                    cleaned.append(self.dirty_pages["pages"][i])
-            for i in cleaned:
-                self.dirty_pages["pages"].remove(i)
-        if len(cleaned) > 0:
-            current_syscall["pages_cleared"] = cleaned
-
     def track_rw_latency(self, name, ret, c, ts, event):
         current_syscall = self.tids[c.current_tid].current_syscall
         rq = current_syscall["iorequest"]
-#       FIXME: useless ?
-#        if "start" not in current_syscall.keys():
-#            return
         rq.duration = (event.timestamp - current_syscall["start"])
         rq.begin = current_syscall["start"]
         rq.end = event.timestamp
@@ -483,8 +428,6 @@ class SyscallsStateProvider(sp.StateProvider):
         if "wakeup_kswapd" in current_syscall.keys():
             rq.woke_kswapd = True
         if name in sv.SyscallConsts.SYNC_SYSCALLS:
-#            self.syscall_clear_pages(event, name, fd, current_syscall,
-#                                     self.tids[c.current_tid])
             if "pages_cleared" in current_syscall.keys():
                 rq.page_cleared = len(current_syscall["pages_cleared"])
 
