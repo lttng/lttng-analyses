@@ -105,10 +105,4 @@ class MemStateProvider(sp.StateProvider):
         return
 
     def _process_writeback_global_dirty_state(self, event):
-#        print("%s count : %d, count dirty : %d, nr_dirty : %d, "
-#              "nr_writeback : %d, nr_dirtied : %d, nr_written : %d" %
-#              (common.ns_to_hour_nsec(event.timestamp), self.mm["count"],
-#               self.mm["dirty"], event["nr_dirty"],
-#               event["nr_writeback"], event["nr_dirtied"],
-#               event["nr_written"]))
         self.mm["dirty"] = 0

@@ -143,8 +143,6 @@ class BlockStateProvider(sp.StateProvider):
         if rq["nr_sector"] != nr_sector:
             return
         d.completed_requests += 1
-        if rq["rq_time"] > event.timestamp:
-            print("Weird request TS", event.timestamp)
         time_per_sector = (event.timestamp - rq["rq_time"]) / rq["nr_sector"]
         d.request_time += time_per_sector
         rq["iorequest"].duration = time_per_sector
@@ -153,8 +151,3 @@ class BlockStateProvider(sp.StateProvider):
         if "pid" in rq.keys():
             rq["pid"].iorequests.append(rq["iorequest"])
         del d.pending_requests[sector]
-
-    def dump_orphan_requests(self):
-        for req in self.remap_requests:
-            print("Orphan : %d : %d %d" % (req["orig_dev"], req["dev"],
-                                           req["sector"]))

@@ -28,19 +28,6 @@ from linuxautomaton import sp, sv, common
 from babeltrace import CTFScope
 
 
-class IOCategory():
-    """Defines an enumeration mapping IO categories to integer values.
-    Used mainly to export syscall metadata (to JSON)."""
-
-    invalid = 0
-    # Can't use open as a name given that is is a built-in function
-    # TODO: find less stupid name
-    opn = 1
-    close = 2
-    read = 3
-    write = 4
-
-
 class SyscallsStateProvider(sp.StateProvider):
     def __init__(self, state):
         self.state = state
@@ -61,23 +48,6 @@ class SyscallsStateProvider(sp.StateProvider):
 
     def process_event(self, ev):
         self._process_event_cb(ev)
-
-    def get_syscall_category(self, name):
-        """Receives a syscall name and returns an enum value
-        representing its IO category (open, close, read, or write)"
-
-        This is used to produce json data for visualization"""
-
-        if name in sv.SyscallConsts.OPEN_SYSCALLS:
-            return IOCategory.opn
-        if name in sv.SyscallConsts.CLOSE_SYSCALLS:
-            return IOCategory.close
-        if name in sv.SyscallConsts.READ_SYSCALLS:
-            return IOCategory.read
-        if name in sv.SyscallConsts.WRITE_SYSCALLS:
-            return IOCategory.write
-
-        return IOCategory.invalid
 
     def get_fd_type(self, name, family):
         if name in sv.SyscallConsts.NET_OPEN_SYSCALLS:
@@ -196,9 +166,7 @@ class SyscallsStateProvider(sp.StateProvider):
         else:
             proc.closed_fds[filename] = proc.fds[fd]
             proc.closed_fds[filename].close = 1
-#        print("Close sv.FD %s in %d (%d, %d, %d, %d)" %
-#                (filename, proc.tid, proc.fds[fd].read, proc.fds[fd].write,
-#                    proc.fds[fd].open, proc.fds[fd].close))
+
         proc.fds.pop(fd, None)
 
     def track_close(self, name, proc, event, cpu):
@@ -238,7 +206,6 @@ class SyscallsStateProvider(sp.StateProvider):
 
     def track_fds(self, name, event, cpu_id):
         # we don't know which process is currently on this CPU
-        ret_string = ""
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
@@ -253,9 +220,6 @@ class SyscallsStateProvider(sp.StateProvider):
         if name in sv.SyscallConsts.OPEN_SYSCALLS:
             self.track_open(name, t, event, c)
         elif name in sv.SyscallConsts.CLOSE_SYSCALLS:
-            ret_string = "%s %s(%d)" % \
-                (common.ns_to_hour_nsec(event.timestamp),
-                 name, event["fd"])
             self.track_close(name, t, event, c)
         # when a connect occurs, no new sv.FD is returned, but we can fix
         # the "filename" if we have the destination info
@@ -266,7 +230,6 @@ class SyscallsStateProvider(sp.StateProvider):
                 ipport = "%s:%d" % (common.get_v4_addr_str(event["v4addr"]),
                                     event["dport"])
                 fd.filename = ipport
-        return ret_string
 
     def get_fd(self, proc, fd, event):
         if fd not in proc.fds.keys():
@@ -437,62 +400,9 @@ class SyscallsStateProvider(sp.StateProvider):
                 self.write_append(current_syscall["fd"], proc, ret,
                                   current_syscall["iorequest"])
 
-    def get_page_queue_stats(self, page_list):
-        processes = {}
-        for i in page_list:
-            procname = i[0].comm
-            tid = i[0].tid
-            filename = i[2]
-            if tid not in processes.keys():
-                processes[tid] = {}
-                processes[tid]["procname"] = procname
-                processes[tid]["count"] = 1
-                processes[tid]["files"] = {}
-                processes[tid]["files"][filename] = 1
-            else:
-                processes[tid]["count"] += 1
-                if filename not in processes[tid]["files"].keys():
-                    processes[tid]["files"][filename] = 1
-                else:
-                    processes[tid]["files"][filename] += 1
-        return processes
-
-    def print_page_table(self, event, pages):
-        spaces = (41 + 6) * " "
-        for i in pages.keys():
-            p = pages[i]
-            print("%s %s (%d): %d pages" % (spaces, p["procname"],
-                                            i, p["count"]))
-            files = sorted(p["files"].items(), key=operator.itemgetter(1),
-                           reverse=True)
-            for f in files:
-                print("%s  - %s : %d pages" % (spaces, f[0], f[1]))
-
-    def syscall_clear_pages(self, event, name, fd, current_syscall, tid):
-        cleaned = []
-        if name in ["sys_sync", "syscall_entry_sync"]:
-            # remove all the pages
-            for i in range(len(self.dirty_pages["pages"])):
-                cleaned.append(self.dirty_pages["pages"].pop(0))
-        else:
-            # remove only the pages that belong to a specific proc/fd
-            for i in range(len(self.dirty_pages["pages"])):
-                proc = self.dirty_pages["pages"][i][0]
-                page_fd = self.dirty_pages["pages"][i][3]
-                if page_fd == fd and (tid.tid == proc.tid or
-                                      tid.pid == proc.pid):
-                    cleaned.append(self.dirty_pages["pages"][i])
-            for i in cleaned:
-                self.dirty_pages["pages"].remove(i)
-        if len(cleaned) > 0:
-            current_syscall["pages_cleared"] = cleaned
-
     def track_rw_latency(self, name, ret, c, ts, event):
         current_syscall = self.tids[c.current_tid].current_syscall
         rq = current_syscall["iorequest"]
-#       FIXME: useless ?
-#        if "start" not in current_syscall.keys():
-#            return
         rq.duration = (event.timestamp - current_syscall["start"])
         rq.begin = current_syscall["start"]
         rq.end = event.timestamp
@@ -518,8 +428,6 @@ class SyscallsStateProvider(sp.StateProvider):
         if "wakeup_kswapd" in current_syscall.keys():
             rq.woke_kswapd = True
         if name in sv.SyscallConsts.SYNC_SYSCALLS:
-#            self.syscall_clear_pages(event, name, fd, current_syscall,
-#                                     self.tids[c.current_tid])
             if "pages_cleared" in current_syscall.keys():
                 rq.page_cleared = len(current_syscall["pages_cleared"])
 
@@ -542,20 +450,17 @@ class SyscallsStateProvider(sp.StateProvider):
 
     def _process_syscall_entry(self, event):
         name = event.name
-        ret_string = ""
         cpu_id = event["cpu_id"]
         self.per_tid_syscall_entry(name, cpu_id, event)
-        ret_string = self.track_fds(name, event, cpu_id)
+        self.track_fds(name, event, cpu_id)
         if name in sv.SyscallConsts.READ_SYSCALLS or \
                 name in sv.SyscallConsts.WRITE_SYSCALLS:
             self.track_read_write(name, event, cpu_id)
         if name in sv.SyscallConsts.SYNC_SYSCALLS:
             self.track_sync(name, event, cpu_id)
-        return ret_string
 
     def _process_syscall_exit(self, event):
         cpu_id = event["cpu_id"]
-        ret_string = ""
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
@@ -576,11 +481,8 @@ class SyscallsStateProvider(sp.StateProvider):
         current_syscall["iorequest"].name = name
         if name in sv.SyscallConsts.OPEN_SYSCALLS:
             self.add_tid_fd(event, c)
-            ret_string = "%s %s(%s, fd = %d)" % (
-                common.ns_to_hour_nsec(current_syscall["start"]),
-                name, current_syscall["filename"], ret)
             if ret < 0:
-                return ret_string
+                return
             t = self.tids[c.current_tid]
             current_syscall["fd"] = self.get_fd(t, ret, event)
             current_syscall["count"] = 0
@@ -601,7 +503,6 @@ class SyscallsStateProvider(sp.StateProvider):
         self.tids[c.current_tid].current_syscall = {}
         if self.tids[c.current_tid] in self.pending_syscalls:
             self.pending_syscalls.remove(self.tids[c.current_tid])
-        return ret_string
 
     def _process_writeback_pages_written(self, event):
         """writeback_pages_written"""
