@@ -208,7 +208,6 @@ class SyscallsStateProvider(sp.StateProvider):
 
     def track_fds(self, name, event, cpu_id):
         # we don't know which process is currently on this CPU
-        ret_string = ""
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
@@ -223,9 +222,6 @@ class SyscallsStateProvider(sp.StateProvider):
         if name in sv.SyscallConsts.OPEN_SYSCALLS:
             self.track_open(name, t, event, c)
         elif name in sv.SyscallConsts.CLOSE_SYSCALLS:
-            ret_string = "%s %s(%d)" % \
-                (common.ns_to_hour_nsec(event.timestamp),
-                 name, event["fd"])
             self.track_close(name, t, event, c)
         # when a connect occurs, no new sv.FD is returned, but we can fix
         # the "filename" if we have the destination info
@@ -236,7 +232,6 @@ class SyscallsStateProvider(sp.StateProvider):
                 ipport = "%s:%d" % (common.get_v4_addr_str(event["v4addr"]),
                                     event["dport"])
                 fd.filename = ipport
-        return ret_string
 
     def get_fd(self, proc, fd, event):
         if fd not in proc.fds.keys():
@@ -512,20 +507,17 @@ class SyscallsStateProvider(sp.StateProvider):
 
     def _process_syscall_entry(self, event):
         name = event.name
-        ret_string = ""
         cpu_id = event["cpu_id"]
         self.per_tid_syscall_entry(name, cpu_id, event)
-        ret_string = self.track_fds(name, event, cpu_id)
+        self.track_fds(name, event, cpu_id)
         if name in sv.SyscallConsts.READ_SYSCALLS or \
                 name in sv.SyscallConsts.WRITE_SYSCALLS:
             self.track_read_write(name, event, cpu_id)
         if name in sv.SyscallConsts.SYNC_SYSCALLS:
             self.track_sync(name, event, cpu_id)
-        return ret_string
 
     def _process_syscall_exit(self, event):
         cpu_id = event["cpu_id"]
-        ret_string = ""
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
@@ -546,11 +538,8 @@ class SyscallsStateProvider(sp.StateProvider):
         current_syscall["iorequest"].name = name
         if name in sv.SyscallConsts.OPEN_SYSCALLS:
             self.add_tid_fd(event, c)
-            ret_string = "%s %s(%s, fd = %d)" % (
-                common.ns_to_hour_nsec(current_syscall["start"]),
-                name, current_syscall["filename"], ret)
             if ret < 0:
-                return ret_string
+                return
             t = self.tids[c.current_tid]
             current_syscall["fd"] = self.get_fd(t, ret, event)
             current_syscall["count"] = 0
@@ -571,7 +560,6 @@ class SyscallsStateProvider(sp.StateProvider):
         self.tids[c.current_tid].current_syscall = {}
         if self.tids[c.current_tid] in self.pending_syscalls:
             self.pending_syscalls.remove(self.tids[c.current_tid])
-        return ret_string
 
     def _process_writeback_pages_written(self, event):
         """writeback_pages_written"""
