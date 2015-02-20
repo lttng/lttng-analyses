@@ -23,7 +23,6 @@
 # SOFTWARE.
 
 import socket
-import operator
 from linuxautomaton import sp, sv, common
 from babeltrace import CTFScope
 
@@ -111,7 +110,8 @@ class SyscallsStateProvider(sp.StateProvider):
             current_syscall["filename"] = event["filename"]
             if event["flags"] & common.O_CLOEXEC == common.O_CLOEXEC:
                 current_syscall["cloexec"] = 1
-        elif name in ["sys_accept", "syscall_entry_accept"]:
+        elif name in ["sys_accept", "syscall_entry_accept",
+                      "sys_accept4", "syscall_entry_accept4"]:
             if "family" in event.keys() and event["family"] == socket.AF_INET:
                 ipport = "%s:%d" % (common.get_v4_addr_str(event["v4addr"]),
                                     event["sport"])

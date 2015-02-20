@@ -323,6 +323,7 @@ class SyscallConsts():
     # list of syscalls that open a FD on the network
     # (in the exit_syscall event)
     NET_OPEN_SYSCALLS = ["sys_accept", "syscall_entry_accept",
+                         "sys_accept4", "syscall_entry_accept4",
                          "sys_socket", "syscall_entry_socket"]
     # list of syscalls that can duplicate a FD
     DUP_OPEN_SYSCALLS = ["sys_fcntl", "syscall_entry_fcntl",
