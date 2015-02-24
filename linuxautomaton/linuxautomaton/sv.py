@@ -350,7 +350,7 @@ class SyscallConsts():
                       "sys_writev", "syscall_entry_writev"]
     # All I/O related syscalls
     IO_SYSCALLS = OPEN_SYSCALLS + CLOSE_SYSCALLS + READ_SYSCALLS + \
-        WRITE_SYSCALLS
+        WRITE_SYSCALLS + SYNC_SYSCALLS
     # generic names assigned to special FDs, don't try to match these in the
     # closed_fds dict
     GENERIC_NAMES = ["unknown", "socket"]
