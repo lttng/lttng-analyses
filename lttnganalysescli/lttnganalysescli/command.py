@@ -88,15 +88,15 @@ class Command:
         self.current_sec = 0
         self.start_ns = 0
         self.end_ns = 0
-        started = 0
+        started = False
         progressbar.progressbar_setup(self)
         if not self._arg_begin:
-            started = 1
+            started = True
         for event in self._traces.events:
             progressbar.progressbar_update(self)
-            if self._arg_begin and started == 0 and \
+            if self._arg_begin and not started and \
                     event.timestamp >= self._arg_begin:
-                started = 1
+                started = True
                 self.trace_start_ts = event.timestamp
                 self.start_ns = event.timestamp
                 reset_cb(event.timestamp)
