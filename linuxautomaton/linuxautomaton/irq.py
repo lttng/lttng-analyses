@@ -84,17 +84,17 @@ class IrqStateProvider(sp.StateProvider):
         duration = i.stop_ts - i.start_ts
         if duration > irq_entry["max"]:
             irq_entry["max"] = duration
-        if irq_entry["min"] == -1 or duration < irq_entry["min"]:
+        if irq_entry["min"] is None or duration < irq_entry["min"]:
             irq_entry["min"] = duration
         irq_entry["count"] += 1
         irq_entry["total"] += duration
         # compute raise latency if applicable
-        if i.raise_ts == -1:
+        if i.raise_ts is None:
             return True
         latency = i.start_ts - i.raise_ts
         if latency > irq_entry["raise_max"]:
             irq_entry["raise_max"] = latency
-        if irq_entry["raise_min"] == -1 or latency < irq_entry["raise_min"]:
+        if irq_entry["raise_min"] is None or latency < irq_entry["raise_min"]:
             irq_entry["raise_min"] = latency
         irq_entry["raise_count"] += 1
         irq_entry["raise_total"] += latency

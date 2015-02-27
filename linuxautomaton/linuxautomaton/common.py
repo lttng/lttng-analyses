@@ -84,9 +84,9 @@ def convert_size(size, padding_after=False, padding_before=False):
 
 
 def is_multi_day_trace_collection(handle):
-    y = m = d = -1
+    y = m = d = None
     for h in handle.values():
-        if y == -1:
+        if y is None:
             y = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_year
             m = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mon
             d = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mday

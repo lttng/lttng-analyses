@@ -32,8 +32,8 @@ class StateVariable:
 
 class Process():
     def __init__(self):
-        self.tid = -1
-        self.pid = -1
+        self.tid = None
+        self.pid = None
         self.comm = ""
         # indexed by fd
         self.fds = {}
@@ -66,7 +66,7 @@ class Process():
         # last TS where the process was scheduled in
         self.last_sched = None
         # the process scheduled before this one
-        self.prev_tid = -1
+        self.prev_tid = None
         # indexed by syscall_name
         self.syscalls = {}
         self.perf = {}
@@ -95,9 +95,9 @@ class Process():
 
 class CPU():
     def __init__(self):
-        self.cpu_id = -1
+        self.cpu_id = None
         self.cpu_ns = 0
-        self.current_tid = -1
+        self.current_tid = None
         self.start_task_ns = 0
         self.perf = {}
         self.wakeup_queue = []
@@ -174,12 +174,12 @@ class FDType():
 class FD():
     def __init__(self):
         self.filename = ""
-        self.fd = -1
+        self.fd = None
         # address family
         self.family = socket.AF_UNSPEC
         self.fdtype = FDType.unknown
         # if FD was inherited, parent PID
-        self.parent = -1
+        self.parent = None
         self.init_counts()
 
     def init_counts(self):
@@ -218,23 +218,23 @@ class IRQ():
                   9: "RCU_SOFTIRQ"}
 
     def __init__(self):
-        self.nr = -1
+        self.nr = None
         self.irqclass = 0
-        self.start_ts = -1
-        self.stop_ts = -1
-        self.raise_ts = -1
-        self.cpu_id = -1
+        self.start_ts = None
+        self.stop_ts = None
+        self.raise_ts = None
+        self.cpu_id = None
 
     # used to track statistics about individual IRQs
     def init_irq_instance():
         irq = {}
         irq["list"] = []
         irq["max"] = 0
-        irq["min"] = -1
+        irq["min"] = None
         irq["count"] = 0
         irq["total"] = 0
         irq["raise_max"] = 0
-        irq["raise_min"] = -1
+        irq["raise_min"] = None
         irq["raise_count"] = 0
         irq["raise_total"] = 0
         return irq

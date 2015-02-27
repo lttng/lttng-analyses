@@ -107,7 +107,7 @@ class BlockStateProvider(sp.StateProvider):
                 self.tids[tid] = p
             else:
                 p = self.tids[tid]
-            if p.pid != -1 and p.tid != p.pid:
+            if p.pid is not None and p.tid != p.pid:
                 p = self.tids[p.pid]
             rq["pid"] = p
             # even rwbs means read, odd means write

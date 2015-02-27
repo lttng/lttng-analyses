@@ -162,24 +162,12 @@ class Command:
                 self._arg_pid_list = args.pid.split(",")
 
         if self._enable_max_min_arg:
-            if args.max == -1:
-                self._arg_max = None
-            else:
-                self._arg_max = args.max
-            if args.min == -1:
-                self._arg_min = None
-            else:
-                self._arg_min = args.min
+            self._arg_max = args.max
+            self._arg_min = args.min
 
         if self._enable_max_min_size_arg:
-            if args.maxsize == -1:
-                self._arg_maxsize = None
-            else:
-                self._arg_maxsize = args.maxsize
-            if args.minsize == -1:
-                self._arg_minsize = None
-            else:
-                self._arg_minsize = args.minsize
+            self._arg_maxsize = args.maxsize
+            self._arg_minsize = args.minsize
 
         if self._enable_freq_arg:
             self._arg_freq = args.freq

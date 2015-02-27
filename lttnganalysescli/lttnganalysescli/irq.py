@@ -105,7 +105,7 @@ class IrqAnalysis(Command):
         for j in irq["list"]:
             delay = j.stop_ts - j.start_ts
             values.append(delay)
-            if j.raise_ts == -1:
+            if j.raise_ts is None:
                 continue
             # Raise latency (only for some softirqs)
             r_d = j.start_ts - j.raise_ts
@@ -182,7 +182,7 @@ class IrqAnalysis(Command):
             else:
                 name = sv.IRQ.soft_names[i.nr]
                 irqtype = "SoftIRQ"
-            if i.raise_ts != -1:
+            if i.raise_ts is not None:
                 raise_ts = " (raised at %s)" % \
                            (common.ns_to_hour_nsec(i.raise_ts,
                                                    self._arg_multi_day,

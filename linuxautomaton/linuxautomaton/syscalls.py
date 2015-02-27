@@ -85,7 +85,7 @@ class SyscallsStateProvider(sp.StateProvider):
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
-        if c.current_tid == -1:
+        if c.current_tid is None:
             return
         t = self.tids[c.current_tid]
         t.total_syscalls += 1
@@ -193,7 +193,7 @@ class SyscallsStateProvider(sp.StateProvider):
                     CTFScope.EVENT_FIELDS):
                 if context == "pid":
                     return
-            if t.pid == -1:
+            if t.pid is None:
                 t.pid == event["pid"]
                 if event["pid"] != t.tid:
                     t.pid = event["pid"]
@@ -208,13 +208,13 @@ class SyscallsStateProvider(sp.StateProvider):
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
-        if c.current_tid == -1:
+        if c.current_tid is None:
             return
         t = self.tids[c.current_tid]
         # check if we can fix the pid from a context
         self._fix_context_pid(event, t)
         # if it's a thread, we want the parent
-        if t.pid != -1 and t.tid != t.pid:
+        if t.pid is not None and t.tid != t.pid:
             t = self.tids[t.pid]
         if name in sv.SyscallConsts.OPEN_SYSCALLS:
             self.track_open(name, t, event, c)
@@ -248,12 +248,12 @@ class SyscallsStateProvider(sp.StateProvider):
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
-        if c.current_tid == -1:
+        if c.current_tid is None:
             return
         t = self.tids[c.current_tid]
         self.pending_syscalls.append(t)
         # if it's a thread, we want the parent
-        if t.pid != -1 and t.tid != t.pid:
+        if t.pid is not None and t.tid != t.pid:
             t = self.tids[t.pid]
         current_syscall = self.tids[c.current_tid].current_syscall
         current_syscall["name"] = name
@@ -269,12 +269,12 @@ class SyscallsStateProvider(sp.StateProvider):
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
-        if c.current_tid == -1:
+        if c.current_tid is None:
             return
         t = self.tids[c.current_tid]
         self.pending_syscalls.append(t)
         # if it's a thread, we want the parent
-        if t.pid != -1 and t.tid != t.pid:
+        if t.pid is not None and t.tid != t.pid:
             t = self.tids[t.pid]
         current_syscall = self.tids[c.current_tid].current_syscall
         current_syscall["name"] = name
@@ -318,7 +318,7 @@ class SyscallsStateProvider(sp.StateProvider):
         ret = event["ret"]
         t = self.tids[cpu.current_tid]
         # if it's a thread, we want the parent
-        if t.pid != -1 and t.tid != t.pid:
+        if t.pid is not None and t.tid != t.pid:
             t = self.tids[t.pid]
         current_syscall = self.tids[cpu.current_tid].current_syscall
 
@@ -381,7 +381,7 @@ class SyscallsStateProvider(sp.StateProvider):
             return
         proc = self.tids[cpu.current_tid]
         # if it's a thread, we want the parent
-        if proc.pid != -1 and proc.tid != proc.pid:
+        if proc.pid is not None and proc.tid != proc.pid:
             proc = self.tids[proc.pid]
         current_syscall = self.tids[cpu.current_tid].current_syscall
         if name in ["sys_splice", "syscall_entry_splice",
@@ -463,7 +463,7 @@ class SyscallsStateProvider(sp.StateProvider):
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
-        if c.current_tid == -1:
+        if c.current_tid is None:
             return
         current_syscall = self.tids[c.current_tid].current_syscall
         if len(current_syscall.keys()) == 0:
@@ -506,7 +506,7 @@ class SyscallsStateProvider(sp.StateProvider):
     def _process_writeback_pages_written(self, event):
         """writeback_pages_written"""
         for c in self.cpus.values():
-            if c.current_tid <= 0:
+            if c.current_tid is None:
                 continue
             current_syscall = self.tids[c.current_tid].current_syscall
             if len(current_syscall.keys()) == 0:
@@ -519,7 +519,7 @@ class SyscallsStateProvider(sp.StateProvider):
         if cpu_id not in self.cpus:
             return
         c = self.cpus[cpu_id]
-        if c.current_tid == -1:
+        if c.current_tid is None:
             return
         current_syscall = self.tids[c.current_tid].current_syscall
         if len(current_syscall.keys()) == 0:
@@ -529,7 +529,7 @@ class SyscallsStateProvider(sp.StateProvider):
     def _process_mm_page_free(self, event):
         """mm_page_free"""
         for c in self.cpus.values():
-            if c.current_tid <= 0:
+            if c.current_tid is None:
                 continue
             p = self.tids[c.current_tid]
             # if the current process is kswapd0, we need to

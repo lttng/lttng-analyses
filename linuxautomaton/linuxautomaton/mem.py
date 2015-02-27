@@ -43,7 +43,7 @@ class MemStateProvider(sp.StateProvider):
             return None
 
         cpu = self.state.cpus[cpu_id]
-        if cpu.current_tid == -1:
+        if cpu.current_tid is None:
             return None
 
         return self.state.tids[cpu.current_tid]

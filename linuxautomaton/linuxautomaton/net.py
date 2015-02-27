@@ -61,7 +61,7 @@ class NetStateProvider(sp.StateProvider):
         if cpu_id not in self.cpus.keys():
             return
         c = self.cpus[cpu_id]
-        if c.current_tid == -1:
+        if c.current_tid is None:
             return
         t = self.tids[c.current_tid]
         if not t.current_syscall:

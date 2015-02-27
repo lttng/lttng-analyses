@@ -438,7 +438,7 @@ class IoAnalysis(Command):
 
     def compute_disk_stats(self, dev):
         _max = 0
-        _min = -1
+        _min = None
         total = 0
         values = []
         count = len(dev.rq_list)
@@ -447,7 +447,7 @@ class IoAnalysis(Command):
         for rq in dev.rq_list:
             if rq.duration > _max:
                 _max = rq.duration
-            if _min == -1 or rq.duration < _min:
+            if _min is None or rq.duration < _min:
                 _min = rq.duration
             total += rq.duration
             values.append(rq.duration)

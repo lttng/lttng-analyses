@@ -54,7 +54,7 @@ class SchedStateProvider(sp.StateProvider):
                 c.current_tid = next_tid
             else:
                 c.start_task_ns = 0
-                c.current_tid = -1
+                c.current_tid = None
         else:
             self.add_cpu(cpu_id, ts, next_tid)
         for context in event.keys():
