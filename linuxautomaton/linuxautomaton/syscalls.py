@@ -35,7 +35,6 @@ class SyscallsStateProvider(sp.StateProvider):
         self.syscalls = state.syscalls
         self.pending_syscalls = state.pending_syscalls
         self.syscalls["total"] = 0
-        self.dirty_pages = state.dirty_pages
         cbs = {
             'syscall_entry': self._process_syscall_entry,
             'syscall_exit': self._process_syscall_exit,
@@ -419,9 +418,9 @@ class SyscallsStateProvider(sp.StateProvider):
         # dirty buffers during the latency
         if "dirty" in current_syscall.keys():
             rq.dirty = current_syscall["dirty"]
-        # alloc pages during the latency
-        if "alloc" in current_syscall.keys():
-            rq.page_alloc = current_syscall["alloc"]
+        # allocated pages during the latency
+        if "pages_allocated" in current_syscall.keys():
+            rq.page_alloc = current_syscall["pages_allocated"]
         # wakeup_kswapd during the latency
         if "page_free" in current_syscall.keys():
             rq.page_free = current_syscall["page_free"]

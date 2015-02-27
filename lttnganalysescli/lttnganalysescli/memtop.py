@@ -68,8 +68,6 @@ class Memtop(Command):
         for tid in self.state.tids.keys():
             self.state.tids[tid].allocated_pages = 0
             self.state.tids[tid].freed_pages = 0
-        self.state.mm["allocated_pages"] = 0
-        self.state.mm["freed_pages"] = 0
         self.state = self._automaton.state
 
     def _refresh(self, begin, end):

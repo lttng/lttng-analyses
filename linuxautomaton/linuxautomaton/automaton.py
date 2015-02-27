@@ -29,6 +29,7 @@ from .syscalls import SyscallsStateProvider
 from .statedump import StatedumpStateProvider
 from .block import BlockStateProvider
 from .net import NetStateProvider
+from .sv import MemoryManagement
 
 
 class State:
@@ -37,9 +38,8 @@ class State:
         self.tids = {}
         self.disks = {}
         self.syscalls = {}
-        self.mm = {}
+        self.mm = MemoryManagement()
         self.ifaces = {}
-        self.dirty_pages = {}
         self.interrupts = {}
         self.pending_syscalls = []
 

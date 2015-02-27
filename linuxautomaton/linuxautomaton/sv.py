@@ -103,6 +103,11 @@ class CPU():
         self.wakeup_queue = []
 
 
+class MemoryManagement():
+    def __init__(self):
+        self.page_count = 0
+
+
 class Syscall():
     # One instance for each unique syscall name per process
     def __init__(self):
