@@ -122,7 +122,7 @@ class Command:
 
     def _check_refresh(self, event, refresh_cb):
         """Check if we need to output something"""
-        if self._arg_refresh == 0:
+        if self._arg_refresh is None:
             return
         event_sec = event.timestamp / common.NSEC_PER_SEC
         if self.current_sec == 0:
@@ -135,20 +135,26 @@ class Command:
 
     def _validate_transform_common_args(self, args):
         self._arg_path = args.path
+
         if args.limit:
             self._arg_limit = args.limit
+
         self._arg_begin = None
         if args.begin:
             self._arg_begin = args.begin
+
         self._arg_end = None
         if args.end:
             self._arg_end = args.end
+
         self._arg_timerange = None
         if args.timerange:
             self._arg_timerange = args.timerange
+
         self._arg_gmt = None
         if args.gmt:
             self._arg_gmt = args.gmt
+
         self._arg_refresh = args.refresh
         self._arg_no_progress = args.no_progress
         self._arg_skip_validation = args.skip_validation
@@ -157,6 +163,7 @@ class Command:
             self._arg_proc_list = None
             if args.procname:
                 self._arg_proc_list = args.procname.split(",")
+
             self._arg_pid_list = None
             if args.pid:
                 self._arg_pid_list = args.pid.split(",")
@@ -185,7 +192,7 @@ class Command:
         # common arguments
         ap.add_argument('path', metavar="<path/to/trace>", help='trace path')
         ap.add_argument('-r', '--refresh', type=int,
-                        help='Refresh period in seconds', default=0)
+                        help='Refresh period in seconds')
         ap.add_argument('--limit', type=int, default=10,
                         help='Limit to top X (default = 10)')
         ap.add_argument('--no-progress', action="store_true",
@@ -203,24 +210,24 @@ class Command:
                                                       '[begin,end]')
 
         if self._enable_proc_filter_args:
-            ap.add_argument('--procname', type=str, default=0,
+            ap.add_argument('--procname', type=str,
                             help='Filter the results only for this list of '
                                  'process names')
-            ap.add_argument('--pid', type=str, default=0,
+            ap.add_argument('--pid', type=str,
                             help='Filter the results only for this list '
                                  'of PIDs')
 
         if self._enable_max_min_arg:
-            ap.add_argument('--max', type=float, default=-1,
+            ap.add_argument('--max', type=float,
                             help='Filter out, duration longer than max usec')
-            ap.add_argument('--min', type=float, default=-1,
+            ap.add_argument('--min', type=float,
                             help='Filter out, duration shorter than min usec')
 
         if self._enable_max_min_size_arg:
-            ap.add_argument('--maxsize', type=float, default=-1,
+            ap.add_argument('--maxsize', type=float,
                             help='Filter out, I/O operations working with '
                                  'more that maxsize bytes')
-            ap.add_argument('--minsize', type=float, default=-1,
+            ap.add_argument('--minsize', type=float,
                             help='Filter out, I/O operations working with '
                                  'less that minsize bytes')
 
