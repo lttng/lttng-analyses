@@ -52,7 +52,7 @@ class StatedumpStateProvider(sp.StateProvider):
                     parent.chrono_fds[fd] = p.chrono_fds[fd]
                 else:
                     # best effort to fix the filename
-                    if len(parent.fds[fd].filename) == 0:
+                    if not parent.fds[fd].filename:
                         parent.fds[fd].filename = p.fds[fd].filename
                         chrono_fd = parent.chrono_fds[fd]
                         last_ts = next(reversed(chrono_fd))
@@ -74,7 +74,7 @@ class StatedumpStateProvider(sp.StateProvider):
                     parent.closed_fds[fd] = p.closed_fds[fd]
                 else:
                     # best effort to fix the filename
-                    if len(parent.closed_fds[fd].name) == 0:
+                    if not parent.closed_fds[fd].name:
                         parent.closed_fds[fd].name = p.closed_fds[fd].name
                     # merge the values as they are for the same sv.FD
                     parent.closed_fds[fd].read += p.closed_fds[fd].read

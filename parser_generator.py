@@ -130,7 +130,7 @@ def gen_parser(handle, fd, args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trace parser generator')
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
-    parser.add_argument('-o', '--output', type=str, default=0,
+    parser.add_argument('-o', '--output', type=str,
                         metavar="<output-script-name>",
                         help='Output script name')
     parser.add_argument('-q', '--quiet', action="store_true",
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     if handle is None:
         sys.exit(1)
 
-    if args.output == 0:
+    if not args.output:
         output = "generated-parser.py"
     else:
         output = args.output

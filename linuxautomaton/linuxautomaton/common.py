@@ -280,7 +280,7 @@ def str_to_bytes(value):
         elif i.isalnum():
             unit = unit + i
     num = float(num)
-    if len(unit) == 0:
+    if not unit:
         return int(num)
     if unit in ["B"]:
         return int(num)

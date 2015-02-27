@@ -466,7 +466,7 @@ class SyscallsStateProvider(sp.StateProvider):
         if c.current_tid is None:
             return
         current_syscall = self.tids[c.current_tid].current_syscall
-        if len(current_syscall.keys()) == 0:
+        if not current_syscall:
             return
         name = current_syscall["name"]
         ret = event["ret"]
@@ -509,7 +509,7 @@ class SyscallsStateProvider(sp.StateProvider):
             if c.current_tid is None:
                 continue
             current_syscall = self.tids[c.current_tid].current_syscall
-            if len(current_syscall.keys()) == 0:
+            if not current_syscall:
                 continue
             current_syscall["pages_written"] = event["pages"]
 
@@ -522,7 +522,7 @@ class SyscallsStateProvider(sp.StateProvider):
         if c.current_tid is None:
             return
         current_syscall = self.tids[c.current_tid].current_syscall
-        if len(current_syscall.keys()) == 0:
+        if current_syscall:
             return
         current_syscall["wakeup_kswapd"] = 1
 
@@ -538,7 +538,7 @@ class SyscallsStateProvider(sp.StateProvider):
             if p.comm == "kswapd0" and p.prev_tid > 0:
                 p = self.tids[p.prev_tid]
             current_syscall = p.current_syscall
-            if len(current_syscall.keys()) == 0:
+            if current_syscall:
                 continue
             if "wakeup_kswapd" in current_syscall.keys():
                 if "page_free" in current_syscall.keys():

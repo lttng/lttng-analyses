@@ -609,7 +609,7 @@ class IoAnalysis(Command):
         limit = self._arg_limit
         count = 0
         outrange_legend = False
-        if len(rq_list) == 0:
+        if not rq_list:
             return
         print(title)
         if self._arg_extra:
@@ -697,7 +697,7 @@ class IoAnalysis(Command):
     # iostats functions
     def iostats_output_disk(self):
         # TODO same with network
-        if len(self.state.disks.keys()) == 0:
+        if not self.state.disks:
             return
         print("\nDisk latency statistics (usec):")
         fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
