@@ -81,59 +81,70 @@ class Memtop(Command):
         return True
 
     def _print_results(self, begin_ns, end_ns, final=0):
-        count = 0
-        limit = self._arg_limit
-        graph = Pyasciigraph()
-        values = []
-        alloc = 0
-        freed = 0
         print('Timerange: [%s, %s]' % (
             common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
                                    multi_day=True),
             common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
                                    multi_day=True)))
+
+        self._print_per_tid_alloc()
+        self._print_per_tid_freed()
+        self._print_total_alloc_freed()
+
+    def _print_per_tid_alloc(self):
+        graph = Pyasciigraph()
+        values = []
+        count = 0
+
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('allocated_pages'),
                           reverse=True):
             if not self.filter_process(tid):
                 continue
+
             values.append(("%s (%d)" % (tid.comm, tid.tid),
                           tid.allocated_pages))
-            count = count + 1
-            if limit > 0 and count >= limit:
+
+            count += 1
+            if self._arg_limit > 0 and count >= self._arg_limit:
                 break
+
         for line in graph.graph("Per-TID Memory Allocations", values,
                                 unit=" pages"):
             print(line)
 
+    def _print_per_tid_freed(self):
+        graph = Pyasciigraph()
         values = []
         count = 0
+
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('freed_pages'),
                           reverse=True):
             if not self.filter_process(tid):
                 continue
+
             values.append(("%s (%d)" % (tid.comm, tid.tid), tid.freed_pages))
-            count = count + 1
-            freed += tid.freed_pages
-            if limit > 0 and count >= limit:
+
+            count += 1
+            if self._arg_limit > 0 and count >= self._arg_limit:
                 break
+
         for line in graph.graph("Per-TID Memory Deallocation", values,
                                 unit=" pages"):
             print(line)
 
-        for tid in sorted(self.state.tids.values(),
-                          key=operator.attrgetter('allocated_pages'),
-                          reverse=True):
+    def _print_total_alloc_freed(self):
+        alloc = 0
+        freed = 0
+
+        for tid in self.state.tids.values():
             if not self.filter_process(tid):
                 continue
+
             alloc += tid.allocated_pages
-        for tid in sorted(self.state.tids.values(),
-                          key=operator.attrgetter('freed_pages'),
-                          reverse=True):
-            if not self.filter_process(tid):
-                continue
             freed += tid.freed_pages
+
         print("\nTotal memory usage:\n- %d pages allocated\n- %d pages freed" %
              (alloc, freed))
 
