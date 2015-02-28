@@ -265,3 +265,4 @@ class Command:
 
     def _create_automaton(self):
         self._automaton = linuxautomaton.automaton.Automaton()
+        self.state = self._automaton.state

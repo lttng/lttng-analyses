@@ -58,10 +58,9 @@ class Cputop(Command):
         self._close_trace()
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.cputop.Cputop(self._automaton.state)
+        self._analysis = lttnganalyses.cputop.Cputop(self.state)
 
     def _compute_stats(self):
-        self.state = self._automaton.state
         for cpu in self.state.cpus.keys():
             current_cpu = self.state.cpus[cpu]
             total_ns = self.end_ns - self.start_ns
@@ -74,7 +73,6 @@ class Cputop(Command):
                     self.end_ns - current_cpu.start_task_ns
 
     def _reset_total(self, start_ts):
-        self.state = self._automaton.state
         for cpu in self.state.cpus.keys():
             current_cpu = self.state.cpus[cpu]
             current_cpu.cpu_ns = 0

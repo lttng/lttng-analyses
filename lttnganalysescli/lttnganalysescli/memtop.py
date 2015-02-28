@@ -58,17 +58,15 @@ class Memtop(Command):
         self._close_trace()
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.memtop.Memtop(self._automaton.state)
+        self._analysis = lttnganalyses.memtop.Memtop(self.state)
 
     def _compute_stats(self):
         pass
 
     def _reset_total(self, start_ts):
-        self.state = self._automaton.state
         for tid in self.state.tids.keys():
             self.state.tids[tid].allocated_pages = 0
             self.state.tids[tid].freed_pages = 0
-        self.state = self._automaton.state
 
     def _refresh(self, begin, end):
         self._compute_stats()
@@ -87,7 +85,6 @@ class Memtop(Command):
         limit = self._arg_limit
         graph = Pyasciigraph()
         values = []
-        self.state = self._automaton.state
         alloc = 0
         freed = 0
         print('Timerange: [%s, %s]' % (

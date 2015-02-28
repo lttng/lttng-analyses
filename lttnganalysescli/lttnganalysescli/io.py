@@ -99,9 +99,7 @@ class IoAnalysis(Command):
         self.run(usage=True)
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.syscalls.SyscallsAnalysis(
-            self._automaton.state)
-        self.state = self._automaton.state
+        self._analysis = lttnganalyses.syscalls.SyscallsAnalysis(self.state)
 
     def _compute_stats(self):
         pass

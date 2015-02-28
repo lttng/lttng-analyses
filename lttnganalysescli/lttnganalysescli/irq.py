@@ -43,8 +43,8 @@ class IrqAnalysis(Command):
     def _validate_transform_args(self):
         # We need the min/max in the automaton to filter
         # at the source.
-        self._automaton.state.max = self._arg_max
-        self._automaton.state.min = self._arg_min
+        self.state.max = self._arg_max
+        self.state.min = self._arg_min
 
         self._arg_irq_filter_list = None
         self._arg_softirq_filter_list = None
@@ -95,8 +95,7 @@ class IrqAnalysis(Command):
         self.run(freq=True)
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.irq.IrqAnalysis(self._automaton.state)
-        self.state = self._automaton.state
+        self._analysis = lttnganalyses.irq.IrqAnalysis(self.state)
 
     def compute_stdev(self, irq):
         values = []
@@ -290,7 +289,6 @@ class IrqAnalysis(Command):
         pass
 
     def _reset_total(self, start_ts):
-        self.state = self._automaton.state
         self.state.interrupts["hard_count"] = 0
         self.state.interrupts["soft_count"] = 0
         self.state.interrupts["irq-list"] = []
