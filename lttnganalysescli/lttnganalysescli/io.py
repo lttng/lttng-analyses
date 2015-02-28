@@ -293,21 +293,39 @@ class IoAnalysis(Command):
         limit = self._arg_limit
         graph = Pyasciigraph()
         values = []
+
         for tid in sorted(self.state.tids.values(),
-                          key=operator.attrgetter('block_read'), reverse=True):
+                          key=operator.attrgetter('block_read'),
+                          reverse=True):
+
             if not self.filter_process(tid):
                 continue
+
             if tid.block_read == 0:
                 continue
+
             info_fmt = "{:>10} {:<22}"
-            values.append((info_fmt.format(common.convert_size(tid.block_read,
-                                           padding_after=True),
-                                           "%s (pid=%d)" % (tid.comm,
-                                                            tid.pid)),
+
+            comm = tid.comm
+            if not comm:
+                comm = "unknown"
+
+            pid = tid.pid
+            if not pid:
+                pid = "unknown"
+            else:
+                pid = str(pid)
+
+            values.append((info_fmt.format(
+                common.convert_size(tid.block_read, padding_after=True),
+                "%s (pid=%s)" % (comm, pid)),
                            tid.block_read))
+
             count = count + 1
+
             if limit > 0 and count >= limit:
                 break
+
         for line in graph.graph('Block I/O Read', values, with_value=False):
             print(line)
 
@@ -316,22 +334,39 @@ class IoAnalysis(Command):
         limit = self._arg_limit
         graph = Pyasciigraph()
         values = []
+
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('block_write'),
                           reverse=True):
+
             if not self.filter_process(tid):
                 continue
+
             if tid.block_write == 0:
                 continue
+
             info_fmt = "{:>10} {:<22}"
-            values.append((info_fmt.format(common.convert_size(tid.block_write,
-                                           padding_after=True),
-                                           "%s (pid=%d)" % (tid.comm,
-                                                            tid.pid)),
+
+            comm = tid.comm
+            if not comm:
+                comm = "unknown"
+
+            pid = tid.pid
+            if not pid:
+                pid = "unknown"
+            else:
+                pid = str(pid)
+
+            values.append((info_fmt.format(
+                common.convert_size(tid.block_write, padding_after=True),
+                "%s (pid=%s)" % (comm, pid)),
                            tid.block_write))
+
             count = count + 1
+
             if limit > 0 and count >= limit:
                 break
+
         for line in graph.graph('Block I/O Write', values, with_value=False):
             print(line)
 
