@@ -68,7 +68,7 @@ class Cputop(Command):
                 current_cpu.cpu_ns += self.end_ns - current_cpu.start_task_ns
             cpu_total_ns = current_cpu.cpu_ns
             current_cpu.cpu_pc = (cpu_total_ns * 100)/total_ns
-            if current_cpu.current_tid >= 0:
+            if current_cpu.current_tid is not None:
                 self.state.tids[current_cpu.current_tid].cpu_ns += \
                     self.end_ns - current_cpu.start_task_ns
 
@@ -78,7 +78,7 @@ class Cputop(Command):
             current_cpu.cpu_ns = 0
             if current_cpu.start_task_ns != 0:
                 current_cpu.start_task_ns = start_ts
-            if current_cpu.current_tid >= 0:
+            if current_cpu.current_tid is not None:
                 self.state.tids[current_cpu.current_tid].last_sched = start_ts
         for tid in self.state.tids.keys():
             self.state.tids[tid].cpu_ns = 0
