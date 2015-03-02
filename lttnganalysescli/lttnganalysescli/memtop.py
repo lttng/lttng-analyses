@@ -53,7 +53,7 @@ class Memtop(Command):
         # process the results
         self._compute_stats()
         # print results
-        self._print_results(self.start_ns, self.trace_end_ts, final=1)
+        self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
         self._close_trace()
 
@@ -69,8 +69,9 @@ class Memtop(Command):
             self.state.tids[tid].freed_pages = 0
 
     def _refresh(self, begin, end):
+        print("hey")
         self._compute_stats()
-        self._print_results(begin, end, final=0)
+        self._print_results(begin, end)
         self._reset_total(end)
 
     def filter_process(self, proc):
@@ -80,7 +81,7 @@ class Memtop(Command):
             return False
         return True
 
-    def _print_results(self, begin_ns, end_ns, final=0):
+    def _print_results(self, begin_ns, end_ns):
         print('Timerange: [%s, %s]' % (
             common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
                                    multi_day=True),

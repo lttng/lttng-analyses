@@ -79,7 +79,7 @@ class IoAnalysis(Command):
         # process the results
         self._compute_stats()
         # print results
-        self._print_results(self.start_ns, self.trace_end_ts, final=1)
+        self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
         self._close_trace()
 
@@ -111,7 +111,7 @@ class IoAnalysis(Command):
 
     def _refresh(self, begin, end):
         self._compute_stats()
-        self._print_results(begin, end, final=0)
+        self._print_results(begin, end)
         self._reset_total(end)
 
     def add_fd_dict(self, tid, fd, files):
@@ -750,7 +750,7 @@ class IoAnalysis(Command):
         self.iostats_output_syscalls()
         self.iostats_output_disk()
 
-    def _print_results(self, begin_ns, end_ns, final=0):
+    def _print_results(self, begin_ns, end_ns):
         print('Timerange: [%s, %s]' % (
             common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
                                    multi_day=True),

@@ -53,7 +53,7 @@ class Cputop(Command):
         # process the results
         self._compute_stats()
         # print results
-        self._print_results(self.start_ns, self.trace_end_ts, final=1)
+        self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
         self._close_trace()
 
@@ -90,10 +90,10 @@ class Cputop(Command):
 
     def _refresh(self, begin, end):
         self._compute_stats()
-        self._print_results(begin, end, final=0)
+        self._print_results(begin, end)
         self._reset_total(end)
 
-    def _print_results(self, begin_ns, end_ns, final=0):
+    def _print_results(self, begin_ns, end_ns):
 #        print('event count: {}'.format(self._analysis.event_count))
         count = 0
         limit = self._arg_limit

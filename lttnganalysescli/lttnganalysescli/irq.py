@@ -81,7 +81,7 @@ class IrqAnalysis(Command):
         # process the results
         self._compute_stats()
         # print results
-        self._print_results(self.start_ns, self.trace_end_ts, final=1)
+        self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
         self._close_trace()
 
@@ -239,13 +239,13 @@ class IrqAnalysis(Command):
                                       dic[i]["max"] / 1000,
                                       self._arg_freq_resolution, name, str(i))
 
-    def _print_results(self, begin_ns, end_ns, final=0):
+    def _print_results(self, begin_ns, end_ns):
         if self._arg_stats or self._arg_freq:
-            self._print_stats(begin_ns, end_ns, final)
+            self._print_stats(begin_ns, end_ns)
         if self._arg_log:
             self.log_irq()
 
-    def _print_stats(self, begin_ns, end_ns, final):
+    def _print_stats(self, begin_ns, end_ns):
         if self._arg_no_progress:
             clear_screen = ""
         else:
@@ -299,7 +299,7 @@ class IrqAnalysis(Command):
 
     def _refresh(self, begin, end):
         self._compute_stats()
-        self._print_results(begin, end, final=0)
+        self._print_results(begin, end)
         self._reset_total(end)
 
     def _add_arguments(self, ap):
