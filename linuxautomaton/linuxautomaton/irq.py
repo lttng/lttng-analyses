@@ -48,19 +48,19 @@ class IrqStateProvider(sp.StateProvider):
 
     # Hard IRQs
     def _process_irq_handler_entry(self, event):
-        cpu = self._get_cpu(event["cpu_id"])
+        cpu = self._get_cpu(event['cpu_id'])
         irq = sv.HardIRQ.new_from_irq_handler_entry(event)
         cpu.current_hard_irq = irq
 
     def _process_irq_handler_exit(self, event):
-        cpu = self._get_cpu(event["cpu_id"])
+        cpu = self._get_cpu(event['cpu_id'])
         if cpu.current_hard_irq is None or \
-           cpu.current_hard_irq.id != event["irq"]:
+           cpu.current_hard_irq.id != event['irq']:
             cpu.current_hard_irq = None
             return
 
         cpu.current_hard_irq.stop_ts = event.timestamp
-        cpu.current_hard_irq.ret = event["ret"]
+        cpu.current_hard_irq.ret = event['ret']
 
         self.state._send_notification_cb('irq_handler_exit',
                                          hard_irq=cpu.current_hard_irq)
@@ -68,23 +68,23 @@ class IrqStateProvider(sp.StateProvider):
 
     # Soft IRQs
     def _process_softirq_raise(self, event):
-        cpu = self._get_cpu(event["cpu_id"])
-        cpu_id = event["cpu_id"]
+        cpu = self._get_cpu(event['cpu_id'])
+        cpu_id = event['cpu_id']
         irq = sv.SoftIRQ.new_from_softirq_raise(event)
         self.state.cpus[cpu_id].current_soft_irq = irq
 
     def _process_softirq_entry(self, event):
-        cpu = self._get_cpu(event["cpu_id"])
+        cpu = self._get_cpu(event['cpu_id'])
         if cpu.current_soft_irq is not None and \
-           cpu.current_soft_irq.id == event["vec"]:
+           cpu.current_soft_irq.id == event['vec']:
             cpu.current_soft_irq.start_ts = event.timestamp
         else:
             cpu.current_soft_irq = sv.SoftIRQ.new_from_softirq_entry(event)
 
     def _process_softirq_exit(self, event):
-        cpu = self._get_cpu(event["cpu_id"])
+        cpu = self._get_cpu(event['cpu_id'])
         if cpu.current_soft_irq is None or \
-           cpu.current_soft_irq.id != event["vec"]:
+           cpu.current_soft_irq.id != event['vec']:
             cpu.current_soft_irq = None
             return
 

@@ -34,7 +34,7 @@ class Process():
     def __init__(self):
         self.tid = None
         self.pid = None
-        self.comm = ""
+        self.comm = ''
         # indexed by fd
         self.fds = {}
         # indexed by filename
@@ -80,8 +80,8 @@ class Process():
 
     def track_chrono_fd(self, fd, filename, fdtype, timestamp):
         chrono_metadata = {}
-        chrono_metadata["filename"] = filename
-        chrono_metadata["fdtype"] = fdtype
+        chrono_metadata['filename'] = filename
+        chrono_metadata['fdtype'] = fdtype
 
         if fd not in self.chrono_fds:
             self.chrono_fds[fd] = OrderedDict()
@@ -89,7 +89,7 @@ class Process():
         else:
             chrono_fd = self.chrono_fds[fd]
             last_ts = next(reversed(chrono_fd))
-            if filename != chrono_fd[last_ts]["filename"]:
+            if filename != chrono_fd[last_ts]['filename']:
                 chrono_fd[timestamp] = chrono_metadata
 
 
@@ -113,7 +113,7 @@ class MemoryManagement():
 class Syscall():
     # One instance for each unique syscall name per process
     def __init__(self):
-        self.name = ""
+        self.name = ''
         self.count = 0
         # duration min/max
         self.min = None
@@ -133,8 +133,8 @@ class SyscallEvent():
 
 class Disk():
     def __init__(self):
-        self.name = ""
-        self.prettyname = ""
+        self.name = ''
+        self.prettyname = ''
         self.init_counts()
 
     def init_counts(self):
@@ -154,7 +154,7 @@ class Disk():
 
 class Iface():
     def __init__(self):
-        self.name = ""
+        self.name = ''
         self.init_counts()
 
     def init_counts(self):
@@ -175,7 +175,7 @@ class FDType():
 
 class FD():
     def __init__(self):
-        self.filename = ""
+        self.filename = ''
         self.fd = None
         # address family
         self.family = socket.AF_UNSPEC
@@ -206,16 +206,16 @@ class FD():
 
 class IRQ():
     # from include/linux/interrupt.h
-    soft_names = {0: "HI_SOFTIRQ",
-                  1: "TIMER_SOFTIRQ",
-                  2: "NET_TX_SOFTIRQ",
-                  3: "NET_RX_SOFTIRQ",
-                  4: "BLOCK_SOFTIRQ",
-                  5: "BLOCK_IOPOLL_SOFTIRQ",
-                  6: "TASKLET_SOFTIRQ",
-                  7: "SCHED_SOFTIRQ",
-                  8: "HRTIMER_SOFTIRQ",
-                  9: "RCU_SOFTIRQ"}
+    soft_names = {0: 'HI_SOFTIRQ',
+                  1: 'TIMER_SOFTIRQ',
+                  2: 'NET_TX_SOFTIRQ',
+                  3: 'NET_RX_SOFTIRQ',
+                  4: 'BLOCK_SOFTIRQ',
+                  5: 'BLOCK_IOPOLL_SOFTIRQ',
+                  6: 'TASKLET_SOFTIRQ',
+                  7: 'SCHED_SOFTIRQ',
+                  8: 'HRTIMER_SOFTIRQ',
+                  9: 'RCU_SOFTIRQ'}
 
     def __init__(self, id, start_ts=None):
         self.id = id
@@ -230,7 +230,7 @@ class HardIRQ(IRQ):
 
     @classmethod
     def new_from_irq_handler_entry(cls, event):
-        id = event["irq"]
+        id = event['irq']
         start_ts = event.timestamp
         return cls(id, start_ts)
 
@@ -242,19 +242,19 @@ class SoftIRQ(IRQ):
 
     @classmethod
     def new_from_softirq_raise(cls, event):
-        id = event["vec"]
+        id = event['vec']
         raise_ts = event.timestamp
         return cls(id, raise_ts)
 
     @classmethod
     def new_from_softirq_entry(cls, event):
-        id = event["vec"]
+        id = event['vec']
         start_ts = event.timestamp
         return cls(id, start_ts=start_ts)
 
 
 class IORequest():
-    # I/O "type"
+    # I/O 'type'
     IO_SYSCALL = 1
     IO_BLOCK = 2
     IO_NET = 3
@@ -336,42 +336,42 @@ class SyscallConsts():
     INET_FAMILIES = [socket.AF_INET, socket.AF_INET6]
     DISK_FAMILIES = [socket.AF_UNIX]
     # list nof syscalls that open a FD on disk (in the exit_syscall event)
-    DISK_OPEN_SYSCALLS = ["sys_open", "syscall_entry_open",
-                          "sys_openat", "syscall_entry_openat"]
+    DISK_OPEN_SYSCALLS = ['sys_open', 'syscall_entry_open',
+                          'sys_openat', 'syscall_entry_openat']
     # list of syscalls that open a FD on the network
     # (in the exit_syscall event)
-    NET_OPEN_SYSCALLS = ["sys_accept", "syscall_entry_accept",
-                         "sys_accept4", "syscall_entry_accept4",
-                         "sys_socket", "syscall_entry_socket"]
+    NET_OPEN_SYSCALLS = ['sys_accept', 'syscall_entry_accept',
+                         'sys_accept4', 'syscall_entry_accept4',
+                         'sys_socket', 'syscall_entry_socket']
     # list of syscalls that can duplicate a FD
-    DUP_OPEN_SYSCALLS = ["sys_fcntl", "syscall_entry_fcntl",
-                         "sys_dup2", "syscall_entry_dup2"]
-    SYNC_SYSCALLS = ["sys_sync", "syscall_entry_sync",
-                     "sys_sync_file_range", "syscall_entry_sync_file_range",
-                     "sys_fsync", "syscall_entry_fsync",
-                     "sys_fdatasync", "syscall_entry_fdatasync"]
+    DUP_OPEN_SYSCALLS = ['sys_fcntl', 'syscall_entry_fcntl',
+                         'sys_dup2', 'syscall_entry_dup2']
+    SYNC_SYSCALLS = ['sys_sync', 'syscall_entry_sync',
+                     'sys_sync_file_range', 'syscall_entry_sync_file_range',
+                     'sys_fsync', 'syscall_entry_fsync',
+                     'sys_fdatasync', 'syscall_entry_fdatasync']
     # merge the 3 open lists
     OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
-    # list of syscalls that close a FD (in the "fd =" field)
-    CLOSE_SYSCALLS = ["sys_close", "syscall_entry_close"]
+    # list of syscalls that close a FD (in the 'fd =' field)
+    CLOSE_SYSCALLS = ['sys_close', 'syscall_entry_close']
     # list of syscall that read on a FD, value in the exit_syscall following
-    READ_SYSCALLS = ["sys_read", "syscall_entry_read",
-                     "sys_recvmsg", "syscall_entry_recvmsg",
-                     "sys_recvfrom", "syscall_entry_recvfrom",
-                     "sys_splice", "syscall_entry_splice",
-                     "sys_readv", "syscall_entry_readv",
-                     "sys_sendfile64", "syscall_entry_sendfile64"]
+    READ_SYSCALLS = ['sys_read', 'syscall_entry_read',
+                     'sys_recvmsg', 'syscall_entry_recvmsg',
+                     'sys_recvfrom', 'syscall_entry_recvfrom',
+                     'sys_splice', 'syscall_entry_splice',
+                     'sys_readv', 'syscall_entry_readv',
+                     'sys_sendfile64', 'syscall_entry_sendfile64']
     # list of syscall that write on a FD, value in the exit_syscall following
-    WRITE_SYSCALLS = ["sys_write", "syscall_entry_write",
-                      "sys_sendmsg", "syscall_entry_sendmsg",
-                      "sys_sendto", "syscall_entry_sendto",
-                      "sys_writev", "syscall_entry_writev"]
+    WRITE_SYSCALLS = ['sys_write', 'syscall_entry_write',
+                      'sys_sendmsg', 'syscall_entry_sendmsg',
+                      'sys_sendto', 'syscall_entry_sendto',
+                      'sys_writev', 'syscall_entry_writev']
     # All I/O related syscalls
     IO_SYSCALLS = OPEN_SYSCALLS + CLOSE_SYSCALLS + READ_SYSCALLS + \
         WRITE_SYSCALLS + SYNC_SYSCALLS
     # generic names assigned to special FDs, don't try to match these in the
     # closed_fds dict
-    GENERIC_NAMES = ["unknown", "socket"]
+    GENERIC_NAMES = ['unknown', 'socket']
 
     def __init__():
         pass

@@ -43,13 +43,13 @@ def kdev_major_minor(dev):
     MINORMASK = ((1 << MINORBITS) - 1)
     major = dev >> MINORBITS
     minor = dev & MINORMASK
-    return "(%d,%d)" % (major, minor)
+    return '(%d,%d)' % (major, minor)
 
 
 def get_disk(dev, disks):
     if dev not in disks:
         d = sv.Disk()
-        d.name = "%d" % dev
+        d.name = '%d' % dev
         d.prettyname = kdev_major_minor(dev)
         disks[dev] = d
     else:
@@ -59,26 +59,26 @@ def get_disk(dev, disks):
 
 def convert_size(size, padding_after=False, padding_before=False):
     if padding_after and size < 1024:
-        space_after = " "
+        space_after = ' '
     else:
-        space_after = ""
+        space_after = ''
     if padding_before and size < 1024:
-        space_before = " "
+        space_before = ' '
     else:
-        space_before = ""
+        space_before = ''
     if size <= 0:
-        return "0 " + space_before + "B" + space_after
-    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+        return '0 ' + space_before + 'B' + space_after
+    size_name = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')
     i = int(math.floor(math.log(size, 1024)))
     p = math.pow(1024, i)
     s = round(size/p, 2)
     if (s > 0):
         try:
-            v = "%0.02f" % s
+            v = '%0.02f' % s
             return '%s %s%s%s' % (v, space_before, size_name[i], space_after)
         except:
             print(i, size_name)
-            raise Exception("Too big to be true")
+            raise Exception('Too big to be true')
     else:
         return '0 B'
 
@@ -116,8 +116,8 @@ def extract_timerange(handle, timerange, gmt):
     p = re.compile('^\[(?P<begin>.*),(?P<end>.*)\]$')
     if not p.match(timerange):
         return None
-    b = p.search(timerange).group("begin").strip()
-    e = p.search(timerange).group("end").strip()
+    b = p.search(timerange).group('begin').strip()
+    e = p.search(timerange).group('end').strip()
     begin = date_to_epoch_nsec(handle, b, gmt)
     if begin is None:
         return (None, None)
@@ -144,20 +144,20 @@ def date_to_epoch_nsec(handle, date, gmt):
     p4 = re.compile('^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
 
     if p1.match(date):
-        year = p1.search(date).group("year")
-        month = p1.search(date).group("mon")
-        day = p1.search(date).group("day")
-        hour = p1.search(date).group("hour")
-        minute = p1.search(date).group("min")
-        sec = p1.search(date).group("sec")
-        nsec = p1.search(date).group("nsec")
+        year = p1.search(date).group('year')
+        month = p1.search(date).group('mon')
+        day = p1.search(date).group('day')
+        hour = p1.search(date).group('hour')
+        minute = p1.search(date).group('min')
+        sec = p1.search(date).group('sec')
+        nsec = p1.search(date).group('nsec')
     elif p2.match(date):
-        year = p2.search(date).group("year")
-        month = p2.search(date).group("mon")
-        day = p2.search(date).group("day")
-        hour = p2.search(date).group("hour")
-        minute = p2.search(date).group("min")
-        sec = p2.search(date).group("sec")
+        year = p2.search(date).group('year')
+        month = p2.search(date).group('mon')
+        day = p2.search(date).group('day')
+        hour = p2.search(date).group('hour')
+        minute = p2.search(date).group('min')
+        sec = p2.search(date).group('sec')
         nsec = 0
     elif p3.match(date):
         d = trace_collection_date(handle)
@@ -168,10 +168,10 @@ def date_to_epoch_nsec(handle, date, gmt):
         year = d[0]
         month = d[1]
         day = d[2]
-        hour = p3.search(date).group("hour")
-        minute = p3.search(date).group("min")
-        sec = p3.search(date).group("sec")
-        nsec = p3.search(date).group("nsec")
+        hour = p3.search(date).group('hour')
+        minute = p3.search(date).group('min')
+        sec = p3.search(date).group('sec')
+        nsec = p3.search(date).group('nsec')
     elif p4.match(date):
         d = trace_collection_date(handle)
         if d is None:
@@ -181,9 +181,9 @@ def date_to_epoch_nsec(handle, date, gmt):
         year = d[0]
         month = d[1]
         day = d[2]
-        hour = p4.search(date).group("hour")
-        minute = p4.search(date).group("min")
-        sec = p4.search(date).group("sec")
+        hour = p4.search(date).group('hour')
+        minute = p4.search(date).group('min')
+        sec = p4.search(date).group('sec')
         nsec = 0
     else:
         return None
@@ -202,7 +202,7 @@ def process_date_args(command):
             extract_timerange(command._handle, command._arg_timerange,
                               command._arg_gmt)
         if command._arg_begin is None or command._arg_end is None:
-            print("Invalid timeformat")
+            print('Invalid timeformat')
             sys.exit(1)
     else:
         if command._arg_begin:
@@ -210,14 +210,14 @@ def process_date_args(command):
                                                     command._arg_begin,
                                                     command._arg_gmt)
             if command._arg_begin is None:
-                print("Invalid timeformat")
+                print('Invalid timeformat')
                 sys.exit(1)
         if command._arg_end:
             command._arg_end = date_to_epoch_nsec(command._handle,
                                                   command._arg_end,
                                                   command._arg_gmt)
             if command._arg_end is None:
-                print("Invalid timeformat")
+                print('Invalid timeformat')
                 sys.exit(1)
 
 
@@ -227,7 +227,7 @@ def ns_to_asctime(ns):
 
 def ns_to_hour(ns):
     d = time.localtime(ns/NSEC_PER_SEC)
-    return "%02d:%02d:%02d" % (d.tm_hour, d.tm_min, d.tm_sec)
+    return '%02d:%02d:%02d' % (d.tm_hour, d.tm_min, d.tm_sec)
 
 
 def ns_to_hour_nsec(ns, multi_day=False, gmt=False):
@@ -236,27 +236,27 @@ def ns_to_hour_nsec(ns, multi_day=False, gmt=False):
     else:
         d = time.localtime(ns/NSEC_PER_SEC)
     if multi_day:
-        return "%04d-%02d-%02d %02d:%02d:%02d.%09d" % (d.tm_year, d.tm_mon,
+        return '%04d-%02d-%02d %02d:%02d:%02d.%09d' % (d.tm_year, d.tm_mon,
                                                        d.tm_mday, d.tm_hour,
                                                        d.tm_min, d.tm_sec,
                                                        ns % NSEC_PER_SEC)
     else:
-        return "%02d:%02d:%02d.%09d" % (d.tm_hour, d.tm_min, d.tm_sec,
+        return '%02d:%02d:%02d.%09d' % (d.tm_hour, d.tm_min, d.tm_sec,
                                         ns % NSEC_PER_SEC)
 
 
 def ns_to_sec(ns):
-    return "%lu.%09u" % (ns/NSEC_PER_SEC, ns % NSEC_PER_SEC)
+    return '%lu.%09u' % (ns/NSEC_PER_SEC, ns % NSEC_PER_SEC)
 
 
 def ns_to_day(ns):
     d = time.localtime(ns/NSEC_PER_SEC)
-    return "%04d-%02d-%02d" % (d.tm_year, d.tm_mon, d.tm_mday)
+    return '%04d-%02d-%02d' % (d.tm_year, d.tm_mon, d.tm_mday)
 
 
 def sec_to_hour(ns):
     d = time.localtime(ns)
-    return "%02d:%02d:%02d" % (d.tm_hour, d.tm_min, d.tm_sec)
+    return '%02d:%02d:%02d' % (d.tm_hour, d.tm_min, d.tm_sec)
 
 
 def sec_to_nsec(sec):
@@ -264,35 +264,35 @@ def sec_to_nsec(sec):
 
 
 def seq_to_ipv4(ip):
-    return "{}.{}.{}.{}".format(ip[0], ip[1], ip[2], ip[3])
+    return '{}.{}.{}.{}'.format(ip[0], ip[1], ip[2], ip[3])
 
 
 def int_to_ipv4(ip):
-    return socket.inet_ntoa(struct.pack("!I", ip))
+    return socket.inet_ntoa(struct.pack('!I', ip))
 
 
 def str_to_bytes(value):
-    num = ""
-    unit = ""
+    num = ''
+    unit = ''
     for i in value:
-        if i.isdigit() or i == ".":
+        if i.isdigit() or i == '.':
             num = num + i
         elif i.isalnum():
             unit = unit + i
     num = float(num)
     if not unit:
         return int(num)
-    if unit in ["B"]:
+    if unit in ['B']:
         return int(num)
-    if unit in ["k", "K", "kB", "KB"]:
+    if unit in ['k', 'K', 'kB', 'KB']:
         return int(num * 1024)
-    if unit in ["m", "M", "mB", "MB"]:
+    if unit in ['m', 'M', 'mB', 'MB']:
         return int(num * 1024 * 1024)
-    if unit in ["g", "G", "gB", "GB"]:
+    if unit in ['g', 'G', 'gB', 'GB']:
         return int(num * 1024 * 1024 * 1024)
-    if unit in ["t", "T", "tB", "TB"]:
+    if unit in ['t', 'T', 'tB', 'TB']:
         return int(num * 1024 * 1024 * 1024 * 1024)
-    print("Unit", unit, "not understood")
+    print('Unit', unit, 'not understood')
     return None
 
 

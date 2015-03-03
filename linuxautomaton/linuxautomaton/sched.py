@@ -58,7 +58,7 @@ class SchedStateProvider(sp.StateProvider):
         else:
             self.add_cpu(cpu_id, ts, next_tid)
         for context in event.keys():
-            if context.startswith("perf_"):
+            if context.startswith('perf_'):
                 c.perf[context] = event[context]
 
     def add_cpu(self, cpu_id, ts, next_tid):
@@ -86,7 +86,7 @@ class SchedStateProvider(sp.StateProvider):
             # perf PMU counters checks
             for context in event.field_list_with_scope(
                     CTFScope.STREAM_EVENT_CONTEXT):
-                if context.startswith("perf_"):
+                if context.startswith('perf_'):
                     if context not in c.perf.keys():
                         c.perf[context] = event[context]
                     # add the difference between the last known value
@@ -113,18 +113,18 @@ class SchedStateProvider(sp.StateProvider):
             p.comm = next_comm
         p.last_sched = ts
         for q in c.wakeup_queue:
-            if q["task"] == p:
-                ret["sched_latency"] = ts - q["ts"]
-                ret["next_tid"] = next_tid
+            if q['task'] == p:
+                ret['sched_latency'] = ts - q['ts']
+                ret['next_tid'] = next_tid
                 c.wakeup_queue.remove(q)
         return ret
 
     def _process_sched_switch(self, event):
         """Handle sched_switch event, returns a dict of changed values"""
-        prev_tid = event["prev_tid"]
-        next_comm = event["next_comm"]
-        next_tid = event["next_tid"]
-        cpu_id = event["cpu_id"]
+        prev_tid = event['prev_tid']
+        next_comm = event['next_comm']
+        next_tid = event['next_tid']
+        cpu_id = event['cpu_id']
         ret = {}
 
         self.sched_switch_per_tid(event.timestamp, prev_tid,
@@ -139,11 +139,11 @@ class SchedStateProvider(sp.StateProvider):
         return ret
 
     def _process_sched_migrate_task(self, event):
-        tid = event["tid"]
+        tid = event['tid']
         if tid not in self.state.tids:
             p = sv.Process()
             p.tid = tid
-            p.comm = event["comm"]
+            p.comm = event['comm']
             self.state.tids[tid] = p
         else:
             p = self.state.tids[tid]
@@ -151,8 +151,8 @@ class SchedStateProvider(sp.StateProvider):
 
     def _process_sched_wakeup(self, event):
         """Stores the sched_wakeup infos to compute scheduling latencies"""
-        target_cpu = event["target_cpu"]
-        tid = event["tid"]
+        target_cpu = event['target_cpu']
+        tid = event['tid']
         if target_cpu not in self.state.cpus.keys():
             c = sv.CPU()
             c.cpu_id = target_cpu
@@ -166,7 +166,7 @@ class SchedStateProvider(sp.StateProvider):
             self.state.tids[tid] = p
         else:
             p = self.state.tids[tid]
-        c.wakeup_queue.append({"ts": event.timestamp, "task": p})
+        c.wakeup_queue.append({'ts': event.timestamp, 'task': p})
 
     def fix_process(self, name, tid, pid):
         if tid not in self.state.tids:
@@ -195,12 +195,12 @@ class SchedStateProvider(sp.StateProvider):
         return f
 
     def _process_sched_process_fork(self, event):
-        child_tid = event["child_tid"]
-        child_pid = event["child_pid"]
-        child_comm = event["child_comm"]
-        parent_pid = event["parent_pid"]
-        parent_tid = event["parent_pid"]
-        parent_comm = event["parent_comm"]
+        child_tid = event['child_tid']
+        child_pid = event['child_pid']
+        child_comm = event['child_comm']
+        parent_pid = event['parent_pid']
+        parent_tid = event['parent_pid']
+        parent_comm = event['parent_comm']
         f = sv.Process()
         f.tid = child_tid
         f.pid = child_pid
@@ -216,15 +216,15 @@ class SchedStateProvider(sp.StateProvider):
         self.state.tids[child_tid] = f
 
     def _process_sched_process_exec(self, event):
-        tid = event["tid"]
+        tid = event['tid']
         if tid not in self.state.tids:
             p = sv.Process()
             p.tid = tid
             self.state.tids[tid] = p
         else:
             p = self.state.tids[tid]
-        if "procname" in event.keys():
-            p.comm = event["procname"]
+        if 'procname' in event.keys():
+            p.comm = event['procname']
         toremove = []
         for fd in p.fds.keys():
             if p.fds[fd].cloexec == 1:

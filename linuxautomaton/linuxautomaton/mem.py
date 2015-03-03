@@ -38,7 +38,7 @@ class MemStateProvider(sp.StateProvider):
         self._process_event_cb(ev)
 
     def _get_current_proc(self, event):
-        cpu_id = event["cpu_id"]
+        cpu_id = event['cpu_id']
         if cpu_id not in self.state.cpus:
             return None
 
@@ -57,10 +57,10 @@ class MemStateProvider(sp.StateProvider):
             if not process.current_syscall:
                 continue
 
-            if "pages_allocated" not in process.current_syscall:
-                process.current_syscall["pages_allocated"] = 1
+            if 'pages_allocated' not in process.current_syscall:
+                process.current_syscall['pages_allocated'] = 1
             else:
-                process.current_syscall["pages_allocated"] += 1
+                process.current_syscall['pages_allocated'] += 1
 
         current_process = self._get_current_proc(event)
         if current_process is None:

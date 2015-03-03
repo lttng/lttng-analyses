@@ -44,54 +44,54 @@ class BlockStateProvider(sp.StateProvider):
         self._process_event_cb(ev)
 
     def _process_block_bio_remap(self, event):
-        dev = event["dev"]
-        sector = event["sector"]
-        old_dev = event["old_dev"]
-        old_sector = event["old_sector"]
+        dev = event['dev']
+        sector = event['sector']
+        old_dev = event['old_dev']
+        old_sector = event['old_sector']
 
         for req in self.remap_requests:
-            if req["dev"] == old_dev and req["sector"] == old_sector:
-                req["dev"] = dev
-                req["sector"] = sector
+            if req['dev'] == old_dev and req['sector'] == old_sector:
+                req['dev'] = dev
+                req['sector'] = sector
                 return
 
         req = {}
-        req["orig_dev"] = old_dev
-        req["dev"] = dev
-        req["sector"] = sector
+        req['orig_dev'] = old_dev
+        req['dev'] = dev
+        req['sector'] = sector
         self.remap_requests.append(req)
 
     # For backmerge requests, just remove the request from the
     # remap_requests queue, because we rely later on the nr_sector
     # which has all the info we need.
     def _process_block_bio_backmerge(self, event):
-        dev = event["dev"]
-        sector = event["sector"]
+        dev = event['dev']
+        sector = event['sector']
         for req in self.remap_requests:
-            if req["dev"] == dev and req["sector"] == sector:
+            if req['dev'] == dev and req['sector'] == sector:
                 self.remap_requests.remove(req)
 
     def _process_block_rq_issue(self, event):
-        dev = event["dev"]
-        sector = event["sector"]
-        nr_sector = event["nr_sector"]
+        dev = event['dev']
+        sector = event['sector']
+        nr_sector = event['nr_sector']
         # Note: since we don't know, we assume a sector is 512 bytes
         block_size = 512
         if nr_sector == 0:
             return
 
         rq = {}
-        rq["nr_sector"] = nr_sector
-        rq["rq_time"] = event.timestamp
-        rq["iorequest"] = sv.IORequest()
-        rq["iorequest"].iotype = sv.IORequest.IO_BLOCK
-        rq["iorequest"].begin = event.timestamp
-        rq["iorequest"].size = nr_sector * block_size
+        rq['nr_sector'] = nr_sector
+        rq['rq_time'] = event.timestamp
+        rq['iorequest'] = sv.IORequest()
+        rq['iorequest'].iotype = sv.IORequest.IO_BLOCK
+        rq['iorequest'].begin = event.timestamp
+        rq['iorequest'].size = nr_sector * block_size
 
         d = None
         for req in self.remap_requests:
-            if req["dev"] == dev and req["sector"] == sector:
-                d = common.get_disk(req["orig_dev"], self.disks)
+            if req['dev'] == dev and req['sector'] == sector:
+                d = common.get_disk(req['orig_dev'], self.disks)
         if not d:
             d = common.get_disk(dev, self.disks)
 
@@ -99,8 +99,8 @@ class BlockStateProvider(sp.StateProvider):
         d.nr_sector += nr_sector
         d.pending_requests[sector] = rq
 
-        if "tid" in event.keys():
-            tid = event["tid"]
+        if 'tid' in event.keys():
+            tid = event['tid']
             if tid not in self.tids:
                 p = sv.Process()
                 p.tid = tid
@@ -109,26 +109,26 @@ class BlockStateProvider(sp.StateProvider):
                 p = self.tids[tid]
             if p.pid is not None and p.tid != p.pid:
                 p = self.tids[p.pid]
-            rq["pid"] = p
+            rq['pid'] = p
             # even rwbs means read, odd means write
-            if event["rwbs"] % 2 == 0:
+            if event['rwbs'] % 2 == 0:
                 p.block_read += nr_sector * block_size
-                rq["iorequest"].operation = sv.IORequest.OP_READ
+                rq['iorequest'].operation = sv.IORequest.OP_READ
             else:
                 p.block_write += nr_sector * block_size
-                rq["iorequest"].operation = sv.IORequest.OP_WRITE
+                rq['iorequest'].operation = sv.IORequest.OP_WRITE
 
     def _process_block_rq_complete(self, event):
-        dev = event["dev"]
-        sector = event["sector"]
-        nr_sector = event["nr_sector"]
+        dev = event['dev']
+        sector = event['sector']
+        nr_sector = event['nr_sector']
         if nr_sector == 0:
             return
 
         d = None
         for req in self.remap_requests:
-            if req["dev"] == dev and req["sector"] == sector:
-                d = common.get_disk(req["orig_dev"], self.disks)
+            if req['dev'] == dev and req['sector'] == sector:
+                d = common.get_disk(req['orig_dev'], self.disks)
                 self.remap_requests.remove(req)
 
         if not d:
@@ -140,14 +140,14 @@ class BlockStateProvider(sp.StateProvider):
             return
 
         rq = d.pending_requests[sector]
-        if rq["nr_sector"] != nr_sector:
+        if rq['nr_sector'] != nr_sector:
             return
         d.completed_requests += 1
-        time_per_sector = (event.timestamp - rq["rq_time"]) / rq["nr_sector"]
+        time_per_sector = (event.timestamp - rq['rq_time']) / rq['nr_sector']
         d.request_time += time_per_sector
-        rq["iorequest"].duration = time_per_sector
-        rq["iorequest"].end = event.timestamp
-        d.rq_list.append(rq["iorequest"])
-        if "pid" in rq.keys():
-            rq["pid"].iorequests.append(rq["iorequest"])
+        rq['iorequest'].duration = time_per_sector
+        rq['iorequest'].end = event.timestamp
+        d.rq_list.append(rq['iorequest'])
+        if 'pid' in rq.keys():
+            rq['pid'].iorequests.append(rq['iorequest'])
         del d.pending_requests[sector]
