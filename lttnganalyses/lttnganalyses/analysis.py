@@ -35,10 +35,10 @@ class Analysis:
 
         if name in self._cbs:
             self._cbs[name](ev)
-        elif "syscall_entry" in self._cbs and \
-           (name.startswith("sys_") or name.startswith("syscall_entry_")):
-            self._cbs["syscall_entry"](ev)
-        elif "syscall_exit" in self._cbs and \
-                (name.startswith("exit_syscall") or
-                 name.startswith("syscall_exit_")):
-            self._cbs["syscall_exit"](ev)
+        elif 'syscall_entry' in self._cbs and \
+        (name.startswith('sys_') or name.startswith('syscall_entry_')):
+            self._cbs['syscall_entry'](ev)
+        elif 'syscall_exit' in self._cbs and \
+                (name.startswith('exit_syscall') or
+                 name.startswith('syscall_exit_')):
+            self._cbs['syscall_exit'](ev)
