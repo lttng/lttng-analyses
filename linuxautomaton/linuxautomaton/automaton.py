@@ -40,7 +40,6 @@ class State:
         self.syscalls = {}
         self.mm = MemoryManagement()
         self.ifaces = {}
-        self.interrupts = {}
         self.pending_syscalls = []
 
 

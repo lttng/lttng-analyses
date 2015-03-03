@@ -98,6 +98,8 @@ class CPU():
         self.cpu_id = None
         self.cpu_ns = 0
         self.current_tid = None
+        self.current_hard_irq = None
+        self.current_soft_irq = None
         self.start_task_ns = 0
         self.perf = {}
         self.wakeup_queue = []
@@ -203,8 +205,6 @@ class FD():
 
 
 class IRQ():
-    HARD_IRQ = 1
-    SOFT_IRQ = 2
     # from include/linux/interrupt.h
     soft_names = {0: "HI_SOFTIRQ",
                   1: "TIMER_SOFTIRQ",
@@ -217,27 +217,40 @@ class IRQ():
                   8: "HRTIMER_SOFTIRQ",
                   9: "RCU_SOFTIRQ"}
 
-    def __init__(self):
-        self.nr = None
-        self.irqclass = 0
-        self.start_ts = None
+    def __init__(self, id, start_ts=None):
+        self.id = id
+        self.start_ts = start_ts
         self.stop_ts = None
-        self.raise_ts = None
-        self.cpu_id = None
 
-    # used to track statistics about individual IRQs
-    def init_irq_instance():
-        irq = {}
-        irq["list"] = []
-        irq["max"] = 0
-        irq["min"] = None
-        irq["count"] = 0
-        irq["total"] = 0
-        irq["raise_max"] = 0
-        irq["raise_min"] = None
-        irq["raise_count"] = 0
-        irq["raise_total"] = 0
-        return irq
+
+class HardIRQ(IRQ):
+    def __init__(self, id, start_ts):
+        super().__init__(id, start_ts)
+        self.ret = None
+
+    @classmethod
+    def new_from_irq_handler_entry(cls, event):
+        id = event["irq"]
+        start_ts = event.timestamp
+        return cls(id, start_ts)
+
+
+class SoftIRQ(IRQ):
+    def __init__(self, id, raise_ts=None, start_ts=None):
+        super().__init__(id)
+        self.raise_ts = raise_ts
+
+    @classmethod
+    def new_from_softirq_raise(cls, event):
+        id = event["vec"]
+        raise_ts = event.timestamp
+        return cls(id, raise_ts)
+
+    @classmethod
+    def new_from_softirq_entry(cls, event):
+        id = event["vec"]
+        start_ts = event.timestamp
+        return cls(id, start_ts=start_ts)
 
 
 class IORequest():
