@@ -246,16 +246,13 @@ class IrqAnalysis(Command):
             self.log_irq()
 
     def _print_stats(self, begin_ns, end_ns):
-        if self._arg_no_progress:
-            clear_screen = ""
-        else:
-            clear_screen = "\r" + self.pbar.term_width * " " + "\r"
         date = 'Timerange: [%s, %s]' % (
             common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
                                    multi_day=True),
             common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
                                    multi_day=True))
-        print(clear_screen + date)
+        print(date)
+
         if self._arg_irq_filter_list is not None:
             header = ""
             header += '{:<52} {:<12}\n'.format("Hard IRQ", "Duration (us)")
