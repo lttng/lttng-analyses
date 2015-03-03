@@ -111,28 +111,28 @@ class Cputop(Command):
                 continue
             if tid.tid == 0:
                 continue
-            pc = float("%0.02f" % ((tid.cpu_ns * 100) / total_ns))
+            pc = float('%0.02f' % ((tid.cpu_ns * 100) / total_ns))
             if tid.migrate_count > 0:
-                migrations = ", %d migrations" % (tid.migrate_count)
+                migrations = ', %d migrations' % (tid.migrate_count)
             else:
-                migrations = ""
-            values.append(("%s (%d)%s" % (tid.comm, tid.tid, migrations), pc))
+                migrations = ''
+            values.append(('%s (%d)%s' % (tid.comm, tid.tid, migrations), pc))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph("Per-TID CPU Usage", values, unit=" %"):
+        for line in graph.graph('Per-TID CPU Usage', values, unit=' %'):
             print(line)
 
         values = []
         total_cpu_pc = 0
         for cpu in sorted(self.state.cpus.values(),
                           key=operator.attrgetter('cpu_ns'), reverse=True):
-            cpu_pc = float("%0.02f" % cpu.cpu_pc)
+            cpu_pc = float('%0.02f' % cpu.cpu_pc)
             total_cpu_pc += cpu_pc
-            values.append(("CPU %d" % cpu.cpu_id, cpu_pc))
-        for line in graph.graph("Per-CPU Usage", values, unit=" %"):
+            values.append(('CPU %d' % cpu.cpu_id, cpu_pc))
+        for line in graph.graph('Per-CPU Usage', values, unit=' %'):
             print(line)
-        print("\nTotal CPU Usage: %0.02f%%\n" %
+        print('\nTotal CPU Usage: %0.02f%%\n' %
               (total_cpu_pc / len(self.state.cpus.keys())))
 
     def _add_arguments(self, ap):

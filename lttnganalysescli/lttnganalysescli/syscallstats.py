@@ -88,8 +88,8 @@ class SyscallsAnalysis(Command):
                                    multi_day=True),
             common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
                                    multi_day=True)))
-        strformat = "{:<28} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}"
-        print("Per-TID syscalls statistics (usec)")
+        strformat = '{:<28} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
+        print('Per-TID syscalls statistics (usec)')
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('total_syscalls'),
                           reverse=True):
@@ -97,9 +97,9 @@ class SyscallsAnalysis(Command):
                 continue
             if tid.total_syscalls == 0:
                 continue
-            print(strformat.format("%s (%d, tid = %d)" % (
+            print(strformat.format('%s (%d, tid = %d)' % (
                 tid.comm, tid.pid, tid.tid),
-                "Count", "Min", "Average", "Max", "Stdev", "Return values"))
+                'Count', 'Min', 'Average', 'Max', 'Stdev', 'Return values'))
             for syscall in sorted(tid.syscalls.values(),
                                   key=operator.attrgetter('count'),
                                   reverse=True):
@@ -108,7 +108,7 @@ class SyscallsAnalysis(Command):
                 for s in syscall.rq:
                     sysvalues.append(s.duration)
                     if s.ret >= 0:
-                        key = "success"
+                        key = 'success'
                     else:
                         try:
                             key = errno.errorcode[-s.ret]
@@ -119,26 +119,26 @@ class SyscallsAnalysis(Command):
                     else:
                         rets[key] = 1
                 if syscall.min is None:
-                    syscallmin = "?"
+                    syscallmin = '?'
                 else:
-                    syscallmin = "%0.03f" % (syscall.min / 1000)
-                syscallmax = "%0.03f" % (syscall.max / 1000)
-                syscallavg = "%0.03f" % \
+                    syscallmin = '%0.03f' % (syscall.min / 1000)
+                syscallmax = '%0.03f' % (syscall.max / 1000)
+                syscallavg = '%0.03f' % \
                     (syscall.total_duration/(syscall.count*1000))
                 if len(sysvalues) > 2:
-                    stdev = "%0.03f" % (statistics.stdev(sysvalues) / 1000)
+                    stdev = '%0.03f' % (statistics.stdev(sysvalues) / 1000)
                 else:
-                    stdev = "?"
-                name = syscall.name.replace("syscall_entry_", "")
-                name = name.replace("sys_", "")
-                print(strformat.format(" - " + name, syscall.count,
+                    stdev = '?'
+                name = syscall.name.replace('syscall_entry_', '')
+                name = name.replace('sys_', '')
+                print(strformat.format(' - ' + name, syscall.count,
                                        syscallmin, syscallavg, syscallmax,
                                        stdev, str(rets)))
-            print(strformat.format("Total:", tid.total_syscalls, "", "", "",
-                                   "", ""))
-            print("-" * 113)
+            print(strformat.format('Total:', tid.total_syscalls, '', '', '',
+                                   '', ''))
+            print('-' * 113)
 
-        print("\nTotal syscalls: %d" % (self.state.syscalls["total"]))
+        print('\nTotal syscalls: %d' % (self.state.syscalls['total']))
 
     def _reset_total(self, start_ts):
         pass

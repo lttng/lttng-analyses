@@ -69,7 +69,7 @@ class Memtop(Command):
             self.state.tids[tid].freed_pages = 0
 
     def _refresh(self, begin, end):
-        print("hey")
+        print('hey')
         self._compute_stats()
         self._print_results(begin, end)
         self._reset_total(end)
@@ -103,15 +103,15 @@ class Memtop(Command):
             if not self.filter_process(tid):
                 continue
 
-            values.append(("%s (%d)" % (tid.comm, tid.tid),
+            values.append(('%s (%d)' % (tid.comm, tid.tid),
                           tid.allocated_pages))
 
             count += 1
             if self._arg_limit > 0 and count >= self._arg_limit:
                 break
 
-        for line in graph.graph("Per-TID Memory Allocations", values,
-                                unit=" pages"):
+        for line in graph.graph('Per-TID Memory Allocations', values,
+                                unit=' pages'):
             print(line)
 
     def _print_per_tid_freed(self):
@@ -125,14 +125,14 @@ class Memtop(Command):
             if not self.filter_process(tid):
                 continue
 
-            values.append(("%s (%d)" % (tid.comm, tid.tid), tid.freed_pages))
+            values.append(('%s (%d)' % (tid.comm, tid.tid), tid.freed_pages))
 
             count += 1
             if self._arg_limit > 0 and count >= self._arg_limit:
                 break
 
-        for line in graph.graph("Per-TID Memory Deallocation", values,
-                                unit=" pages"):
+        for line in graph.graph('Per-TID Memory Deallocation', values,
+                                unit=' pages'):
             print(line)
 
     def _print_total_alloc_freed(self):
@@ -146,7 +146,7 @@ class Memtop(Command):
             alloc += tid.allocated_pages
             freed += tid.freed_pages
 
-        print("\nTotal memory usage:\n- %d pages allocated\n- %d pages freed" %
+        print('\nTotal memory usage:\n- %d pages allocated\n- %d pages freed' %
              (alloc, freed))
 
     def _add_arguments(self, ap):

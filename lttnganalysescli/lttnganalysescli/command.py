@@ -60,9 +60,9 @@ class Command:
 
     def _open_trace(self):
         traces = TraceCollection()
-        handle = traces.add_traces_recursive(self._arg_path, "ctf")
+        handle = traces.add_traces_recursive(self._arg_path, 'ctf')
         if handle == {}:
-            self._gen_error("Failed to open " + self._arg_path, -1)
+            self._gen_error('Failed to open ' + self._arg_path, -1)
         self._handle = handle
         self._traces = traces
         common.process_date_args(self)
@@ -74,13 +74,13 @@ class Command:
             self._traces.remove_trace(h)
 
     def _check_lost_events(self):
-        print("Checking the trace for lost events...")
+        print('Checking the trace for lost events...')
         try:
-            subprocess.check_output("babeltrace %s" % self._arg_path,
+            subprocess.check_output('babeltrace %s' % self._arg_path,
                                     shell=True)
         except subprocess.CalledProcessError:
-            print("Error running babeltrace on the trace, cannot verify if "
-                  "events were lost during the trace recording")
+            print('Error running babeltrace on the trace, cannot verify if '
+                  'events were lost during the trace recording')
 
     def _run_analysis(self, reset_cb, refresh_cb, break_cb=None):
         self.trace_start_ts = 0
@@ -162,11 +162,11 @@ class Command:
         if self._enable_proc_filter_args:
             self._arg_proc_list = None
             if args.procname:
-                self._arg_proc_list = args.procname.split(",")
+                self._arg_proc_list = args.procname.split(',')
 
             self._arg_pid_list = None
             if args.pid:
-                self._arg_pid_list = args.pid.split(",")
+                self._arg_pid_list = args.pid.split(',')
 
         if self._enable_max_min_arg:
             self._arg_max = args.max
@@ -190,16 +190,16 @@ class Command:
         ap = argparse.ArgumentParser(description=self._DESC)
 
         # common arguments
-        ap.add_argument('path', metavar="<path/to/trace>", help='trace path')
+        ap.add_argument('path', metavar='<path/to/trace>', help='trace path')
         ap.add_argument('-r', '--refresh', type=int,
                         help='Refresh period in seconds')
         ap.add_argument('--limit', type=int, default=10,
                         help='Limit to top X (default = 10)')
-        ap.add_argument('--no-progress', action="store_true",
+        ap.add_argument('--no-progress', action='store_true',
                         help='Don\'t display the progress bar')
-        ap.add_argument('--skip-validation', action="store_true",
+        ap.add_argument('--skip-validation', action='store_true',
                         help='Skip the trace validation')
-        ap.add_argument('--gmt', action="store_true",
+        ap.add_argument('--gmt', action='store_true',
                         help='Manipulate timestamps based on GMT instead '
                              'of local time')
         ap.add_argument('--begin', type=str, help='start time: '
@@ -232,7 +232,7 @@ class Command:
                                  'less that minsize bytes')
 
         if self._enable_freq_arg:
-            ap.add_argument('--freq', action="store_true",
+            ap.add_argument('--freq', action='store_true',
                             help='Show the frequency distribution of '
                                  'handler duration')
             ap.add_argument('--freq-resolution', type=int, default=20,
@@ -240,12 +240,12 @@ class Command:
                                  '(default 20)')
 
         if self._enable_log_arg:
-            ap.add_argument('--log', action="store_true",
+            ap.add_argument('--log', action='store_true',
                             help='Display the events in the order they '
                                  'appeared')
 
         if self._enable_stats_arg:
-            ap.add_argument('--stats', action="store_true",
+            ap.add_argument('--stats', action='store_true',
                             help='Display the statistics')
 
         # specific arguments

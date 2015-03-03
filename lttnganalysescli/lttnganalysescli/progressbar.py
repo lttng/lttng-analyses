@@ -47,7 +47,7 @@ def getFolderSize(folder):
 
 
 def progressbar_setup(obj):
-    if hasattr(obj, "_arg_no_progress") and obj._arg_no_progress:
+    if hasattr(obj, '_arg_no_progress') and obj._arg_no_progress:
         obj.pbar = None
         return
 
@@ -60,15 +60,15 @@ def progressbar_setup(obj):
                                maxval=size/BYTES_PER_EVENT)
         obj.pbar.start()
     else:
-        print("Warning: progressbar module not available, "
-              "using --no-progress.", file=sys.stderr)
+        print('Warning: progressbar module not available, '
+              'using --no-progress.', file=sys.stderr)
         obj._arg_no_progress = True
         obj.pbar = None
     obj.event_count = 0
 
 
 def progressbar_update(obj):
-    if hasattr(obj, "_arg_no_progress") and \
+    if hasattr(obj, '_arg_no_progress') and \
             (obj._arg_no_progress or obj.pbar is None):
         return
     try:
@@ -79,6 +79,6 @@ def progressbar_update(obj):
 
 
 def progressbar_finish(obj):
-    if hasattr(obj, "_arg_no_progress") and obj._arg_no_progress:
+    if hasattr(obj, '_arg_no_progress') and obj._arg_no_progress:
         return
     obj.pbar.finish()

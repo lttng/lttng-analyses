@@ -117,32 +117,32 @@ class IoAnalysis(Command):
     def add_fd_dict(self, tid, fd, files):
         if fd.read == 0 and fd.write == 0:
             return
-        if fd.filename.startswith("pipe") or \
-                fd.filename.startswith("socket") or \
-                fd.filename.startswith("anon_inode") or \
-                fd.filename.startswith("unknown"):
-            filename = "%s (%s)" % (fd.filename, tid.comm)
+        if fd.filename.startswith('pipe') or \
+                fd.filename.startswith('socket') or \
+                fd.filename.startswith('anon_inode') or \
+                fd.filename.startswith('unknown'):
+            filename = '%s (%s)' % (fd.filename, tid.comm)
             files[filename] = {}
-            files[filename]["read"] = fd.read
-            files[filename]["write"] = fd.write
-            files[filename]["name"] = filename
-            files[filename]["other"] = ["fd %d in %s (%d)" % (fd.fd,
+            files[filename]['read'] = fd.read
+            files[filename]['write'] = fd.write
+            files[filename]['name'] = filename
+            files[filename]['other'] = ['fd %d in %s (%d)' % (fd.fd,
                                         tid.comm, tid.pid)]
         else:
             # merge counters of shared files
             filename = fd.filename
             if filename not in files.keys():
                 files[filename] = {}
-                files[filename]["read"] = fd.read
-                files[filename]["write"] = fd.write
-                files[filename]["name"] = filename
-                files[filename]["other"] = ["fd %d in %s (%d)" %
+                files[filename]['read'] = fd.read
+                files[filename]['write'] = fd.write
+                files[filename]['name'] = filename
+                files[filename]['other'] = ['fd %d in %s (%d)' %
                                             (fd.fd, tid.comm, tid.pid)]
-                files[filename]["tids"] = [tid.tid]
+                files[filename]['tids'] = [tid.tid]
             else:
-                files[filename]["read"] += fd.read
-                files[filename]["write"] += fd.write
-                files[filename]["other"].append("fd %d in %s (%d)" %
+                files[filename]['read'] += fd.read
+                files[filename]['write'] += fd.write
+                files[filename]['other'].append('fd %d in %s (%d)' %
                                                 (fd.fd, tid.comm,
                                                  tid.pid))
 
@@ -166,14 +166,14 @@ class IoAnalysis(Command):
         sorted_f = sorted(files.items(), key=lambda files: files[1]['read'],
                           reverse=True)
         for f in sorted_f:
-            if f[1]["read"] == 0:
+            if f[1]['read'] == 0:
                 continue
-            info_fmt = "{:>10}".format(common.convert_size(f[1]["read"],
+            info_fmt = '{:>10}'.format(common.convert_size(f[1]['read'],
                                        padding_after=True))
-            values.append(("%s %s %s" % (info_fmt,
-                                         f[1]["name"],
-                                         str(f[1]["other"])[1:-1]),
-                           f[1]["read"]))
+            values.append(('%s %s %s' % (info_fmt,
+                                         f[1]['name'],
+                                         str(f[1]['other'])[1:-1]),
+                           f[1]['read']))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -190,14 +190,14 @@ class IoAnalysis(Command):
         sorted_f = sorted(files.items(), key=lambda files: files[1]['write'],
                           reverse=True)
         for f in sorted_f:
-            if f[1]["write"] == 0:
+            if f[1]['write'] == 0:
                 continue
-            info_fmt = "{:>10}".format(common.convert_size(f[1]["write"],
+            info_fmt = '{:>10}'.format(common.convert_size(f[1]['write'],
                                        padding_after=True))
-            values.append(("%s %s %s" % (info_fmt,
-                                         f[1]["name"],
-                                         str(f[1]["other"])[1:-1]),
-                           f[1]["write"]))
+            values.append(('%s %s %s' % (info_fmt,
+                                         f[1]['name'],
+                                         str(f[1]['other'])[1:-1]),
+                           f[1]['write']))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
@@ -243,10 +243,10 @@ class IoAnalysis(Command):
                           key=operator.attrgetter('read'), reverse=True):
             if not self.filter_process(tid):
                 continue
-            info_fmt = "{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown"
+            info_fmt = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown'
             values.append((info_fmt.format(
                            common.convert_size(tid.read, padding_after=True),
-                           "%s (%d)" % (tid.comm, tid.pid),
+                           '%s (%d)' % (tid.comm, tid.pid),
                            common.convert_size(tid.disk_read,
                                                padding_after=True),
                            common.convert_size(tid.net_read,
@@ -270,10 +270,10 @@ class IoAnalysis(Command):
                           key=operator.attrgetter('write'), reverse=True):
             if not self.filter_process(tid):
                 continue
-            info_fmt = "{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown "
+            info_fmt = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown '
             values.append((info_fmt.format(
                            common.convert_size(tid.write, padding_after=True),
-                           "%s (%d)" % (tid.comm, tid.pid),
+                           '%s (%d)' % (tid.comm, tid.pid),
                            common.convert_size(tid.disk_write,
                                                padding_after=True),
                            common.convert_size(tid.net_write,
@@ -304,21 +304,21 @@ class IoAnalysis(Command):
             if tid.block_read == 0:
                 continue
 
-            info_fmt = "{:>10} {:<22}"
+            info_fmt = '{:>10} {:<22}'
 
             comm = tid.comm
             if not comm:
-                comm = "unknown"
+                comm = 'unknown'
 
             pid = tid.pid
             if not pid:
-                pid = "unknown"
+                pid = 'unknown'
             else:
                 pid = str(pid)
 
             values.append((info_fmt.format(
                 common.convert_size(tid.block_read, padding_after=True),
-                "%s (pid=%s)" % (comm, pid)),
+                '%s (pid=%s)' % (comm, pid)),
                            tid.block_read))
 
             count = count + 1
@@ -345,21 +345,21 @@ class IoAnalysis(Command):
             if tid.block_write == 0:
                 continue
 
-            info_fmt = "{:>10} {:<22}"
+            info_fmt = '{:>10} {:<22}'
 
             comm = tid.comm
             if not comm:
-                comm = "unknown"
+                comm = 'unknown'
 
             pid = tid.pid
             if not pid:
-                pid = "unknown"
+                pid = 'unknown'
             else:
                 pid = str(pid)
 
             values.append((info_fmt.format(
                 common.convert_size(tid.block_write, padding_after=True),
-                "%s (pid=%s)" % (comm, pid)),
+                '%s (pid=%s)' % (comm, pid)),
                            tid.block_write))
 
             count = count + 1
@@ -378,7 +378,7 @@ class IoAnalysis(Command):
             if disk.nr_sector == 0:
                 continue
             values.append((disk.prettyname, disk.nr_sector))
-        for line in graph.graph('Disk nr_sector', values, unit=" sectors"):
+        for line in graph.graph('Disk nr_sector', values, unit=' sectors'):
             print(line)
 
     def iotop_output_nr_requests(self):
@@ -390,7 +390,7 @@ class IoAnalysis(Command):
             if disk.nr_sector == 0:
                 continue
             values.append((disk.prettyname, disk.nr_requests))
-        for line in graph.graph('Disk nr_requests', values, unit=" requests"):
+        for line in graph.graph('Disk nr_requests', values, unit=' requests'):
             print(line)
 
     def iotop_output_dev_latency(self):
@@ -401,10 +401,10 @@ class IoAnalysis(Command):
                 continue
             total = (disk.request_time / disk.completed_requests) \
                 / common.MSEC_PER_NSEC
-            total = float("%0.03f" % total)
-            values.append(("%s" % disk.prettyname, total))
+            total = float('%0.03f' % total)
+            values.append(('%s' % disk.prettyname, total))
         for line in graph.graph('Disk request time/sector', values, sort=2,
-                                unit=" ms"):
+                                unit=' ms'):
             print(line)
 
     def iotop_output_net_recv_bytes(self):
@@ -413,7 +413,7 @@ class IoAnalysis(Command):
         for iface in sorted(self.state.ifaces.values(),
                             key=operator.attrgetter('recv_bytes'),
                             reverse=True):
-            values.append(("%s %s" % (common.convert_size(iface.recv_bytes),
+            values.append(('%s %s' % (common.convert_size(iface.recv_bytes),
                                       iface.name),
                           iface.recv_bytes))
         for line in graph.graph('Network recv_bytes', values,
@@ -426,7 +426,7 @@ class IoAnalysis(Command):
         for iface in sorted(self.state.ifaces.values(),
                             key=operator.attrgetter('send_bytes'),
                             reverse=True):
-            values.append(("%s %s" % (common.convert_size(iface.send_bytes),
+            values.append(('%s %s' % (common.convert_size(iface.send_bytes),
                                       iface.name),
                           iface.send_bytes))
         for line in graph.graph('Network sent_bytes', values,
@@ -463,11 +463,11 @@ class IoAnalysis(Command):
         g = []
         i = 0
         for v in values:
-            g.append(("%0.03f" % (i * step + _min), v))
+            g.append(('%0.03f' % (i * step + _min), v))
             i += 1
         for line in graph.graph(title, g, info_before=True, count=True):
             print(line)
-        print("")
+        print('')
 
     def compute_disk_stats(self, dev):
         _max = 0
@@ -487,7 +487,7 @@ class IoAnalysis(Command):
         if count > 2:
             stdev = statistics.stdev(values) / 1000
         else:
-            stdev = "?"
+            stdev = '?'
         dev.min = _min / 1000
         dev.max = _max / 1000
         dev.total = total / 1000
@@ -505,8 +505,8 @@ class IoAnalysis(Command):
                 self.iolatency_freq_histogram(d.min, d.max,
                                               self._arg_freq_resolution,
                                               d.rq_values,
-                                              "Frequency distribution for "
-                                              "disk %s (usec)" %
+                                              'Frequency distribution for '
+                                              'disk %s (usec)' %
                                               (d.prettyname))
 
     def iolatency_output(self):
@@ -517,9 +517,9 @@ class IoAnalysis(Command):
 #        for proc in self.latency_hist.keys():
 #            values = []
 #            for v in self.latency_hist[proc]:
-#                values.append(("%s" % (v[0]), v[1]))
+#                values.append(('%s' % (v[0]), v[1]))
 #            for line in graph.graph('%s requests latency (ms)' % proc, values,
-#                                    unit=" ms"):
+#                                    unit=' ms'):
 #                print(line)
 
     def iostats_minmax(self, duration, current_min, current_max):
@@ -533,17 +533,17 @@ class IoAnalysis(Command):
 
     def iostats_syscalls_line(self, fmt, name, count, _min, _max, total, rq):
         if count < 2:
-            stdev = "?"
+            stdev = '?'
         else:
-            stdev = "%0.03f" % (statistics.stdev(rq) / 1000)
+            stdev = '%0.03f' % (statistics.stdev(rq) / 1000)
         if count < 1:
-            avg = "0.000"
+            avg = '0.000'
         else:
-            avg = "%0.03f" % (total / (count * 1000))
+            avg = '%0.03f' % (total / (count * 1000))
         if _min is None:
             _min = 0
-        _min = "%0.03f" % (_min / 1000)
-        _max = "%0.03f" % (_max / 1000)
+        _min = '%0.03f' % (_min / 1000)
+        _max = '%0.03f' % (_max / 1000)
         print(fmt.format(name, count, _min, avg, _max, stdev))
 
     def account_syscall_iorequests(self, s, iorequests):
@@ -602,40 +602,40 @@ class IoAnalysis(Command):
 
     def iostats_output_syscalls(self):
         s = self.syscalls_stats
-        print("\nSyscalls latency statistics (usec):")
-        fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
-        print(fmt.format("Type", "Count", "Min", "Average",
-                         "Max", "Stdev"))
-        print("-" * 89)
-        self.iostats_syscalls_line(fmt, "Open", s.open_count, s.open_min,
+        print('\nSyscalls latency statistics (usec):')
+        fmt = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'
+        print(fmt.format('Type', 'Count', 'Min', 'Average',
+                         'Max', 'Stdev'))
+        print('-' * 89)
+        self.iostats_syscalls_line(fmt, 'Open', s.open_count, s.open_min,
                                    s.open_max, s.open_total, s.open_rq)
-        self.iostats_syscalls_line(fmt, "Read", s.read_count, s.read_min,
+        self.iostats_syscalls_line(fmt, 'Read', s.read_count, s.read_min,
                                    s.read_max, s.read_total, s.read_rq)
-        self.iostats_syscalls_line(fmt, "Write", s.write_count, s.write_min,
+        self.iostats_syscalls_line(fmt, 'Write', s.write_count, s.write_min,
                                    s.write_max, s.write_total, s.write_rq)
-        self.iostats_syscalls_line(fmt, "Sync", s.sync_count, s.sync_min,
+        self.iostats_syscalls_line(fmt, 'Sync', s.sync_count, s.sync_min,
                                    s.sync_max, s.sync_total, s.sync_rq)
 
     def iolatency_syscalls_output(self):
         s = self.syscalls_stats
-        print("")
+        print('')
         if s.open_count > 0:
             self.iolatency_freq_histogram(s.open_min/1000, s.open_max/1000,
                                           self._arg_freq_resolution, s.open_rq,
-                                          "Open latency distribution (usec)")
+                                          'Open latency distribution (usec)')
         if s.read_count > 0:
             self.iolatency_freq_histogram(s.read_min/1000, s.read_max/1000,
                                           self._arg_freq_resolution, s.read_rq,
-                                          "Read latency distribution (usec)")
+                                          'Read latency distribution (usec)')
         if s.write_count > 0:
             self.iolatency_freq_histogram(s.write_min/1000, s.write_max/1000,
                                           self._arg_freq_resolution,
                                           s.write_rq,
-                                          "Write latency distribution (usec)")
+                                          'Write latency distribution (usec)')
         if s.sync_count > 0:
             self.iolatency_freq_histogram(s.sync_min/1000, s.sync_max/1000,
                                           self._arg_freq_resolution, s.sync_rq,
-                                          "Sync latency distribution (usec)")
+                                          'Sync latency distribution (usec)')
 
     def iolatency_syscalls_list_output(self, title, rq_list,
                                        sortkey, reverse):
@@ -646,96 +646,96 @@ class IoAnalysis(Command):
             return
         print(title)
         if self._arg_extra:
-            extra_fmt = "{:<48}"
-            extra_title = "{:<8} {:<8} {:<8} {:<8} {:<8} {:<8} ".format(
-                "Dirtied", "Alloc", "Free", "Written", "Kswap", "Cleared")
+            extra_fmt = '{:<48}'
+            extra_title = '{:<8} {:<8} {:<8} {:<8} {:<8} {:<8} '.format(
+                'Dirtied', 'Alloc', 'Free', 'Written', 'Kswap', 'Cleared')
         else:
-            extra_fmt = "{:<0}"
-            extra_title = ""
-        title_fmt = "{:<19} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} " + \
-            extra_fmt + "{:<14}"
-        fmt = "{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} " + \
-            extra_fmt + "{:<14}"
-        print(title_fmt.format("Begin", "End", "Name", "Duration (usec)",
-                               "Size", "Proc", "PID", extra_title, "Filename"))
+            extra_fmt = '{:<0}'
+            extra_title = ''
+        title_fmt = '{:<19} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} ' + \
+            extra_fmt + '{:<14}'
+        fmt = '{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} ' + \
+            extra_fmt + '{:<14}'
+        print(title_fmt.format('Begin', 'End', 'Name', 'Duration (usec)',
+                               'Size', 'Proc', 'PID', extra_title, 'Filename'))
         for rq in sorted(rq_list,
                          key=operator.attrgetter(sortkey), reverse=reverse):
-            # only limit the output if in the "top" view
+            # only limit the output if in the 'top' view
             if reverse and count > limit:
                 break
             if rq.size is None:
-                size = "N/A"
+                size = 'N/A'
             else:
                 size = common.convert_size(rq.size)
             if self._arg_extra:
-                extra = "{:<8} {:<8} {:<8} {:<8} {:<8} {:<8} ".format(
+                extra = '{:<8} {:<8} {:<8} {:<8} {:<8} {:<8} '.format(
                     rq.dirty, rq.page_alloc, rq.page_free, rq.page_written,
                     rq.woke_kswapd, rq.page_cleared)
             else:
-                extra = ""
-            name = rq.name.replace("syscall_entry_", "").replace("sys_", "")
+                extra = ''
+            name = rq.name.replace('syscall_entry_', '').replace('sys_', '')
             if rq.fd is None:
-                filename = "None"
-                fd = "None"
+                filename = 'None'
+                fd = 'None'
             else:
                 filename = rq.fd.filename
                 fd = rq.fd.fd
             end = common.ns_to_hour_nsec(rq.end, self._arg_multi_day,
                                          self._arg_gmt)
 
-            outrange = " "
+            outrange = ' '
             duration = rq.duration
             if self._arg_begin and rq.begin < self._arg_begin:
-                outrange = "*"
+                outrange = '*'
                 outrange_legend = True
             if self._arg_end and rq.end > self._arg_end:
-                outrange = "*"
+                outrange = '*'
                 outrange_legend = True
 
-            print(fmt.format("[" + common.ns_to_hour_nsec(
-                rq.begin, self._arg_multi_day, self._arg_gmt) + "," +
-                end + "]" + outrange,
+            print(fmt.format('[' + common.ns_to_hour_nsec(
+                rq.begin, self._arg_multi_day, self._arg_gmt) + ',' +
+                end + ']' + outrange,
                 name,
-                "%0.03f" % (duration/1000) + outrange,
+                '%0.03f' % (duration/1000) + outrange,
                 size, rq.proc.comm,
                 rq.proc.pid, extra,
-                "%s (fd=%s)" % (filename, fd)))
+                '%s (fd=%s)' % (filename, fd)))
             count += 1
         if outrange_legend:
-            print("*: Syscalls started and/or completed outside of the "
-                  "range specified")
+            print('*: Syscalls started and/or completed outside of the '
+                  'range specified')
 
     def iolatency_syscalls_top_output(self):
         s = self.syscalls_stats
         self.iolatency_syscalls_list_output(
-            "\nTop open syscall latencies (usec)", s.all_open,
-            "duration", True)
+            '\nTop open syscall latencies (usec)', s.all_open,
+            'duration', True)
         self.iolatency_syscalls_list_output(
-            "\nTop read syscall latencies (usec)", s.all_read,
-            "duration", True)
+            '\nTop read syscall latencies (usec)', s.all_read,
+            'duration', True)
         self.iolatency_syscalls_list_output(
-            "\nTop write syscall latencies (usec)", s.all_write,
-            "duration", True)
+            '\nTop write syscall latencies (usec)', s.all_write,
+            'duration', True)
         self.iolatency_syscalls_list_output(
-            "\nTop sync syscall latencies (usec)", s.all_sync,
-            "duration", True)
+            '\nTop sync syscall latencies (usec)', s.all_sync,
+            'duration', True)
 
     def iolatency_syscalls_log_output(self):
         s = self.syscalls_stats
         self.iolatency_syscalls_list_output(
-            "\nLog of all I/O system calls",
+            '\nLog of all I/O system calls',
             s.all_open + s.all_read + s.all_write + s.all_sync,
-            "begin", False)
+            'begin', False)
 
     # iostats functions
     def iostats_output_disk(self):
         # TODO same with network
         if not self.state.disks:
             return
-        print("\nDisk latency statistics (usec):")
-        fmt = "{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}"
-        print(fmt.format("Name", "Count", "Min", "Average", "Max", "Stdev"))
-        print("-" * 89)
+        print('\nDisk latency statistics (usec):')
+        fmt = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'
+        print(fmt.format('Name', 'Count', 'Min', 'Average', 'Max', 'Stdev'))
+        print('-' * 89)
 
         for dev in self.state.disks.keys():
             d = self.state.disks[dev]
@@ -784,13 +784,13 @@ class IoAnalysis(Command):
             tid.init_counts()
 
     def _add_arguments(self, ap):
-        ap.add_argument('--usage', action="store_true",
+        ap.add_argument('--usage', action='store_true',
                         help='Show the I/O usage')
-        ap.add_argument('--latencystats', action="store_true",
+        ap.add_argument('--latencystats', action='store_true',
                         help='Show the I/O latency statistics')
-        ap.add_argument('--latencytop', action="store_true",
+        ap.add_argument('--latencytop', action='store_true',
                         help='Show the I/O latency top')
-        ap.add_argument('--latencyfreq', action="store_true",
+        ap.add_argument('--latencyfreq', action='store_true',
                         help='Show the I/O latency frequency distribution')
         ap.add_argument('--freq-resolution', type=int, default=20,
                         help='Frequency distribution resolution '
