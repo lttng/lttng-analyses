@@ -62,7 +62,8 @@ class IrqStateProvider(sp.StateProvider):
         cpu.current_hard_irq.stop_ts = event.timestamp
         cpu.current_hard_irq.ret = event["ret"]
 
-        # TODO: send notification to analysis, with current_hard_irq as payload
+        self.state._send_notification_cb('irq_handler_exit',
+                                         hard_irq=cpu.current_hard_irq)
         cpu.current_hard_irq = None
 
     # Soft IRQs
@@ -89,5 +90,6 @@ class IrqStateProvider(sp.StateProvider):
 
         cpu.current_soft_irq.stop_ts = event.timestamp
 
-        # TODO: send notification to analysis, with current_soft_irq as payload
+        self.state._send_notification_cb('softirq_exit',
+                                         soft_irq=cpu.current_soft_irq)
         cpu.current_soft_irq = None

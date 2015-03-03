@@ -27,7 +27,19 @@ from .analysis import Analysis
 
 class IrqAnalysis(Analysis):
     def __init__(self, state):
+        notification_cbs = {
+            'irq_handler_exit': self._process_irq_handler_exit,
+            'softirq_exit': self._process_softirq_exit
+        }
+
         self._state = state
+        self._state._register_notification_cbs(notification_cbs)
 
     def process_event(self, ev):
+        pass
+
+    def _process_irq_handler_exit(self, **kwargs):
+        pass
+
+    def _process_softirq_exit(self, **kwargs):
         pass
