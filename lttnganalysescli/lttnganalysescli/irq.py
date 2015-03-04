@@ -30,7 +30,7 @@ from ascii_graph import Pyasciigraph
 import statistics
 
 
-class IrqAnalysis(Command):
+class IrqAnalysisCommand(Command):
     _VERSION = '0.1.0'
     _DESC = """The irq command."""
 
@@ -308,20 +308,20 @@ class IrqAnalysis(Command):
 # entry point
 def runstats():
     # create command
-    irqcmd = IrqAnalysis()
+    irqcmd = IrqAnalysisCommand()
     # execute command
     irqcmd.run_stats()
 
 
 def runlog():
     # create command
-    irqcmd = IrqAnalysis()
+    irqcmd = IrqAnalysisCommand()
     # execute command
     irqcmd.run_log()
 
 
 def runfreq():
     # create command
-    irqcmd = IrqAnalysis()
+    irqcmd = IrqAnalysisCommand()
     # execute command
     irqcmd.run_freq()
