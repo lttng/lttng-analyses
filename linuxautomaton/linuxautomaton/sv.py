@@ -99,7 +99,9 @@ class CPU():
         self.cpu_ns = 0
         self.current_tid = None
         self.current_hard_irq = None
-        self.current_soft_irq = None
+        # softirqs use a list because multiple ones can be raised before
+        # handling. They are appended chronologically.
+        self.current_softirqs = []
         self.start_task_ns = 0
         self.perf = {}
         self.wakeup_queue = []
@@ -205,18 +207,6 @@ class FD():
 
 
 class IRQ():
-    # from include/linux/interrupt.h
-    soft_names = {0: 'HI_SOFTIRQ',
-                  1: 'TIMER_SOFTIRQ',
-                  2: 'NET_TX_SOFTIRQ',
-                  3: 'NET_RX_SOFTIRQ',
-                  4: 'BLOCK_SOFTIRQ',
-                  5: 'BLOCK_IOPOLL_SOFTIRQ',
-                  6: 'TASKLET_SOFTIRQ',
-                  7: 'SCHED_SOFTIRQ',
-                  8: 'HRTIMER_SOFTIRQ',
-                  9: 'RCU_SOFTIRQ'}
-
     def __init__(self, id, start_ts=None):
         self.id = id
         self.start_ts = start_ts

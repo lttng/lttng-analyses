@@ -52,6 +52,11 @@ class IrqStateProvider(sp.StateProvider):
         irq = sv.HardIRQ.new_from_irq_handler_entry(event)
         cpu.current_hard_irq = irq
 
+        self.state._send_notification_cb('irq_handler_entry',
+                                         id=irq.id,
+                                         irq_name=event['name']
+        )
+
     def _process_irq_handler_exit(self, event):
         cpu = self._get_cpu(event['cpu_id'])
         if cpu.current_hard_irq is None or \
@@ -66,30 +71,29 @@ class IrqStateProvider(sp.StateProvider):
                                          hard_irq=cpu.current_hard_irq)
         cpu.current_hard_irq = None
 
-    # Soft IRQs
+    # SoftIRQs
     def _process_softirq_raise(self, event):
         cpu = self._get_cpu(event['cpu_id'])
-        cpu_id = event['cpu_id']
         irq = sv.SoftIRQ.new_from_softirq_raise(event)
-        self.state.cpus[cpu_id].current_soft_irq = irq
+        cpu.current_softirqs.append(irq)
 
     def _process_softirq_entry(self, event):
         cpu = self._get_cpu(event['cpu_id'])
-        if cpu.current_soft_irq is not None and \
-           cpu.current_soft_irq.id == event['vec']:
-            cpu.current_soft_irq.start_ts = event.timestamp
+        if cpu.current_softirqs and \
+           cpu.current_softirqs[0].id == event['vec']:
+            cpu.current_softirqs[0].start_ts = event.timestamp
         else:
-            cpu.current_soft_irq = sv.SoftIRQ.new_from_softirq_entry(event)
+            irq = sv.SoftIRQ.new_from_softirq_entry(event)
+            cpu.current_softirqs.append(irq)
 
     def _process_softirq_exit(self, event):
         cpu = self._get_cpu(event['cpu_id'])
-        if cpu.current_soft_irq is None or \
-           cpu.current_soft_irq.id != event['vec']:
-            cpu.current_soft_irq = None
+        if not cpu.current_softirqs or\
+           cpu.current_softirqs[0].id != event['vec']:
             return
 
-        cpu.current_soft_irq.stop_ts = event.timestamp
-
+        cpu.current_softirqs[0].stop_ts = event.timestamp
         self.state._send_notification_cb('softirq_exit',
-                                         soft_irq=cpu.current_soft_irq)
-        cpu.current_soft_irq = None
+                                         softirq=cpu.current_softirqs[0]
+        )
+        cpu.current_softirqs.pop(0)
