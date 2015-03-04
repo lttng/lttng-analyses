@@ -207,40 +207,44 @@ class FD():
 
 
 class IRQ():
-    def __init__(self, id, start_ts=None):
+    def __init__(self, id, cpu_id, start_ts=None):
         self.id = id
+        self.cpu_id = cpu_id
         self.start_ts = start_ts
         self.stop_ts = None
 
 
 class HardIRQ(IRQ):
-    def __init__(self, id, start_ts):
-        super().__init__(id, start_ts)
+    def __init__(self, id, cpu_id, start_ts):
+        super().__init__(id, cpu_id, start_ts)
         self.ret = None
 
     @classmethod
     def new_from_irq_handler_entry(cls, event):
         id = event['irq']
+        cpu_id = event['cpu_id']
         start_ts = event.timestamp
-        return cls(id, start_ts)
+        return cls(id, cpu_id, start_ts)
 
 
 class SoftIRQ(IRQ):
-    def __init__(self, id, raise_ts=None, start_ts=None):
-        super().__init__(id)
+    def __init__(self, id, cpu_id, raise_ts=None, start_ts=None):
+        super().__init__(id, cpu_id)
         self.raise_ts = raise_ts
 
     @classmethod
     def new_from_softirq_raise(cls, event):
         id = event['vec']
+        cpu_id = event['cpu_id']
         raise_ts = event.timestamp
-        return cls(id, raise_ts)
+        return cls(id, cpu_id, raise_ts)
 
     @classmethod
     def new_from_softirq_entry(cls, event):
         id = event['vec']
+        cpu_id = event['cpu_id']
         start_ts = event.timestamp
-        return cls(id, start_ts=start_ts)
+        return cls(id, cpu_id, start_ts=start_ts)
 
 
 class IORequest():
