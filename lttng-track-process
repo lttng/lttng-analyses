@@ -11772,7 +11772,7 @@ class TraceParser:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Trace parser')
+    parser = argparse.ArgumentParser(description='Track a process throughout a LTTng trace')
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     parser.add_argument('--procname', '-n', type=str, default=0,
                     help='Filter the results only for this list of '
