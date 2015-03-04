@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -41,11 +42,6 @@ class IrqAnalysis(Command):
                          enable_stats_arg=True)
 
     def _validate_transform_args(self):
-        # We need the min/max in the automaton to filter
-        # at the source.
-        self.state.max = self._arg_max
-        self.state.min = self._arg_min
-
         self._arg_irq_filter_list = None
         self._arg_softirq_filter_list = None
         if self._args.irq:
@@ -95,7 +91,9 @@ class IrqAnalysis(Command):
         self.run(freq=True)
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.irq.IrqAnalysis(self.state)
+        self._analysis = lttnganalyses.irq.IrqAnalysis(self.state,
+                                                       self._arg_min,
+                                                       self._arg_max)
 
     def compute_stdev(self, irq):
         values = []

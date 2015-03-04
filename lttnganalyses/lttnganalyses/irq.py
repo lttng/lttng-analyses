@@ -26,7 +26,7 @@ from .analysis import Analysis
 
 
 class IrqAnalysis(Analysis):
-    def __init__(self, state):
+    def __init__(self, state, min_duration, max_duration):
         notification_cbs = {
             'irq_handler_entry': self._process_irq_handler_entry,
             'irq_handler_exit': self._process_irq_handler_exit,
@@ -35,6 +35,13 @@ class IrqAnalysis(Analysis):
 
         self._state = state
         self._state._register_notification_cbs(notification_cbs)
+        self._min_duration = min_duration
+        self._max_duration = max_duration
+        # µs to ns
+        if self._min_duration is not None:
+            self._min_duration *= 1000
+        if self._max_duration is not None:
+            self._max_duration *= 1000
 
         # Indexed by irq 'id' (irq or vec)
         self.hard_irq_stats = {}
@@ -55,6 +62,13 @@ class IrqAnalysis(Analysis):
 
     def _process_irq_handler_exit(self, **kwargs):
         irq = kwargs['hard_irq']
+
+        duration = irq.stop_ts - irq.start_ts
+        if self._min_duration is not None and duration < self._min_duration:
+            return
+        if self._max_duration is not None and duration > self._max_duration:
+            return
+
         self.irq_list.append(irq)
         if irq.id not in self.hard_irq_stats:
             self.hard_irq_stats[irq.id] = HardIrqStats()
@@ -63,6 +77,13 @@ class IrqAnalysis(Analysis):
 
     def _process_softirq_exit(self, **kwargs):
         irq = kwargs['softirq']
+
+        duration = irq.stop_ts - irq.start_ts
+        if self._min_duration is not None and duration < self._min_duration:
+            return
+        if self._max_duration is not None and duration > self._max_duration:
+            return
+
         self.irq_list.append(irq)
         if irq.id not in self.softirq_stats:
             name = SoftIrqStats.names[irq.id]
