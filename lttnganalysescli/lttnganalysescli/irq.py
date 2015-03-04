@@ -141,29 +141,19 @@ class IrqAnalysisCommand(Command):
             print(line)
         print('')
 
-    # FIXME: there must be a way to make that more complicated/ugly
-    def filter_irq(self, i):
-        if i.irqclass == sv.IRQ.HARD_IRQ:
-            if self._arg_irq_filter_list is not None:
-                if len(self._arg_irq_filter_list) > 0 and \
-                        str(i.nr) not in self._arg_irq_filter_list:
-                    return False
-                else:
-                    return True
-            if self._arg_softirq_filter_list is not None and \
-                    len(self._arg_softirq_filter_list) > 0:
+    def filter_irq(self, irq):
+        if type(irq) is sv.HardIRQ:
+            if self._arg_irq_filter_list:
+                return str(irq.id) in self._arg_irq_filter_list
+            if self._arg_softirq_filter_list:
                 return False
-        else:
-            if self._arg_softirq_filter_list is not None:
-                if len(self._arg_softirq_filter_list) > 0 and \
-                        str(i.nr) not in self._arg_softirq_filter_list:
-                    return False
-                else:
-                    return True
-            if self._arg_irq_filter_list is not None and \
-                    len(self._arg_irq_filter_list) > 0:
+        else: # SoftIRQ
+            if self._arg_softirq_filter_list:
+                return str(irq.id) in self._arg_softirq_filter_list
+            if self._arg_irq_filter_list:
                 return False
-        raise Exception('WTF')
+
+        return True
 
     def log_irq(self):
         fmt = '[{:<18}, {:<18}] {:>15} {:>4}  {:<9} {:>4}  {:<22}'
