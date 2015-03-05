@@ -116,6 +116,12 @@ class IrqStats():
         self.total_duration += duration
         self.irq_list.append(irq)
 
+    def reset(self):
+        self.min_duration = None
+        self.max_duration = None
+        self.total_duration = 0
+        self.irq_list = []
+
 
 class HardIrqStats(IrqStats):
     def __init__(self, name='unknown'):
@@ -159,3 +165,10 @@ class SoftIrqStats(IrqStats):
 
         self.total_raise_latency += raise_latency
         self.raise_count += 1
+
+    def reset(self):
+        super().reset()
+        self.min_raise_latency = None
+        self.max_raise_latency = None
+        self.total_raise_latency = 0
+        self.raise_count = 0
