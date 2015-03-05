@@ -182,10 +182,10 @@ class IrqAnalysisCommand(Command):
             if not self._filter_irq(irq):
                 continue
 
+            raise_ts = ''
             if type(irq) is sv.HardIRQ:
                 name = self._analysis.hard_irq_stats[irq.id].name
                 irqtype = 'IRQ'
-                raise_ts = ''
             else:
                 name = self._analysis.softirq_stats[irq.id].name
                 irqtype = 'SoftIRQ'
