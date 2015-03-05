@@ -45,14 +45,11 @@ class IrqAnalysisCommand(Command):
     def _validate_transform_args(self):
         self._arg_irq_filter_list = None
         self._arg_softirq_filter_list = None
+
         if self._args.irq:
             self._arg_irq_filter_list = self._args.irq.split(',')
         if self._args.softirq:
             self._arg_softirq_filter_list = self._args.softirq.split(',')
-        if self._arg_irq_filter_list is None and \
-                self._arg_softirq_filter_list is None:
-            self._arg_irq_filter_list = []
-            self._arg_softirq_filter_list = []
 
     def _default_args(self, stats, log, freq):
         if stats:
@@ -314,7 +311,8 @@ class IrqAnalysisCommand(Command):
     def _print_stats(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
 
-        if self._arg_irq_filter_list is not None:
+        if self._arg_irq_filter_list is not None or \
+           self._arg_softirq_filter_list is None:
             header_format = '{:<52} {:<12}\n' \
                             '{:<22} {:<14} {:<12} {:<12} {:<10} {:<12}\n'
             header = header_format.format(
@@ -326,7 +324,8 @@ class IrqAnalysisCommand(Command):
                                   self._arg_irq_filter_list,
                                   header)
 
-        if self._arg_softirq_filter_list is not None:
+        if self._arg_softirq_filter_list is not None or \
+           self._arg_irq_filter_list is None:
             header_format = '{:<52} {:<52} {:<12}\n' \
                             '{:<22} {:<14} {:<12} {:<12} {:<10} {:<4} ' \
                             '{:<3} {:<14} {:<12} {:<12} {:<10} {:<12}\n'
@@ -357,9 +356,9 @@ class IrqAnalysisCommand(Command):
         self._reset_total(end)
 
     def _add_arguments(self, ap):
-        ap.add_argument('--irq', type=str, default=0,
+        ap.add_argument('--irq', type=str, default=None,
                         help='Show results only for the list of IRQ')
-        ap.add_argument('--softirq', type=str, default=0,
+        ap.add_argument('--softirq', type=str, default=None,
                         help='Show results only for the list of '
                              'SoftIRQ')
 
