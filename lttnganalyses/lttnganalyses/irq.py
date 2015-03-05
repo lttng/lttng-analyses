@@ -98,7 +98,11 @@ class IrqStats():
         self.min_duration = None
         self.max_duration = None
         self.total_duration = 0
-        self.count = 0
+        self.irq_list = []
+
+    @property
+    def count(self):
+        return len(self.irq_list)
 
     def update_stats(self, irq):
         duration = irq.stop_ts - irq.start_ts
@@ -110,7 +114,7 @@ class IrqStats():
             self.max_duration = duration
 
         self.total_duration += duration
-        self.count += 1
+        self.irq_list.append(irq)
 
 
 class HardIrqStats(IrqStats):
@@ -136,6 +140,7 @@ class SoftIrqStats(IrqStats):
         self.min_raise_latency = None
         self.max_raise_latency = None
         self.total_raise_latency = 0
+        self.raise_count = 0
 
     def update_stats(self, irq):
         super().update_stats(irq)
@@ -153,3 +158,4 @@ class SoftIrqStats(IrqStats):
             self.max_raise_latency = raise_latency
 
         self.total_raise_latency += raise_latency
+        self.raise_count += 1
