@@ -99,9 +99,10 @@ class CPU():
         self.cpu_ns = 0
         self.current_tid = None
         self.current_hard_irq = None
-        # softirqs use a list because multiple ones can be raised before
-        # handling. They are appended chronologically.
-        self.current_softirqs = []
+        # softirqs use a dict because multiple ones can be raised before
+        # handling. They are indexed by vec, and each entry is a list,
+        # ordered chronologically
+        self.current_softirqs = {}
         self.start_task_ns = 0
         self.perf = {}
         self.wakeup_queue = []
@@ -229,7 +230,7 @@ class HardIRQ(IRQ):
 
 class SoftIRQ(IRQ):
     def __init__(self, id, cpu_id, raise_ts=None, start_ts=None):
-        super().__init__(id, cpu_id)
+        super().__init__(id, cpu_id, start_ts)
         self.raise_ts = raise_ts
 
     @classmethod

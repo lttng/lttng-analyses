@@ -75,26 +75,42 @@ class IrqStateProvider(sp.StateProvider):
     # SoftIRQs
     def _process_softirq_raise(self, event):
         cpu = self._get_cpu(event['cpu_id'])
+        vec = event['vec']
+
+        if vec not in cpu.current_softirqs:
+            cpu.current_softirqs[vec] = []
+
+        # Don't append a SoftIRQ object if one has already been raised,
+        # because they are level-triggered. The only exception to this
+        # is if the first SoftIRQ object already had a start_ts which
+        # means this raise was triggered after its entry, and will be
+        # handled in the following softirq_entry
+        if cpu.current_softirqs[vec] and \
+           cpu.current_softirqs[vec][0].start_ts is None:
+            return
+
         irq = sv.SoftIRQ.new_from_softirq_raise(event)
-        cpu.current_softirqs.append(irq)
+        cpu.current_softirqs[vec].append(irq)
 
     def _process_softirq_entry(self, event):
         cpu = self._get_cpu(event['cpu_id'])
-        if cpu.current_softirqs and \
-           cpu.current_softirqs[0].id == event['vec']:
-            cpu.current_softirqs[0].start_ts = event.timestamp
+        vec = event['vec']
+
+        if cpu.current_softirqs[vec]:
+            cpu.current_softirqs[vec][0].start_ts = event.timestamp
         else:
             irq = sv.SoftIRQ.new_from_softirq_entry(event)
-            cpu.current_softirqs.append(irq)
+            cpu.current_softirqs[vec].append(irq)
 
     def _process_softirq_exit(self, event):
         cpu = self._get_cpu(event['cpu_id'])
-        if not cpu.current_softirqs or\
-           cpu.current_softirqs[0].id != event['vec']:
+        vec = event['vec']
+
+        if not cpu.current_softirqs[vec]:
             return
 
-        cpu.current_softirqs[0].stop_ts = event.timestamp
+        cpu.current_softirqs[vec][0].stop_ts = event.timestamp
         self.state._send_notification_cb('softirq_exit',
-                                         softirq=cpu.current_softirqs[0]
+                                         softirq=cpu.current_softirqs[vec][0]
         )
-        cpu.current_softirqs.pop(0)
+        cpu.current_softirqs[vec].pop(0)
