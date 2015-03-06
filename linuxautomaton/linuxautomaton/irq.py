@@ -99,6 +99,7 @@ class IrqStateProvider(sp.StateProvider):
         if cpu.current_softirqs[vec]:
             cpu.current_softirqs[vec][0].start_ts = event.timestamp
         else:
+            # SoftIRQ entry without a corresponding raise
             irq = sv.SoftIRQ.new_from_softirq_entry(event)
             cpu.current_softirqs[vec].append(irq)
 
