@@ -156,11 +156,11 @@ class SoftIrqStats(IrqStats):
 
         raise_latency = irq.start_ts - irq.raise_ts
         if self.min_raise_latency is None or \
-        raise_latency < self.min_raise_latency:
+           raise_latency < self.min_raise_latency:
             self.min_raise_latency = raise_latency
 
         if self.max_raise_latency is None or \
-        raise_latency > self.max_raise_latency:
+           raise_latency > self.max_raise_latency:
             self.max_raise_latency = raise_latency
 
         self.total_raise_latency += raise_latency

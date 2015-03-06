@@ -94,7 +94,6 @@ class Cputop(Command):
         self._reset_total(end)
 
     def _print_results(self, begin_ns, end_ns):
-#        print('event count: {}'.format(self._analysis.event_count))
         count = 0
         limit = self._arg_limit
         total_ns = end_ns - begin_ns

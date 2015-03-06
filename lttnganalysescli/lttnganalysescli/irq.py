@@ -165,7 +165,7 @@ class IrqAnalysisCommand(Command):
                 return str(irq.id) in self._arg_irq_filter_list
             if self._arg_softirq_filter_list:
                 return False
-        else: # SoftIRQ
+        else:  # SoftIRQ
             if self._arg_softirq_filter_list:
                 return str(irq.id) in self._arg_softirq_filter_list
             if self._arg_irq_filter_list:
@@ -202,7 +202,8 @@ class IrqAnalysisCommand(Command):
                                                     self._arg_multi_day,
                                                     self._arg_gmt),
                              '%0.03f' % ((irq.stop_ts - irq.start_ts) / 1000),
-                             '%d' % irq.cpu_id, irqtype, irq.id, name + raise_ts))
+                             '%d' % irq.cpu_id, irqtype, irq.id,
+                             name + raise_ts))
 
     def _print_irq_stats(self, irq_stats, filter_list, header):
         header_printed = False
@@ -337,8 +338,8 @@ class IrqAnalysisCommand(Command):
             )
             header += '-' * 82 + '|' + '-' * 60
             self._print_irq_stats(self._analysis.softirq_stats,
-                                 self._arg_softirq_filter_list,
-                                 header)
+                                  self._arg_softirq_filter_list,
+                                  header)
 
     def _compute_stats(self):
         pass

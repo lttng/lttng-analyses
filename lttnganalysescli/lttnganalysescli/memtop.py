@@ -147,7 +147,7 @@ class Memtop(Command):
             freed += tid.freed_pages
 
         print('\nTotal memory usage:\n- %d pages allocated\n- %d pages freed' %
-             (alloc, freed))
+              (alloc, freed))
 
     def _add_arguments(self, ap):
         # specific argument

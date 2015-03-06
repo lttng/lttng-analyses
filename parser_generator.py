@@ -124,7 +124,7 @@ def gen_parser(handle, fd, args):
             fd.write("\n        self.event_count[event.name] += 1\n")
             if not args.quiet:
                 fd.write("        print(\"%s }\" %% (%s))\n\n" %
-                        (fmt_str[0:-2], fmt_fields[0:-1]))
+                         (fmt_str[0:-2], fmt_fields[0:-1]))
 
 
 if __name__ == "__main__":
