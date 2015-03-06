@@ -345,11 +345,7 @@ class IrqAnalysisCommand(Command):
         pass
 
     def _reset_total(self, start_ts):
-        self._analysis.irq_list = []
-        for id in self._analysis.hard_irq_stats:
-            self._analysis.hard_irq_stats[id].reset()
-        for id in self._analysis.softirq_stats:
-            self._analysis.softirq_stats[id].reset()
+        self._analysis.reset()
 
     def _refresh(self, begin, end):
         self._compute_stats()

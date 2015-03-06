@@ -27,6 +27,9 @@ class Analysis:
     def process_event(self, ev):
         raise NotImplementedError()
 
+    def reset(self):
+        raise NotImplementedError()
+
     def _register_cbs(self, cbs):
         self._cbs = cbs
 

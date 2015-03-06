@@ -31,3 +31,6 @@ class SyscallsAnalysis(Analysis):
 
     def process_event(self, ev):
         pass
+
+    def reset(self):
+        pass

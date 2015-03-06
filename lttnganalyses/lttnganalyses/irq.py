@@ -52,6 +52,13 @@ class IrqAnalysis(Analysis):
     def process_event(self, ev):
         pass
 
+    def reset(self):
+        self.irq_list = []
+        for id in self.hard_irq_stats:
+            self.hard_irq_stats[id].reset()
+        for id in self.softirq_stats:
+            self.softirq_stats[id].reset()
+
     def _process_irq_handler_entry(self, **kwargs):
         id = kwargs['id']
         name = kwargs['irq_name']
