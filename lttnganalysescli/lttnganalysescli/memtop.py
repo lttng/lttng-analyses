@@ -69,16 +69,16 @@ class Memtop(Command):
             self.state.tids[tid].freed_pages = 0
 
     def _refresh(self, begin, end):
-        print('hey')
         self._compute_stats()
         self._print_results(begin, end)
         self._reset_total(end)
 
-    def filter_process(self, proc):
+    def _filter_process(self, proc):
         if self._arg_proc_list and proc.comm not in self._arg_proc_list:
             return False
         if self._arg_pid_list and str(proc.pid) not in self._arg_pid_list:
             return False
+
         return True
 
     def _print_results(self, begin_ns, end_ns):
@@ -100,7 +100,7 @@ class Memtop(Command):
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('allocated_pages'),
                           reverse=True):
-            if not self.filter_process(tid):
+            if not self._filter_process(tid):
                 continue
 
             values.append(('%s (%d)' % (tid.comm, tid.tid),
@@ -122,7 +122,7 @@ class Memtop(Command):
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('freed_pages'),
                           reverse=True):
-            if not self.filter_process(tid):
+            if not self._filter_process(tid):
                 continue
 
             values.append(('%s (%d)' % (tid.comm, tid.tid), tid.freed_pages))
@@ -140,7 +140,7 @@ class Memtop(Command):
         freed = 0
 
         for tid in self.state.tids.values():
-            if not self.filter_process(tid):
+            if not self._filter_process(tid):
                 continue
 
             alloc += tid.allocated_pages
