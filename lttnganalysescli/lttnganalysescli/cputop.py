@@ -53,15 +53,14 @@ class Cputop(Command):
         # process the results
         self._compute_stats()
         # print results
-        self._print_results(self.start_ns, self.trace_end_ts, final=1)
+        self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
         self._close_trace()
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.cputop.Cputop(self._automaton.state)
+        self._analysis = lttnganalyses.cputop.Cputop(self.state)
 
     def _compute_stats(self):
-        self.state = self._automaton.state
         for cpu in self.state.cpus.keys():
             current_cpu = self.state.cpus[cpu]
             total_ns = self.end_ns - self.start_ns
@@ -69,18 +68,17 @@ class Cputop(Command):
                 current_cpu.cpu_ns += self.end_ns - current_cpu.start_task_ns
             cpu_total_ns = current_cpu.cpu_ns
             current_cpu.cpu_pc = (cpu_total_ns * 100)/total_ns
-            if current_cpu.current_tid >= 0:
+            if current_cpu.current_tid is not None:
                 self.state.tids[current_cpu.current_tid].cpu_ns += \
                     self.end_ns - current_cpu.start_task_ns
 
     def _reset_total(self, start_ts):
-        self.state = self._automaton.state
         for cpu in self.state.cpus.keys():
             current_cpu = self.state.cpus[cpu]
             current_cpu.cpu_ns = 0
             if current_cpu.start_task_ns != 0:
                 current_cpu.start_task_ns = start_ts
-            if current_cpu.current_tid >= 0:
+            if current_cpu.current_tid is not None:
                 self.state.tids[current_cpu.current_tid].last_sched = start_ts
         for tid in self.state.tids.keys():
             self.state.tids[tid].cpu_ns = 0
@@ -92,11 +90,10 @@ class Cputop(Command):
 
     def _refresh(self, begin, end):
         self._compute_stats()
-        self._print_results(begin, end, final=0)
+        self._print_results(begin, end)
         self._reset_total(end)
 
-    def _print_results(self, begin_ns, end_ns, final=0):
-#        print('event count: {}'.format(self._analysis.event_count))
+    def _print_results(self, begin_ns, end_ns):
         count = 0
         limit = self._arg_limit
         total_ns = end_ns - begin_ns
@@ -113,28 +110,28 @@ class Cputop(Command):
                 continue
             if tid.tid == 0:
                 continue
-            pc = float("%0.02f" % ((tid.cpu_ns * 100) / total_ns))
+            pc = float('%0.02f' % ((tid.cpu_ns * 100) / total_ns))
             if tid.migrate_count > 0:
-                migrations = ", %d migrations" % (tid.migrate_count)
+                migrations = ', %d migrations' % (tid.migrate_count)
             else:
-                migrations = ""
-            values.append(("%s (%d)%s" % (tid.comm, tid.tid, migrations), pc))
+                migrations = ''
+            values.append(('%s (%d)%s' % (tid.comm, tid.tid, migrations), pc))
             count = count + 1
             if limit > 0 and count >= limit:
                 break
-        for line in graph.graph("Per-TID CPU Usage", values, unit=" %"):
+        for line in graph.graph('Per-TID CPU Usage', values, unit=' %'):
             print(line)
 
         values = []
         total_cpu_pc = 0
         for cpu in sorted(self.state.cpus.values(),
                           key=operator.attrgetter('cpu_ns'), reverse=True):
-            cpu_pc = float("%0.02f" % cpu.cpu_pc)
+            cpu_pc = float('%0.02f' % cpu.cpu_pc)
             total_cpu_pc += cpu_pc
-            values.append(("CPU %d" % cpu.cpu_id, cpu_pc))
-        for line in graph.graph("Per-CPU Usage", values, unit=" %"):
+            values.append(('CPU %d' % cpu.cpu_id, cpu_pc))
+        for line in graph.graph('Per-CPU Usage', values, unit=' %'):
             print(line)
-        print("\nTotal CPU Usage: %0.02f%%\n" %
+        print('\nTotal CPU Usage: %0.02f%%\n' %
               (total_cpu_pc / len(self.state.cpus.keys())))
 
     def _add_arguments(self, ap):

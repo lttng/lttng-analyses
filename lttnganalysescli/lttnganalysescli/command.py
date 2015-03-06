@@ -60,9 +60,9 @@ class Command:
 
     def _open_trace(self):
         traces = TraceCollection()
-        handle = traces.add_traces_recursive(self._arg_path, "ctf")
+        handle = traces.add_traces_recursive(self._arg_path, 'ctf')
         if handle == {}:
-            self._gen_error("Failed to open " + self._arg_path, -1)
+            self._gen_error('Failed to open ' + self._arg_path, -1)
         self._handle = handle
         self._traces = traces
         common.process_date_args(self)
@@ -74,13 +74,13 @@ class Command:
             self._traces.remove_trace(h)
 
     def _check_lost_events(self):
-        print("Checking the trace for lost events...")
+        print('Checking the trace for lost events...')
         try:
-            subprocess.check_output("babeltrace %s" % self._arg_path,
+            subprocess.check_output('babeltrace %s' % self._arg_path,
                                     shell=True)
         except subprocess.CalledProcessError:
-            print("Error running babeltrace on the trace, cannot verify if "
-                  "events were lost during the trace recording")
+            print('Error running babeltrace on the trace, cannot verify if '
+                  'events were lost during the trace recording')
 
     def _run_analysis(self, reset_cb, refresh_cb, break_cb=None):
         self.trace_start_ts = 0
@@ -88,15 +88,15 @@ class Command:
         self.current_sec = 0
         self.start_ns = 0
         self.end_ns = 0
-        started = 0
+        started = False
         progressbar.progressbar_setup(self)
         if not self._arg_begin:
-            started = 1
+            started = True
         for event in self._traces.events:
             progressbar.progressbar_update(self)
-            if self._arg_begin and started == 0 and \
+            if self._arg_begin and not started and \
                     event.timestamp >= self._arg_begin:
-                started = 1
+                started = True
                 self.trace_start_ts = event.timestamp
                 self.start_ns = event.timestamp
                 reset_cb(event.timestamp)
@@ -122,7 +122,7 @@ class Command:
 
     def _check_refresh(self, event, refresh_cb):
         """Check if we need to output something"""
-        if self._arg_refresh == 0:
+        if self._arg_refresh is None:
             return
         event_sec = event.timestamp / common.NSEC_PER_SEC
         if self.current_sec == 0:
@@ -135,20 +135,26 @@ class Command:
 
     def _validate_transform_common_args(self, args):
         self._arg_path = args.path
+
         if args.limit:
             self._arg_limit = args.limit
+
         self._arg_begin = None
         if args.begin:
             self._arg_begin = args.begin
+
         self._arg_end = None
         if args.end:
             self._arg_end = args.end
+
         self._arg_timerange = None
         if args.timerange:
             self._arg_timerange = args.timerange
+
         self._arg_gmt = None
         if args.gmt:
             self._arg_gmt = args.gmt
+
         self._arg_refresh = args.refresh
         self._arg_no_progress = args.no_progress
         self._arg_skip_validation = args.skip_validation
@@ -156,30 +162,19 @@ class Command:
         if self._enable_proc_filter_args:
             self._arg_proc_list = None
             if args.procname:
-                self._arg_proc_list = args.procname.split(",")
+                self._arg_proc_list = args.procname.split(',')
+
             self._arg_pid_list = None
             if args.pid:
-                self._arg_pid_list = args.pid.split(",")
+                self._arg_pid_list = args.pid.split(',')
 
         if self._enable_max_min_arg:
-            if args.max == -1:
-                self._arg_max = None
-            else:
-                self._arg_max = args.max
-            if args.min == -1:
-                self._arg_min = None
-            else:
-                self._arg_min = args.min
+            self._arg_max = args.max
+            self._arg_min = args.min
 
         if self._enable_max_min_size_arg:
-            if args.maxsize == -1:
-                self._arg_maxsize = None
-            else:
-                self._arg_maxsize = args.maxsize
-            if args.minsize == -1:
-                self._arg_minsize = None
-            else:
-                self._arg_minsize = args.minsize
+            self._arg_maxsize = args.maxsize
+            self._arg_minsize = args.minsize
 
         if self._enable_freq_arg:
             self._arg_freq = args.freq
@@ -195,16 +190,16 @@ class Command:
         ap = argparse.ArgumentParser(description=self._DESC)
 
         # common arguments
-        ap.add_argument('path', metavar="<path/to/trace>", help='trace path')
+        ap.add_argument('path', metavar='<path/to/trace>', help='trace path')
         ap.add_argument('-r', '--refresh', type=int,
-                        help='Refresh period in seconds', default=0)
+                        help='Refresh period in seconds')
         ap.add_argument('--limit', type=int, default=10,
                         help='Limit to top X (default = 10)')
-        ap.add_argument('--no-progress', action="store_true",
+        ap.add_argument('--no-progress', action='store_true',
                         help='Don\'t display the progress bar')
-        ap.add_argument('--skip-validation', action="store_true",
+        ap.add_argument('--skip-validation', action='store_true',
                         help='Skip the trace validation')
-        ap.add_argument('--gmt', action="store_true",
+        ap.add_argument('--gmt', action='store_true',
                         help='Manipulate timestamps based on GMT instead '
                              'of local time')
         ap.add_argument('--begin', type=str, help='start time: '
@@ -215,29 +210,29 @@ class Command:
                                                       '[begin,end]')
 
         if self._enable_proc_filter_args:
-            ap.add_argument('--procname', type=str, default=0,
+            ap.add_argument('--procname', type=str,
                             help='Filter the results only for this list of '
                                  'process names')
-            ap.add_argument('--pid', type=str, default=0,
+            ap.add_argument('--pid', type=str,
                             help='Filter the results only for this list '
                                  'of PIDs')
 
         if self._enable_max_min_arg:
-            ap.add_argument('--max', type=float, default=-1,
+            ap.add_argument('--max', type=float,
                             help='Filter out, duration longer than max usec')
-            ap.add_argument('--min', type=float, default=-1,
+            ap.add_argument('--min', type=float,
                             help='Filter out, duration shorter than min usec')
 
         if self._enable_max_min_size_arg:
-            ap.add_argument('--maxsize', type=float, default=-1,
+            ap.add_argument('--maxsize', type=float,
                             help='Filter out, I/O operations working with '
                                  'more that maxsize bytes')
-            ap.add_argument('--minsize', type=float, default=-1,
+            ap.add_argument('--minsize', type=float,
                             help='Filter out, I/O operations working with '
                                  'less that minsize bytes')
 
         if self._enable_freq_arg:
-            ap.add_argument('--freq', action="store_true",
+            ap.add_argument('--freq', action='store_true',
                             help='Show the frequency distribution of '
                                  'handler duration')
             ap.add_argument('--freq-resolution', type=int, default=20,
@@ -245,12 +240,12 @@ class Command:
                                  '(default 20)')
 
         if self._enable_log_arg:
-            ap.add_argument('--log', action="store_true",
+            ap.add_argument('--log', action='store_true',
                             help='Display the events in the order they '
                                  'appeared')
 
         if self._enable_stats_arg:
-            ap.add_argument('--stats', action="store_true",
+            ap.add_argument('--stats', action='store_true',
                             help='Display the statistics')
 
         # specific arguments
@@ -270,3 +265,4 @@ class Command:
 
     def _create_automaton(self):
         self._automaton = linuxautomaton.automaton.Automaton()
+        self.state = self._automaton.state

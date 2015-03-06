@@ -52,11 +52,11 @@ class StatedumpStateProvider(sp.StateProvider):
                     parent.chrono_fds[fd] = p.chrono_fds[fd]
                 else:
                     # best effort to fix the filename
-                    if len(parent.fds[fd].filename) == 0:
+                    if not parent.fds[fd].filename:
                         parent.fds[fd].filename = p.fds[fd].filename
                         chrono_fd = parent.chrono_fds[fd]
                         last_ts = next(reversed(chrono_fd))
-                        chrono_fd[last_ts]["filename"] = p.fds[fd].filename
+                        chrono_fd[last_ts]['filename'] = p.fds[fd].filename
                     # merge the values as they are for the same sv.FD
                     parent.fds[fd].net_read += p.fds[fd].net_read
                     parent.fds[fd].net_write += p.fds[fd].net_write
@@ -74,7 +74,7 @@ class StatedumpStateProvider(sp.StateProvider):
                     parent.closed_fds[fd] = p.closed_fds[fd]
                 else:
                     # best effort to fix the filename
-                    if len(parent.closed_fds[fd].name) == 0:
+                    if not parent.closed_fds[fd].name:
                         parent.closed_fds[fd].name = p.closed_fds[fd].name
                     # merge the values as they are for the same sv.FD
                     parent.closed_fds[fd].read += p.closed_fds[fd].read
@@ -84,9 +84,9 @@ class StatedumpStateProvider(sp.StateProvider):
                 p.closed_fds.pop(fd, None)
 
     def _process_lttng_statedump_process_state(self, event):
-        tid = event["tid"]
-        pid = event["pid"]
-        name = event["name"]
+        tid = event['tid']
+        pid = event['pid']
+        name = event['name']
         if tid not in self.tids:
             p = sv.Process()
             p.tid = tid
@@ -113,9 +113,9 @@ class StatedumpStateProvider(sp.StateProvider):
             self.merge_fd_dict(p, parent)
 
     def _process_lttng_statedump_file_descriptor(self, event):
-        pid = event["pid"]
-        fd = event["fd"]
-        filename = event["filename"]
+        pid = event['pid']
+        fd = event['fd']
+        filename = event['filename']
 
         if pid not in self.tids:
             p = sv.Process()
@@ -141,5 +141,5 @@ class StatedumpStateProvider(sp.StateProvider):
         p.track_chrono_fd(fd, filename, fdtype, event.timestamp)
 
     def _process_lttng_statedump_block_device(self, event):
-        d = common.get_disk(event["dev"], self.disks)
-        d.prettyname = event["diskname"]
+        d = common.get_disk(event['dev'], self.disks)
+        d.prettyname = event['diskname']
