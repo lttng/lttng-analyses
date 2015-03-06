@@ -62,8 +62,7 @@ class SchedStateProvider(sp.StateProvider):
                 c.perf[context] = event[context]
 
     def add_cpu(self, cpu_id, ts, next_tid):
-        c = sv.CPU()
-        c.cpu_id = cpu_id
+        c = sv.CPU(cpu_id)
         c.current_tid = next_tid
         # when we schedule a real task (not swapper)
         c.start_task_ns = ts
@@ -154,8 +153,7 @@ class SchedStateProvider(sp.StateProvider):
         target_cpu = event['target_cpu']
         tid = event['tid']
         if target_cpu not in self.state.cpus.keys():
-            c = sv.CPU()
-            c.cpu_id = target_cpu
+            c = sv.CPU(target_cpu)
             self.state.cpus[target_cpu] = c
         else:
             c = self.state.cpus[target_cpu]

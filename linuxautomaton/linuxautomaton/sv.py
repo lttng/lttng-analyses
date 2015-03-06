@@ -94,8 +94,8 @@ class Process():
 
 
 class CPU():
-    def __init__(self):
-        self.cpu_id = None
+    def __init__(self, cpu_id):
+        self.cpu_id = cpu_id
         self.cpu_ns = 0
         self.current_tid = None
         self.current_hard_irq = None

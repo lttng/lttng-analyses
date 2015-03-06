@@ -43,7 +43,7 @@ class IrqStateProvider(sp.StateProvider):
 
     def _get_cpu(self, cpu_id):
         if cpu_id not in self.state.cpus:
-            self.state.cpus[cpu_id] = sv.CPU()
+            self.state.cpus[cpu_id] = sv.CPU(cpu_id)
 
         return self.state.cpus[cpu_id]
 
