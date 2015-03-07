@@ -82,12 +82,7 @@ class Memtop(Command):
         return True
 
     def _print_results(self, begin_ns, end_ns):
-        print('Timerange: [%s, %s]' % (
-            common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
-                                   multi_day=True),
-            common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
-                                   multi_day=True)))
-
+        self._print_date(begin_ns, end_ns)
         self._print_per_tid_alloc()
         self._print_per_tid_freed()
         self._print_total_alloc_freed()

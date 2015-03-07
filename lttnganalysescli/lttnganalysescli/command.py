@@ -133,6 +133,14 @@ class Command:
             self.current_sec = event_sec
             self.start_ns = event.timestamp
 
+    def _print_date(self, begin_ns, end_ns):
+        date = 'Timerange: [%s, %s]' % (
+            common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
+                                   multi_day=True),
+            common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
+                                   multi_day=True))
+        print(date)
+
     def _validate_transform_common_args(self, args):
         self._arg_path = args.path
 

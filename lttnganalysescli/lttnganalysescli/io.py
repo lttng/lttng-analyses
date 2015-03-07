@@ -751,11 +751,7 @@ class IoAnalysis(Command):
         self.iostats_output_disk()
 
     def _print_results(self, begin_ns, end_ns):
-        print('Timerange: [%s, %s]' % (
-            common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
-                                   multi_day=True),
-            common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
-                                   multi_day=True)))
+        self._print_date(begin_ns, end_ns)
         if self._arg_usage:
             self.iotop_output()
         self.syscalls_stats = self.compute_syscalls_latency_stats(end_ns)
