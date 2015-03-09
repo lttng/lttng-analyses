@@ -34,7 +34,7 @@ class IrqAnalysis(Analysis):
         }
 
         self._state = state
-        self._state._register_notification_cbs(notification_cbs)
+        self._state.register_notification_cbs(notification_cbs)
         self._min_duration = min_duration
         self._max_duration = max_duration
         # µs to ns

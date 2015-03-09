@@ -43,14 +43,14 @@ class State:
         self.pending_syscalls = []
         self._notification_cbs = {}
 
-    def _register_notification_cbs(self, cbs):
+    def register_notification_cbs(self, cbs):
         for name in cbs:
             if name not in self._notification_cbs:
                 self._notification_cbs[name] = []
 
             self._notification_cbs[name].append(cbs[name])
 
-    def _send_notification_cb(self, name, **kwargs):
+    def send_notification_cb(self, name, **kwargs):
         if name in self._notification_cbs:
             for cb in self._notification_cbs[name]:
                 cb(**kwargs)
