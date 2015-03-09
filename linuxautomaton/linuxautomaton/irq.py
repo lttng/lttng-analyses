@@ -53,9 +53,9 @@ class IrqStateProvider(sp.StateProvider):
         irq = sv.HardIRQ.new_from_irq_handler_entry(event)
         cpu.current_hard_irq = irq
 
-        self.state._send_notification_cb('irq_handler_entry',
-                                         id=irq.id,
-                                         irq_name=event['name'])
+        self.state.send_notification_cb('irq_handler_entry',
+                                        id=irq.id,
+                                        irq_name=event['name'])
 
     def _process_irq_handler_exit(self, event):
         cpu = self._get_cpu(event['cpu_id'])
@@ -67,8 +67,8 @@ class IrqStateProvider(sp.StateProvider):
         cpu.current_hard_irq.stop_ts = event.timestamp
         cpu.current_hard_irq.ret = event['ret']
 
-        self.state._send_notification_cb('irq_handler_exit',
-                                         hard_irq=cpu.current_hard_irq)
+        self.state.send_notification_cb('irq_handler_exit',
+                                        hard_irq=cpu.current_hard_irq)
         cpu.current_hard_irq = None
 
     # SoftIRQs
@@ -110,6 +110,6 @@ class IrqStateProvider(sp.StateProvider):
             return
 
         cpu.current_softirqs[vec][0].stop_ts = event.timestamp
-        self.state._send_notification_cb('softirq_exit',
-                                         softirq=cpu.current_softirqs[vec][0])
+        self.state.send_notification_cb('softirq_exit',
+                                        softirq=cpu.current_softirqs[vec][0])
         cpu.current_softirqs[vec].pop(0)

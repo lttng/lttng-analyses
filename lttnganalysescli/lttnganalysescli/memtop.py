@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -64,9 +65,7 @@ class Memtop(Command):
         pass
 
     def _reset_total(self, start_ts):
-        for tid in self.state.tids.keys():
-            self.state.tids[tid].allocated_pages = 0
-            self.state.tids[tid].freed_pages = 0
+        self._analysis.reset()
 
     def _refresh(self, begin, end):
         self._compute_stats()
@@ -82,12 +81,7 @@ class Memtop(Command):
         return True
 
     def _print_results(self, begin_ns, end_ns):
-        print('Timerange: [%s, %s]' % (
-            common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
-                                   multi_day=True),
-            common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
-                                   multi_day=True)))
-
+        self._print_date(begin_ns, end_ns)
         self._print_per_tid_alloc()
         self._print_per_tid_freed()
         self._print_total_alloc_freed()
@@ -97,7 +91,7 @@ class Memtop(Command):
         values = []
         count = 0
 
-        for tid in sorted(self.state.tids.values(),
+        for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('allocated_pages'),
                           reverse=True):
             if not self._filter_process(tid):
@@ -119,7 +113,7 @@ class Memtop(Command):
         values = []
         count = 0
 
-        for tid in sorted(self.state.tids.values(),
+        for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('freed_pages'),
                           reverse=True):
             if not self._filter_process(tid):
@@ -139,7 +133,7 @@ class Memtop(Command):
         alloc = 0
         freed = 0
 
-        for tid in self.state.tids.values():
+        for tid in self._analysis.tids.values():
             if not self._filter_process(tid):
                 continue
 

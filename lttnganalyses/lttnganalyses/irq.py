@@ -34,7 +34,7 @@ class IrqAnalysis(Analysis):
         }
 
         self._state = state
-        self._state._register_notification_cbs(notification_cbs)
+        self._state.register_notification_cbs(notification_cbs)
         self._min_duration = min_duration
         self._max_duration = max_duration
         # µs to ns
@@ -51,6 +51,13 @@ class IrqAnalysis(Analysis):
 
     def process_event(self, ev):
         pass
+
+    def reset(self):
+        self.irq_list = []
+        for id in self.hard_irq_stats:
+            self.hard_irq_stats[id].reset()
+        for id in self.softirq_stats:
+            self.softirq_stats[id].reset()
 
     def _process_irq_handler_entry(self, **kwargs):
         id = kwargs['id']

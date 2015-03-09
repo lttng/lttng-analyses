@@ -83,11 +83,7 @@ class SyscallsAnalysis(Command):
         return True
 
     def _print_results(self, begin_ns, end_ns):
-        print('Timerange: [%s, %s]' % (
-            common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
-                                   multi_day=True),
-            common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
-                                   multi_day=True)))
+        self._print_date(begin_ns, end_ns)
         strformat = '{:<28} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
         print('Per-TID syscalls statistics (usec)')
         for tid in sorted(self.state.tids.values(),

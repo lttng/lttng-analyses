@@ -301,14 +301,6 @@ class IrqAnalysisCommand(Command):
         if self._arg_log:
             self._print_irq_log()
 
-    def _print_date(self, begin_ns, end_ns):
-        date = 'Timerange: [%s, %s]' % (
-            common.ns_to_hour_nsec(begin_ns, gmt=self._arg_gmt,
-                                   multi_day=True),
-            common.ns_to_hour_nsec(end_ns, gmt=self._arg_gmt,
-                                   multi_day=True))
-        print(date)
-
     def _print_stats(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
 
@@ -345,11 +337,7 @@ class IrqAnalysisCommand(Command):
         pass
 
     def _reset_total(self, start_ts):
-        self._analysis.irq_list = []
-        for id in self._analysis.hard_irq_stats:
-            self._analysis.hard_irq_stats[id].reset()
-        for id in self._analysis.softirq_stats:
-            self._analysis.softirq_stats[id].reset()
+        self._analysis.reset()
 
     def _refresh(self, begin, end):
         self._compute_stats()

@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +67,7 @@ class MemStateProvider(sp.StateProvider):
         if current_process is None:
             return
 
-        current_process.allocated_pages += 1
+        self.state.send_notification_cb('tid_page_alloc', proc=current_process)
 
     def _process_mm_page_free(self, event):
         if self.state.mm.page_count == 0:
@@ -74,9 +75,8 @@ class MemStateProvider(sp.StateProvider):
 
         self.state.mm.page_count -= 1
 
-        # Track the number of pages freed by the currently executing process
         current_process = self._get_current_proc(event)
         if current_process is None:
             return
 
-        current_process.freed_pages += 1
+        self.state.send_notification_cb('tid_page_free', proc=current_process)

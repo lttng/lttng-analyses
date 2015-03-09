@@ -33,6 +33,9 @@ class Cputop(Analysis):
     def process_event(self, ev):
         self._ev_count += 1
 
+    def reset(self):
+        pass
+
     @property
     def event_count(self):
         return self._ev_count

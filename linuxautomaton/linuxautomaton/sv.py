@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -71,8 +72,6 @@ class Process():
         self.syscalls = {}
         self.perf = {}
         self.dirty = 0
-        self.allocated_pages = 0
-        self.freed_pages = 0
         self.total_syscalls = 0
         # array of IORequest objects for freq analysis later (block and
         # syscalls with no FD like sys_sync)
