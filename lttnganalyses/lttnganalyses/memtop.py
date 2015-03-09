@@ -59,6 +59,7 @@ class Memtop(Analysis):
 
         self.tids[tid].freed_pages += 1
 
+
 class ProcessMemStats():
     def __init__(self, pid, tid, comm):
         self.pid = pid
