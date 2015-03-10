@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -116,29 +117,28 @@ class StatedumpStateProvider(sp.StateProvider):
         pid = event['pid']
         fd = event['fd']
         filename = event['filename']
+        cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
 
         if pid not in self.tids:
-            p = sv.Process()
-            p.pid = pid
-            p.tid = pid
-            self.tids[pid] = p
+            proc = sv.Process()
+            proc.pid = pid
+            proc.tid = pid
+            self.tids[pid] = proc
         else:
-            p = self.tids[pid]
+            proc = self.tids[pid]
 
-        if fd not in p.fds.keys():
+        if fd not in proc.fds:
             newfile = sv.FD()
             newfile.filename = filename
             newfile.fd = fd
-            # FIXME: we don't have the info, just assume for now
-            newfile.cloexec = 1
-            p.fds[fd] = newfile
-            fdtype = newfile.fdtype
+            newfile.cloexec = cloexec
+            proc.fds[fd] = newfile
         else:
             # just fix the filename
-            p.fds[fd].filename = filename
-            fdtype = p.fds[fd].fdtype
+            proc.fds[fd].filename = filename
 
-        p.track_chrono_fd(fd, filename, fdtype, event.timestamp)
+        fdtype = proc.fds[fd].fdtype
+        proc.track_chrono_fd(fd, filename, fdtype, event.timestamp)
 
     def _process_lttng_statedump_block_device(self, event):
         d = common.get_disk(event['dev'], self.disks)
