@@ -32,10 +32,10 @@ class StateVariable:
 
 
 class Process():
-    def __init__(self):
-        self.tid = None
-        self.pid = None
-        self.comm = ''
+    def __init__(self, tid=None, pid=None, comm=''):
+        self.tid = tid
+        self.pid = pid
+        self.comm = comm
         # indexed by fd
         self.fds = {}
         # indexed by filename
@@ -48,7 +48,6 @@ class Process():
 
     def init_counts(self):
         self.cpu_ns = 0
-        self.migrate_count = 0
         # network read/write
         self.net_read = 0
         self.net_write = 0
@@ -70,7 +69,6 @@ class Process():
         self.prev_tid = None
         # indexed by syscall_name
         self.syscalls = {}
-        self.perf = {}
         self.dirty = 0
         self.total_syscalls = 0
         # array of IORequest objects for freq analysis later (block and
@@ -95,16 +93,12 @@ class Process():
 class CPU():
     def __init__(self, cpu_id):
         self.cpu_id = cpu_id
-        self.cpu_ns = 0
         self.current_tid = None
         self.current_hard_irq = None
         # softirqs use a dict because multiple ones can be raised before
         # handling. They are indexed by vec, and each entry is a list,
         # ordered chronologically
         self.current_softirqs = {}
-        self.start_task_ns = 0
-        self.perf = {}
-        self.wakeup_queue = []
 
 
 class MemoryManagement():
@@ -366,6 +360,3 @@ class SyscallConsts():
     # generic names assigned to special FDs, don't try to match these in the
     # closed_fds dict
     GENERIC_NAMES = ['unknown', 'socket']
-
-    def __init__():
-        pass
