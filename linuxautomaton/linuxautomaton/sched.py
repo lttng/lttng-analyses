@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +24,6 @@
 # SOFTWARE.
 
 from linuxautomaton import sp, sv
-from babeltrace import CTFScope
 
 
 class SchedStateProvider(sp.StateProvider):
@@ -82,21 +82,6 @@ class SchedStateProvider(sp.StateProvider):
             p = self.state.tids[prev_tid]
             if p.last_sched is not None:
                 p.cpu_ns += (ts - p.last_sched)
-            # perf PMU counters checks
-            for context in event.field_list_with_scope(
-                    CTFScope.STREAM_EVENT_CONTEXT):
-                if context.startswith('perf_'):
-                    if context not in c.perf.keys():
-                        c.perf[context] = event[context]
-                    # add the difference between the last known value
-                    # for this counter on the current sv.CPU
-                    diff = event[context] - c.perf[context]
-                    if context not in p.perf.keys():
-                        p.perf[context] = diff
-                    else:
-                        p.perf[context] += diff
-                    if diff > 0:
-                        ret[context] = diff
 
         # exclude swapper process
         if next_tid == 0:
