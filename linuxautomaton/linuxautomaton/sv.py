@@ -178,7 +178,19 @@ class FD():
         self.fdtype = FDType.unknown
         # if FD was inherited, parent PID
         self.parent = None
+        self.cloexec = False
         self.init_counts()
+
+    @classmethod
+    def new_from_fd(cls, fd):
+        new_fd = cls()
+        new_fd.filename = fd.filename
+        new_fd.fd = fd.fd
+        new_fd.family = fd.family
+        new_fd.fdtype = fd.fdtype
+        new_fd.parent = fd.parent
+        new_fd.cloexec = fd.cloexec
+        return new_fd
 
     def init_counts(self):
         # network read/write
@@ -195,7 +207,6 @@ class FD():
         self.write = 0
         self.open = 0
         self.close = 0
-        self.cloexec = 0
         # array of syscall IORequest objects for freq analysis later
         self.iorequests = []
 
