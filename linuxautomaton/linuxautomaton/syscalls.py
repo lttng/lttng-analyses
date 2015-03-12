@@ -108,7 +108,7 @@ class SyscallsStateProvider(sp.StateProvider):
         if name in sv.SyscallConsts.DISK_OPEN_SYSCALLS:
             current_syscall['filename'] = event['filename']
             if event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC:
-                current_syscall['cloexec'] = 1
+                current_syscall['cloexec'] = True
         elif name in ['sys_accept', 'syscall_entry_accept',
                       'sys_accept4', 'syscall_entry_accept4']:
             if 'family' in event.keys() and event['family'] == socket.AF_INET:
@@ -340,7 +340,7 @@ class SyscallsStateProvider(sp.StateProvider):
         else:
             return
         if 'cloexec' in current_syscall.keys():
-            fd.cloexec = 1
+            fd.cloexec = True
         t.fds[fd.fd] = fd
 
         t.track_chrono_fd(fd.fd, fd.filename, fd.fdtype, event.timestamp)
