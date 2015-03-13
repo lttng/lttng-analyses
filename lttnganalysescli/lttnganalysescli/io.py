@@ -117,6 +117,11 @@ class IoAnalysis(Command):
     def add_fd_dict(self, tid, fd, files):
         if fd.read == 0 and fd.write == 0:
             return
+        pid = tid.pid
+        if pid is None:
+            pid = 'unknown (tid=%d)' % (tid.tid)
+        else:
+            pid = str(pid)
         if fd.filename.startswith('pipe') or \
                 fd.filename.startswith('socket') or \
                 fd.filename.startswith('anon_inode') or \
@@ -126,8 +131,8 @@ class IoAnalysis(Command):
             files[filename]['read'] = fd.read
             files[filename]['write'] = fd.write
             files[filename]['name'] = filename
-            files[filename]['other'] = ['fd %d in %s (%d)' % (fd.fd,
-                                        tid.comm, tid.pid)]
+            files[filename]['other'] = ['fd %d in %s (%s)' % (fd.fd,
+                                        tid.comm, pid)]
         else:
             # merge counters of shared files
             filename = fd.filename
@@ -136,15 +141,15 @@ class IoAnalysis(Command):
                 files[filename]['read'] = fd.read
                 files[filename]['write'] = fd.write
                 files[filename]['name'] = filename
-                files[filename]['other'] = ['fd %d in %s (%d)' %
-                                            (fd.fd, tid.comm, tid.pid)]
+                files[filename]['other'] = ['fd %d in %s (%s)' %
+                                            (fd.fd, tid.comm, pid)]
                 files[filename]['tids'] = [tid.tid]
             else:
                 files[filename]['read'] += fd.read
                 files[filename]['write'] += fd.write
-                files[filename]['other'].append('fd %d in %s (%d)' %
+                files[filename]['other'].append('fd %d in %s (%s)' %
                                                 (fd.fd, tid.comm,
-                                                 tid.pid))
+                                                 pid))
 
     def create_files_dict(self):
         files = {}
@@ -243,10 +248,15 @@ class IoAnalysis(Command):
                           key=operator.attrgetter('read'), reverse=True):
             if not self.filter_process(tid):
                 continue
+            pid = tid.pid
+            if pid is None:
+                pid = 'unknown (tid=%d)' % (tid.tid)
+            else:
+                pid = str(pid)
             info_fmt = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown'
             values.append((info_fmt.format(
                            common.convert_size(tid.read, padding_after=True),
-                           '%s (%d)' % (tid.comm, tid.pid),
+                           '%s (%s)' % (tid.comm, pid),
                            common.convert_size(tid.disk_read,
                                                padding_after=True),
                            common.convert_size(tid.net_read,
@@ -270,10 +280,15 @@ class IoAnalysis(Command):
                           key=operator.attrgetter('write'), reverse=True):
             if not self.filter_process(tid):
                 continue
+            pid = tid.pid
+            if pid is None:
+                pid = 'unknown (tid=%d)' % (tid.tid)
+            else:
+                pid = str(pid)
             info_fmt = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown '
             values.append((info_fmt.format(
                            common.convert_size(tid.write, padding_after=True),
-                           '%s (%d)' % (tid.comm, tid.pid),
+                           '%s (%s)' % (tid.comm, pid),
                            common.convert_size(tid.disk_write,
                                                padding_after=True),
                            common.convert_size(tid.net_write,
@@ -311,15 +326,15 @@ class IoAnalysis(Command):
                 comm = 'unknown'
 
             pid = tid.pid
-            if not pid:
-                pid = 'unknown'
+            if pid is None:
+                pid = 'unknown (tid=%d)' % (tid.tid)
             else:
                 pid = str(pid)
 
             values.append((info_fmt.format(
                 common.convert_size(tid.block_read, padding_after=True),
                 '%s (pid=%s)' % (comm, pid)),
-                           tid.block_read))
+                tid.block_read))
 
             count = count + 1
 
@@ -352,15 +367,15 @@ class IoAnalysis(Command):
                 comm = 'unknown'
 
             pid = tid.pid
-            if not pid:
-                pid = 'unknown'
+            if pid is None:
+                pid = 'unknown (tid=%d)' % (tid.tid)
             else:
                 pid = str(pid)
 
             values.append((info_fmt.format(
                 common.convert_size(tid.block_write, padding_after=True),
                 '%s (pid=%s)' % (comm, pid)),
-                           tid.block_write))
+                tid.block_write))
 
             count = count + 1
 
