@@ -64,12 +64,12 @@ class SchedStateProvider(sp.StateProvider):
             cpu.current_tid = next_tid
 
     def _sched_switch_per_tid(self, next_tid, next_comm, prev_tid):
-        # exclude swapper process
-        if next_tid == 0:
-            return
-
         if next_tid not in self.state.tids:
-            self.state.tids[next_tid] = sv.Process(tid=next_tid)
+            if next_tid == 0:
+                # special case for the swapper
+                self.state.tids[next_tid] = sv.Process(tid=next_tid, pid=0)
+            else:
+                self.state.tids[next_tid] = sv.Process(tid=next_tid)
 
         next_proc = self.state.tids[next_tid]
         next_proc.comm = next_comm
