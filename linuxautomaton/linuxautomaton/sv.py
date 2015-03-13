@@ -32,10 +32,10 @@ class StateVariable:
 
 
 class Process():
-    def __init__(self):
-        self.tid = None
-        self.pid = None
-        self.comm = ''
+    def __init__(self, tid=None, pid=None, comm=''):
+        self.tid = tid
+        self.pid = pid
+        self.comm = comm
         # indexed by fd
         self.fds = {}
         # indexed by filename
@@ -47,8 +47,6 @@ class Process():
         self.init_counts()
 
     def init_counts(self):
-        self.cpu_ns = 0
-        self.migrate_count = 0
         # network read/write
         self.net_read = 0
         self.net_write = 0
@@ -64,13 +62,10 @@ class Process():
         # total I/O read/write
         self.read = 0
         self.write = 0
-        # last TS where the process was scheduled in
-        self.last_sched = None
         # the process scheduled before this one
         self.prev_tid = None
         # indexed by syscall_name
         self.syscalls = {}
-        self.perf = {}
         self.dirty = 0
         self.total_syscalls = 0
         # array of IORequest objects for freq analysis later (block and
@@ -95,16 +90,12 @@ class Process():
 class CPU():
     def __init__(self, cpu_id):
         self.cpu_id = cpu_id
-        self.cpu_ns = 0
         self.current_tid = None
         self.current_hard_irq = None
         # softirqs use a dict because multiple ones can be raised before
         # handling. They are indexed by vec, and each entry is a list,
         # ordered chronologically
         self.current_softirqs = {}
-        self.start_task_ns = 0
-        self.perf = {}
-        self.wakeup_queue = []
 
 
 class MemoryManagement():
@@ -184,7 +175,19 @@ class FD():
         self.fdtype = FDType.unknown
         # if FD was inherited, parent PID
         self.parent = None
+        self.cloexec = False
         self.init_counts()
+
+    @classmethod
+    def new_from_fd(cls, fd):
+        new_fd = cls()
+        new_fd.filename = fd.filename
+        new_fd.fd = fd.fd
+        new_fd.family = fd.family
+        new_fd.fdtype = fd.fdtype
+        new_fd.parent = fd.parent
+        new_fd.cloexec = fd.cloexec
+        return new_fd
 
     def init_counts(self):
         # network read/write
@@ -201,7 +204,6 @@ class FD():
         self.write = 0
         self.open = 0
         self.close = 0
-        self.cloexec = 0
         # array of syscall IORequest objects for freq analysis later
         self.iorequests = []
 
@@ -366,6 +368,3 @@ class SyscallConsts():
     # generic names assigned to special FDs, don't try to match these in the
     # closed_fds dict
     GENERIC_NAMES = ['unknown', 'socket']
-
-    def __init__():
-        pass
