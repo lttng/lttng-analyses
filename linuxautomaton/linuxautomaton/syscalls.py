@@ -30,7 +30,11 @@ from babeltrace import CTFScope
 class SyscallsStateProvider(sp.StateProvider):
     def __init__(self, state):
         self.state = state
-        self.state.syscalls['total'] = 0
+        self.cpus = state.cpus
+        self.tids = state.tids
+        self.syscalls = state.syscalls
+        self.pending_syscalls = state.pending_syscalls
+        self.syscalls['total'] = 0
         cbs = {
             'syscall_entry': self._process_syscall_entry,
             'syscall_exit': self._process_syscall_exit,
