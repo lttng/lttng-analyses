@@ -47,7 +47,6 @@ class Process():
         self.init_counts()
 
     def init_counts(self):
-        self.cpu_ns = 0
         # network read/write
         self.net_read = 0
         self.net_write = 0
