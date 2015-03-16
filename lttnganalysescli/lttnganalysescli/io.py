@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +24,7 @@
 # SOFTWARE.
 
 from .command import Command
-import lttnganalyses.syscalls
+import lttnganalyses.io
 from linuxautomaton import common, sv
 from ascii_graph import Pyasciigraph
 import operator
@@ -99,7 +100,7 @@ class IoAnalysis(Command):
         self.run(usage=True)
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.syscalls.SyscallsAnalysis(self.state)
+        self._analysis = lttnganalyses.io.IoAnalysis(self.state)
 
     def _compute_stats(self):
         pass
