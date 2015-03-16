@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -32,16 +33,10 @@ import errno
 
 class SyscallsAnalysis(Command):
     _VERSION = '0.1.0'
-    _DESC = """The I/O command."""
+    _DESC = """The syscallstats command."""
 
     def __init__(self):
-        super().__init__(self._add_arguments,
-                         enable_proc_filter_args=True)
-#                         enable_max_min_args=True,
-#                         enable_max_min_size_arg=True,
-#                         enable_freq_arg=True,
-#                         enable_log_arg=True,
-#                         enable_stats_arg=True)
+        super().__init__(self._add_arguments, enable_proc_filter_args=True)
 
     def _validate_transform_args(self):
         pass
@@ -75,11 +70,12 @@ class SyscallsAnalysis(Command):
         self._print_results(begin, end)
         self._reset_total(end)
 
-    def filter_process(self, proc):
+    def _filter_process(self, proc):
         if self._arg_proc_list and proc.comm not in self._arg_proc_list:
             return False
         if self._arg_pid_list and str(proc.pid) not in self._arg_pid_list:
             return False
+
         return True
 
     def _print_results(self, begin_ns, end_ns):
@@ -89,7 +85,7 @@ class SyscallsAnalysis(Command):
         for tid in sorted(self.state.tids.values(),
                           key=operator.attrgetter('total_syscalls'),
                           reverse=True):
-            if not self.filter_process(tid):
+            if not self._filter_process(tid):
                 continue
             if tid.total_syscalls == 0:
                 continue
