@@ -695,6 +695,10 @@ class IoAnalysis(Command):
             else:
                 filename = rq.fd.filename
                 fd = rq.fd.fd
+            if rq.proc.pid is None:
+                pid = 'unknown (tid=%d)' % (rq.proc.tid)
+            else:
+                pid = rq.proc.pid
             end = common.ns_to_hour_nsec(rq.end, self._arg_multi_day,
                                          self._arg_gmt)
 
@@ -713,7 +717,7 @@ class IoAnalysis(Command):
                 name,
                 '%0.03f' % (duration/1000) + outrange,
                 size, rq.proc.comm,
-                rq.proc.pid, extra,
+                pid, extra,
                 '%s (fd=%s)' % (filename, fd)))
             count += 1
         if outrange_legend:
