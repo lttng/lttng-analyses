@@ -80,32 +80,40 @@ class SyscallsAnalysis(Command):
 
     def _print_results(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
-        strformat = '{:<28} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
+        strformat = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
         print('Per-TID syscalls statistics (usec)')
-        for tid in sorted(self.state.tids.values(),
+        for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('total_syscalls'),
                           reverse=True):
             if not self._filter_process(tid):
                 continue
             if tid.total_syscalls == 0:
                 continue
-            print(strformat.format('%s (%d, tid = %d)' % (
-                tid.comm, tid.pid, tid.tid),
+
+            pid = tid.pid
+            if pid is None:
+                pid = '?'
+            else:
+                pid = str(pid)
+
+            print(strformat.format(
+                '%s (%s, tid = %d)' % (tid.comm, pid, tid.tid),
                 'Count', 'Min', 'Average', 'Max', 'Stdev', 'Return values'))
+
             for syscall in sorted(tid.syscalls.values(),
                                   key=operator.attrgetter('count'),
                                   reverse=True):
                 sysvalues = []
                 rets = {}
-                for s in syscall.rq:
-                    sysvalues.append(s.duration)
-                    if s.ret >= 0:
+                for s in syscall.syscalls_list:
+                    sysvalues.append(s['duration'])
+                    if s['ret'] >= 0:
                         key = 'success'
                     else:
                         try:
-                            key = errno.errorcode[-s.ret]
+                            key = errno.errorcode[-s['ret']]
                         except:
-                            key = str(s.ret)
+                            key = str(s['ret'])
                     if key in rets.keys():
                         rets[key] += 1
                     else:
@@ -114,7 +122,10 @@ class SyscallsAnalysis(Command):
                     syscallmin = '?'
                 else:
                     syscallmin = '%0.03f' % (syscall.min / 1000)
-                syscallmax = '%0.03f' % (syscall.max / 1000)
+                if syscall.max is None:
+                    syscallmax = '?'
+                else:
+                    syscallmax = '%0.03f' % (syscall.max / 1000)
                 syscallavg = '%0.03f' % \
                     (syscall.total_duration/(syscall.count*1000))
                 if len(sysvalues) > 2:
@@ -130,7 +141,7 @@ class SyscallsAnalysis(Command):
                                    '', ''))
             print('-' * 113)
 
-        print('\nTotal syscalls: %d' % (self.state.syscalls['total']))
+        print('\nTotal syscalls: %d' % (self._analysis.total_syscalls))
 
     def _reset_total(self, start_ts):
         pass

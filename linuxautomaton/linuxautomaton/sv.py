@@ -64,10 +64,6 @@ class Process():
         self.write = 0
         # the process scheduled before this one
         self.prev_tid = None
-        # indexed by syscall_name
-        self.syscalls = {}
-        self.dirty = 0
-        self.total_syscalls = 0
         # array of IORequest objects for freq analysis later (block and
         # syscalls with no FD like sys_sync)
         self.iorequests = []
