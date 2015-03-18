@@ -28,7 +28,6 @@ import time
 import datetime
 import socket
 import struct
-import sys
 from linuxautomaton import sv
 
 NSEC_PER_SEC = 1000000000
@@ -50,8 +49,8 @@ def get_disk(dev, disks):
     if dev not in disks:
         disk = sv.Disk()
         disk.name = '%d' % dev
-        dev.prettyname = kdev_major_minor(dev)
-        disks[dev] = disks
+        disk.prettyname = kdev_major_minor(dev)
+        disks[dev] = disk
     else:
         disk = disks[dev]
     return disk
@@ -112,12 +111,12 @@ def trace_collection_date(handles):
     if is_multi_day_trace_collection(handles):
         return None
 
-    handle = handles.values[0]
-    trace_time = time.localtime(handle.timestamp_begin / NSEC_PER_SEC)
-    year = trace_time.tm_year
-    month = trace_time.tm_mon
-    day = trace_time.tm_mday
-    return (year, month, day)
+    for handle in handles.values():
+        trace_time = time.localtime(handle.timestamp_begin / NSEC_PER_SEC)
+        year = trace_time.tm_year
+        month = trace_time.tm_mon
+        day = trace_time.tm_mday
+        return (year, month, day)
 
 
 def extract_timerange(handles, timerange, gmt):
@@ -193,32 +192,6 @@ def date_to_epoch_nsec(handles, date, gmt):
     if gmt:
         date_time = date_time + datetime.timedelta(seconds=time.timezone)
     return int(date_time.timestamp()) * NSEC_PER_SEC + int(nsec)
-
-
-def process_date_args(command):
-    command._arg_multi_day = is_multi_day_trace_collection(command._handles)
-    if command._arg_timerange:
-        (command._arg_begin, command._arg_end) = \
-            extract_timerange(command._handles, command._arg_timerange,
-                              command._arg_gmt)
-        if command._arg_begin is None or command._arg_end is None:
-            print('Invalid timeformat')
-            sys.exit(1)
-    else:
-        if command._arg_begin:
-            command._arg_begin = date_to_epoch_nsec(command._handles,
-                                                    command._arg_begin,
-                                                    command._arg_gmt)
-            if command._arg_begin is None:
-                print('Invalid timeformat')
-                sys.exit(1)
-        if command._arg_end:
-            command._arg_end = date_to_epoch_nsec(command._handles,
-                                                  command._arg_end,
-                                                  command._arg_gmt)
-            if command._arg_end is None:
-                print('Invalid timeformat')
-                sys.exit(1)
 
 
 def ns_to_asctime(ns):

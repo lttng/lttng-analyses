@@ -65,7 +65,7 @@ class Command:
             self._gen_error('Failed to open ' + self._arg_path, -1)
         self._handles = handles
         self._traces = traces
-        common.process_date_args(self)
+        self._process_date_args()
         if not self._arg_skip_validation:
             self._check_lost_events()
 
@@ -270,6 +270,32 @@ class Command:
 
         # save all arguments
         self._args = args
+
+    def _process_date_args(self):
+        self._arg_multi_day = common.is_multi_day_trace_collection(
+            self._handles)
+        if self._arg_timerange:
+            (self._arg_begin, self._arg_end) = \
+                common.extract_timerange(self._handles, self._arg_timerange,
+                                         self._arg_gmt)
+            if self._arg_begin is None or self._arg_end is None:
+                print('Invalid timeformat')
+                sys.exit(1)
+        else:
+            if self._arg_begin:
+                self._arg_begin = common.date_to_epoch_nsec(self._handles,
+                                                            self._arg_begin,
+                                                            self._arg_gmt)
+                if self._arg_begin is None:
+                    print('Invalid timeformat')
+                    sys.exit(1)
+            if self._arg_end:
+                self._arg_end = common.date_to_epoch_nsec(self._handles,
+                                                          self._arg_end,
+                                                          self._arg_gmt)
+                if self._arg_end is None:
+                    print('Invalid timeformat')
+                    sys.exit(1)
 
     def _create_automaton(self):
         self._automaton = linuxautomaton.automaton.Automaton()
