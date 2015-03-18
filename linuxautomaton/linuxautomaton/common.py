@@ -121,11 +121,11 @@ def trace_collection_date(handles):
 
 
 def extract_timerange(handles, timerange, gmt):
-    p = re.compile(r'^\[(?P<begin>.*),(?P<end>.*)\]$')
-    if not p.match(timerange):
+    pattern = re.compile(r'^\[(?P<begin>.*),(?P<end>.*)\]$')
+    if not pattern.match(timerange):
         return None
-    begin_str = p.search(timerange).group('begin').strip()
-    end_str = p.search(timerange).group('end').strip()
+    begin_str = pattern.search(timerange).group('begin').strip()
+    end_str = pattern.search(timerange).group('end').strip()
     begin = date_to_epoch_nsec(handles, begin_str, gmt)
     end = date_to_epoch_nsec(handles, end_str, gmt)
     return (begin, end)
@@ -133,63 +133,63 @@ def extract_timerange(handles, timerange, gmt):
 
 def date_to_epoch_nsec(handles, date, gmt):
     # match 2014-12-12 17:29:43.802588035 or 2014-12-12T17:29:43.802588035
-    p1 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
-                    r'(?P<day>[0123]\d)[\sTt]'
-                    r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
-                    r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    pattern1 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
+                          r'(?P<day>[0123]\d)[\sTt]'
+                          r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
+                          r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
     # match 2014-12-12 17:29:43 or 2014-12-12T17:29:43
-    p2 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
-                    r'(?P<day>[0123]\d)[\sTt]'
-                    r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    pattern2 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
+                          r'(?P<day>[0123]\d)[\sTt]'
+                          r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
     # match 17:29:43.802588035
-    p3 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
-                    r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    pattern3 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
+                          r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
     # match 17:29:43
-    p4 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    pattern4 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
 
-    if p1.match(date):
-        year = p1.search(date).group('year')
-        month = p1.search(date).group('mon')
-        day = p1.search(date).group('day')
-        hour = p1.search(date).group('hour')
-        minute = p1.search(date).group('min')
-        sec = p1.search(date).group('sec')
-        nsec = p1.search(date).group('nsec')
-    elif p2.match(date):
-        year = p2.search(date).group('year')
-        month = p2.search(date).group('mon')
-        day = p2.search(date).group('day')
-        hour = p2.search(date).group('hour')
-        minute = p2.search(date).group('min')
-        sec = p2.search(date).group('sec')
+    if pattern1.match(date):
+        year = pattern1.search(date).group('year')
+        month = pattern1.search(date).group('mon')
+        day = pattern1.search(date).group('day')
+        hour = pattern1.search(date).group('hour')
+        minute = pattern1.search(date).group('min')
+        sec = pattern1.search(date).group('sec')
+        nsec = pattern1.search(date).group('nsec')
+    elif pattern2.match(date):
+        year = pattern2.search(date).group('year')
+        month = pattern2.search(date).group('mon')
+        day = pattern2.search(date).group('day')
+        hour = pattern2.search(date).group('hour')
+        minute = pattern2.search(date).group('min')
+        sec = pattern2.search(date).group('sec')
         nsec = 0
-    elif p3.match(date):
+    elif pattern3.match(date):
         collection_date = trace_collection_date(handles)
         if collection_date is None:
             print("Use the format 'yyyy-mm-dd hh:mm:ss[.nnnnnnnnn]' "
                   "for multi-day traces")
             return None
         (year, month, day) = collection_date
-        hour = p3.search(date).group('hour')
-        minute = p3.search(date).group('min')
-        sec = p3.search(date).group('sec')
-        nsec = p3.search(date).group('nsec')
-    elif p4.match(date):
+        hour = pattern3.search(date).group('hour')
+        minute = pattern3.search(date).group('min')
+        sec = pattern3.search(date).group('sec')
+        nsec = pattern3.search(date).group('nsec')
+    elif pattern4.match(date):
         collection_date = trace_collection_date(handles)
         if collection_date is None:
             print("Use the format 'yyyy-mm-dd hh:mm:ss[.nnnnnnnnn]' "
                   "for multi-day traces")
             return None
         (year, month, day) = collection_date
-        hour = p4.search(date).group('hour')
-        minute = p4.search(date).group('min')
-        sec = p4.search(date).group('sec')
+        hour = pattern4.search(date).group('hour')
+        minute = pattern4.search(date).group('min')
+        sec = pattern4.search(date).group('sec')
         nsec = 0
     else:
         return None
 
     date_time = datetime.datetime(int(year), int(month), int(day), int(hour),
-                          int(minute), int(sec))
+                                  int(minute), int(sec))
     if gmt:
         date_time = date_time + datetime.timedelta(seconds=time.timezone)
     return int(date_time.timestamp()) * NSEC_PER_SEC + int(nsec)
