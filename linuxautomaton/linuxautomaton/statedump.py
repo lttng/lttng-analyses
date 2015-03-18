@@ -63,12 +63,10 @@ class StatedumpStateProvider(sp.StateProvider):
                     parent.fds[fd].net_write += p.fds[fd].net_write
                     parent.fds[fd].disk_read += p.fds[fd].disk_read
                     parent.fds[fd].disk_write += p.fds[fd].disk_write
-                    parent.fds[fd].open += p.fds[fd].open
-                    parent.fds[fd].close += p.fds[fd].close
                 toremove.append(fd)
             for fd in toremove:
-                p.fds.pop(fd, None)
-                p.chrono_fds.pop(fd, None)
+                del p.fds[fd]
+                del p.chrono_fds[fd]
         if len(p.closed_fds.keys()) != 0:
             for fd in p.closed_fds.keys():
                 if fd not in parent.closed_fds.keys():
@@ -80,9 +78,7 @@ class StatedumpStateProvider(sp.StateProvider):
                     # merge the values as they are for the same sv.FD
                     parent.closed_fds[fd].read += p.closed_fds[fd].read
                     parent.closed_fds[fd].write += p.closed_fds[fd].write
-                    parent.closed_fds[fd].open += p.closed_fds[fd].open
-                    parent.closed_fds[fd].close += p.closed_fds[fd].close
-                p.closed_fds.pop(fd, None)
+                del p.closed_fds[fd]
 
     def _process_lttng_statedump_process_state(self, event):
         tid = event['tid']

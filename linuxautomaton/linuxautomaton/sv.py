@@ -202,8 +202,6 @@ class FD():
         # total read/write
         self.read = 0
         self.write = 0
-        self.open = 0
-        self.close = 0
         # array of syscall IORequest objects for freq analysis later
         self.iorequests = []
 

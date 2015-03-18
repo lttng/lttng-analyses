@@ -112,4 +112,4 @@ class IrqStateProvider(sp.StateProvider):
         cpu.current_softirqs[vec][0].stop_ts = event.timestamp
         self.state.send_notification_cb('softirq_exit',
                                         softirq=cpu.current_softirqs[vec][0])
-        cpu.current_softirqs[vec].pop(0)
+        del cpu.current_softirqs[vec][0]
