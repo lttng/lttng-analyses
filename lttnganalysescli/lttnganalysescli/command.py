@@ -60,18 +60,18 @@ class Command:
 
     def _open_trace(self):
         traces = TraceCollection()
-        handle = traces.add_traces_recursive(self._arg_path, 'ctf')
-        if handle == {}:
+        handles = traces.add_traces_recursive(self._arg_path, 'ctf')
+        if handles == {}:
             self._gen_error('Failed to open ' + self._arg_path, -1)
-        self._handle = handle
+        self._handles = handles
         self._traces = traces
         common.process_date_args(self)
         if not self._arg_skip_validation:
             self._check_lost_events()
 
     def _close_trace(self):
-        for h in self._handle.values():
-            self._traces.remove_trace(h)
+        for handle in self._handles.values():
+            self._traces.remove_trace(handle)
 
     def _check_lost_events(self):
         print('Checking the trace for lost events...')

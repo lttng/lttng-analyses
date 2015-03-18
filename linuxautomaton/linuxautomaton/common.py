@@ -48,13 +48,13 @@ def kdev_major_minor(dev):
 
 def get_disk(dev, disks):
     if dev not in disks:
-        d = sv.Disk()
-        d.name = '%d' % dev
-        d.prettyname = kdev_major_minor(dev)
-        disks[dev] = d
+        disk = sv.Disk()
+        disk.name = '%d' % dev
+        dev.prettyname = kdev_major_minor(dev)
+        disks[dev] = disks
     else:
-        d = disks[dev]
-    return d
+        disk = disks[dev]
+    return disk
 
 
 def convert_size(size, padding_after=False, padding_before=False):
@@ -72,7 +72,7 @@ def convert_size(size, padding_after=False, padding_before=False):
     i = int(math.floor(math.log(size, 1024)))
     p = math.pow(1024, i)
     s = round(size/p, 2)
-    if (s > 0):
+    if s > 0:
         try:
             v = '%0.02f' % s
             return '%s %s%s%s' % (v, space_before, size_name[i], space_after)
@@ -83,51 +83,55 @@ def convert_size(size, padding_after=False, padding_before=False):
         return '0 B'
 
 
-def is_multi_day_trace_collection(handle):
-    y = m = d = None
-    for h in handle.values():
-        if y is None:
-            y = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_year
-            m = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mon
-            d = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mday
-        _y = time.localtime(h.timestamp_end/NSEC_PER_SEC).tm_year
-        _m = time.localtime(h.timestamp_end/NSEC_PER_SEC).tm_mon
-        _d = time.localtime(h.timestamp_end/NSEC_PER_SEC).tm_mday
-        if y != _y:
+def is_multi_day_trace_collection(handles):
+    time_begin = None
+
+    for handle in handles.values():
+        if time_begin is None:
+            time_begin = time.localtime(handle.timestamp_begin / NSEC_PER_SEC)
+            year_begin = time_begin.tm_year
+            month_begin = time_begin.tm_mon
+            day_begin = time_begin.tm_mday
+
+        time_end = time.localtime(handle.timestamp_end / NSEC_PER_SEC)
+        year_end = time_end.tm_year
+        month_end = time_end.tm_mon
+        day_end = time_end.tm_mday
+
+        if year_begin != year_end:
             return True
-        elif m != _m:
+        elif month_begin != month_end:
             return True
-        elif d != _d:
+        elif day_begin != day_end:
             return True
+
     return False
 
 
-def trace_collection_date(handle):
-    if is_multi_day_trace_collection(handle):
+def trace_collection_date(handles):
+    if is_multi_day_trace_collection(handles):
         return None
-    for h in handle.values():
-        y = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_year
-        m = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mon
-        d = time.localtime(h.timestamp_begin/NSEC_PER_SEC).tm_mday
-        return (y, m, d)
+
+    handle = handles.values[0]
+    trace_time = time.localtime(handle.timestamp_begin / NSEC_PER_SEC)
+    year = trace_time.tm_year
+    month = trace_time.tm_mon
+    day = trace_time.tm_mday
+    return (year, month, day)
 
 
-def extract_timerange(handle, timerange, gmt):
+def extract_timerange(handles, timerange, gmt):
     p = re.compile(r'^\[(?P<begin>.*),(?P<end>.*)\]$')
     if not p.match(timerange):
         return None
-    b = p.search(timerange).group('begin').strip()
-    e = p.search(timerange).group('end').strip()
-    begin = date_to_epoch_nsec(handle, b, gmt)
-    if begin is None:
-        return (None, None)
-    end = date_to_epoch_nsec(handle, e, gmt)
-    if end is None:
-        return (None, None)
+    begin_str = p.search(timerange).group('begin').strip()
+    end_str = p.search(timerange).group('end').strip()
+    begin = date_to_epoch_nsec(handles, begin_str, gmt)
+    end = date_to_epoch_nsec(handles, end_str, gmt)
     return (begin, end)
 
 
-def date_to_epoch_nsec(handle, date, gmt):
+def date_to_epoch_nsec(handles, date, gmt):
     # match 2014-12-12 17:29:43.802588035 or 2014-12-12T17:29:43.802588035
     p1 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
                     r'(?P<day>[0123]\d)[\sTt]'
@@ -160,27 +164,23 @@ def date_to_epoch_nsec(handle, date, gmt):
         sec = p2.search(date).group('sec')
         nsec = 0
     elif p3.match(date):
-        d = trace_collection_date(handle)
-        if d is None:
+        collection_date = trace_collection_date(handles)
+        if collection_date is None:
             print("Use the format 'yyyy-mm-dd hh:mm:ss[.nnnnnnnnn]' "
                   "for multi-day traces")
             return None
-        year = d[0]
-        month = d[1]
-        day = d[2]
+        (year, month, day) = collection_date
         hour = p3.search(date).group('hour')
         minute = p3.search(date).group('min')
         sec = p3.search(date).group('sec')
         nsec = p3.search(date).group('nsec')
     elif p4.match(date):
-        d = trace_collection_date(handle)
-        if d is None:
+        collection_date = trace_collection_date(handles)
+        if collection_date is None:
             print("Use the format 'yyyy-mm-dd hh:mm:ss[.nnnnnnnnn]' "
                   "for multi-day traces")
             return None
-        year = d[0]
-        month = d[1]
-        day = d[2]
+        (year, month, day) = collection_date
         hour = p4.search(date).group('hour')
         minute = p4.search(date).group('min')
         sec = p4.search(date).group('sec')
@@ -188,32 +188,32 @@ def date_to_epoch_nsec(handle, date, gmt):
     else:
         return None
 
-    d = datetime.datetime(int(year), int(month), int(day), int(hour),
+    date_time = datetime.datetime(int(year), int(month), int(day), int(hour),
                           int(minute), int(sec))
     if gmt:
-        d = d + datetime.timedelta(seconds=time.timezone)
-    return int(d.timestamp()) * NSEC_PER_SEC + int(nsec)
+        date_time = date_time + datetime.timedelta(seconds=time.timezone)
+    return int(date_time.timestamp()) * NSEC_PER_SEC + int(nsec)
 
 
 def process_date_args(command):
-    command._arg_multi_day = is_multi_day_trace_collection(command._handle)
+    command._arg_multi_day = is_multi_day_trace_collection(command._handles)
     if command._arg_timerange:
         (command._arg_begin, command._arg_end) = \
-            extract_timerange(command._handle, command._arg_timerange,
+            extract_timerange(command._handles, command._arg_timerange,
                               command._arg_gmt)
         if command._arg_begin is None or command._arg_end is None:
             print('Invalid timeformat')
             sys.exit(1)
     else:
         if command._arg_begin:
-            command._arg_begin = date_to_epoch_nsec(command._handle,
+            command._arg_begin = date_to_epoch_nsec(command._handles,
                                                     command._arg_begin,
                                                     command._arg_gmt)
             if command._arg_begin is None:
                 print('Invalid timeformat')
                 sys.exit(1)
         if command._arg_end:
-            command._arg_end = date_to_epoch_nsec(command._handle,
+            command._arg_end = date_to_epoch_nsec(command._handles,
                                                   command._arg_end,
                                                   command._arg_gmt)
             if command._arg_end is None:
@@ -226,37 +226,36 @@ def ns_to_asctime(ns):
 
 
 def ns_to_hour(ns):
-    d = time.localtime(ns/NSEC_PER_SEC)
-    return '%02d:%02d:%02d' % (d.tm_hour, d.tm_min, d.tm_sec)
+    date = time.localtime(ns / NSEC_PER_SEC)
+    return '%02d:%02d:%02d' % (date.tm_hour, date.tm_min, date.tm_sec)
 
 
 def ns_to_hour_nsec(ns, multi_day=False, gmt=False):
     if gmt:
-        d = time.gmtime(ns/NSEC_PER_SEC)
+        date = time.gmtime(ns / NSEC_PER_SEC)
     else:
-        d = time.localtime(ns/NSEC_PER_SEC)
+        date = time.localtime(ns / NSEC_PER_SEC)
     if multi_day:
-        return '%04d-%02d-%02d %02d:%02d:%02d.%09d' % (d.tm_year, d.tm_mon,
-                                                       d.tm_mday, d.tm_hour,
-                                                       d.tm_min, d.tm_sec,
-                                                       ns % NSEC_PER_SEC)
+        return ('%04d-%02d-%02d %02d:%02d:%02date.%09d' %
+                (date.tm_year, date.tm_mon, date.tm_mday, date.tm_hour,
+                 date.tm_min, date.tm_sec, ns % NSEC_PER_SEC))
     else:
-        return '%02d:%02d:%02d.%09d' % (d.tm_hour, d.tm_min, d.tm_sec,
-                                        ns % NSEC_PER_SEC)
+        return ('%02d:%02d:%02date.%09d' %
+                (date.tm_hour, date.tm_min, date.tm_sec, ns % NSEC_PER_SEC))
 
 
 def ns_to_sec(ns):
-    return '%lu.%09u' % (ns/NSEC_PER_SEC, ns % NSEC_PER_SEC)
+    return '%lu.%09u' % (ns / NSEC_PER_SEC, ns % NSEC_PER_SEC)
 
 
 def ns_to_day(ns):
-    d = time.localtime(ns/NSEC_PER_SEC)
-    return '%04d-%02d-%02d' % (d.tm_year, d.tm_mon, d.tm_mday)
+    date = time.localtime(ns/NSEC_PER_SEC)
+    return '%04d-%02d-%02d' % (date.tm_year, date.tm_mon, date.tm_mday)
 
 
 def sec_to_hour(ns):
-    d = time.localtime(ns)
-    return '%02d:%02d:%02d' % (d.tm_hour, d.tm_min, d.tm_sec)
+    date = time.localtime(ns)
+    return '%02d:%02d:%02d' % (date.tm_hour, date.tm_min, date.tm_sec)
 
 
 def sec_to_nsec(sec):
