@@ -113,7 +113,7 @@ def trace_collection_date(handle):
 
 
 def extract_timerange(handle, timerange, gmt):
-    p = re.compile('^\[(?P<begin>.*),(?P<end>.*)\]$')
+    p = re.compile(r'^\[(?P<begin>.*),(?P<end>.*)\]$')
     if not p.match(timerange):
         return None
     b = p.search(timerange).group('begin').strip()
@@ -129,19 +129,19 @@ def extract_timerange(handle, timerange, gmt):
 
 def date_to_epoch_nsec(handle, date, gmt):
     # match 2014-12-12 17:29:43.802588035 or 2014-12-12T17:29:43.802588035
-    p1 = re.compile('^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
-                    '(?P<day>[0123]\d)[\sTt]'
-                    '(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
-                    '(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    p1 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
+                    r'(?P<day>[0123]\d)[\sTt]'
+                    r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
+                    r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
     # match 2014-12-12 17:29:43 or 2014-12-12T17:29:43
-    p2 = re.compile('^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
-                    '(?P<day>[0123]\d)[\sTt]'
-                    '(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    p2 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
+                    r'(?P<day>[0123]\d)[\sTt]'
+                    r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
     # match 17:29:43.802588035
-    p3 = re.compile('^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
-                    '(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    p3 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
+                    r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
     # match 17:29:43
-    p4 = re.compile('^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    p4 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
 
     if p1.match(date):
         year = p1.search(date).group('year')
