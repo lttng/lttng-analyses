@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,10 +28,7 @@ from linuxautomaton import sp, sv
 
 class NetStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self.state = state
-        self.ifaces = state.ifaces
-        self.cpus = state.cpus
-        self.tids = state.tids
+        self._state = state
         cbs = {
             'net_dev_xmit': self._process_net_dev_xmit,
             'netif_receive_skb': self._process_netif_receive_skb,
@@ -40,40 +38,28 @@ class NetStateProvider(sp.StateProvider):
     def process_event(self, ev):
         self._process_event_cb(ev)
 
-    def get_dev(self, dev):
-        if dev not in self.ifaces:
-            d = sv.Iface()
-            d.name = dev
-            self.ifaces[dev] = d
-        else:
-            d = self.ifaces[dev]
-        return d
-
     def _process_net_dev_xmit(self, event):
-        dev = event['name']
-        sent_len = event['len']
+        self._state.send_notification_cb('net_dev_xmit',
+                                         iface_name=event['name'],
+                                         sent_bytes=event['len'])
+
         cpu_id = event['cpu_id']
+        if cpu_id not in self._state.cpus:
+            return
 
-        d = self.get_dev(dev)
-        d.send_packets += 1
-        d.send_bytes += sent_len
+        cpu = self._state.cpus[cpu_id]
+        if cpu.current_tid is None:
+            return
 
-        if cpu_id not in self.cpus.keys():
+        current_syscall = self._state.tids[cpu.current_tid].current_syscall
+        if not current_syscall:
             return
-        c = self.cpus[cpu_id]
-        if c.current_tid is None:
-            return
-        t = self.tids[c.current_tid]
-        if not t.current_syscall:
-            return
-        if t.current_syscall['name'] in sv.SyscallConsts.WRITE_SYSCALLS:
-            if t.current_syscall['fd'].fdtype == sv.FDType.unknown:
-                t.current_syscall['fd'].fdtype = sv.FDType.maybe_net
+
+        if current_syscall['name'] in sv.SyscallConsts.WRITE_SYSCALLS and \
+           current_syscall['fd'].fdtype == sv.FDType.unknown:
+            current_syscall['fd'].fdtype = sv.FDType.maybe_net
 
     def _process_netif_receive_skb(self, event):
-        dev = event['name']
-        recv_len = event['len']
-
-        d = self.get_dev(dev)
-        d.recv_packets += 1
-        d.recv_bytes += recv_len
+        self._state.send_notification_cb('netif_receive_skb',
+                                         iface_name=event['name'],
+                                         recv_bytes=event['len'])

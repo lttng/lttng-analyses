@@ -141,18 +141,6 @@ class Disk():
         self.stdev = None
 
 
-class Iface():
-    def __init__(self):
-        self.name = ''
-        self.init_counts()
-
-    def init_counts(self):
-        self.recv_bytes = 0
-        self.recv_packets = 0
-        self.send_bytes = 0
-        self.send_packets = 0
-
-
 class FDType():
     unknown = 0
     disk = 1

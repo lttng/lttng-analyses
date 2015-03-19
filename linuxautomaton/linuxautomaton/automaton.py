@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +40,6 @@ class State:
         self.disks = {}
         self.syscalls = {}
         self.mm = MemoryManagement()
-        self.ifaces = {}
         self.pending_syscalls = []
         self._notification_cbs = {}
 

@@ -426,7 +426,7 @@ class IoAnalysis(Command):
     def iotop_output_net_recv_bytes(self):
         graph = Pyasciigraph()
         values = []
-        for iface in sorted(self.state.ifaces.values(),
+        for iface in sorted(self._analysis.ifaces.values(),
                             key=operator.attrgetter('recv_bytes'),
                             reverse=True):
             values.append(('%s %s' % (common.convert_size(iface.recv_bytes),
@@ -439,12 +439,12 @@ class IoAnalysis(Command):
     def iotop_output_net_sent_bytes(self):
         graph = Pyasciigraph()
         values = []
-        for iface in sorted(self.state.ifaces.values(),
-                            key=operator.attrgetter('send_bytes'),
+        for iface in sorted(self._analysis.ifaces.values(),
+                            key=operator.attrgetter('sent_bytes'),
                             reverse=True):
-            values.append(('%s %s' % (common.convert_size(iface.send_bytes),
+            values.append(('%s %s' % (common.convert_size(iface.sent_bytes),
                                       iface.name),
-                          iface.send_bytes))
+                          iface.sent_bytes))
         for line in graph.graph('Network sent_bytes', values,
                                 with_value=False):
             print(line)
