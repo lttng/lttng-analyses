@@ -38,7 +38,6 @@ class State:
         self.cpus = {}
         self.tids = {}
         self.disks = {}
-        self.syscalls = {}
         self.mm = MemoryManagement()
         self.pending_syscalls = []
         self._notification_cbs = {}

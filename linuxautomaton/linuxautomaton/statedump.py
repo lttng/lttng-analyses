@@ -28,16 +28,12 @@ from linuxautomaton import sp, sv, common
 
 class StatedumpStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self.state = state
-        self.tids = state.tids
-        self.disks = state.disks
+        self._state = state
         cbs = {
             'lttng_statedump_process_state':
             self._process_lttng_statedump_process_state,
             'lttng_statedump_file_descriptor':
-            self._process_lttng_statedump_file_descriptor,
-            'lttng_statedump_block_device':
-            self._process_lttng_statedump_block_device,
+            self._process_lttng_statedump_file_descriptor
         }
         self._register_cbs(cbs)
 
@@ -84,12 +80,12 @@ class StatedumpStateProvider(sp.StateProvider):
         tid = event['tid']
         pid = event['pid']
         name = event['name']
-        if tid not in self.tids:
+        if tid not in self._state.tids:
             p = sv.Process()
             p.tid = tid
-            self.tids[tid] = p
+            self._state.tids[tid] = p
         else:
-            p = self.tids[tid]
+            p = self._state.tids[tid]
         # Even if the process got created earlier, some info might be
         # missing, add it now.
         p.pid = pid
@@ -97,14 +93,14 @@ class StatedumpStateProvider(sp.StateProvider):
 
         if pid != tid:
             # create the parent
-            if pid not in self.tids:
+            if pid not in self._state.tids:
                 parent = sv.Process()
                 parent.tid = pid
                 parent.pid = pid
                 parent.comm = name
-                self.tids[pid] = parent
+                self._state.tids[pid] = parent
             else:
-                parent = self.tids[pid]
+                parent = self._state.tids[pid]
             # If the thread had opened sv.FDs, they need to be assigned
             # to the parent.
             self.merge_fd_dict(p, parent)
@@ -115,13 +111,13 @@ class StatedumpStateProvider(sp.StateProvider):
         filename = event['filename']
         cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
 
-        if pid not in self.tids:
+        if pid not in self._state.tids:
             proc = sv.Process()
             proc.pid = pid
             proc.tid = pid
-            self.tids[pid] = proc
+            self._state.tids[pid] = proc
         else:
-            proc = self.tids[pid]
+            proc = self._state.tids[pid]
 
         if fd not in proc.fds:
             newfile = sv.FD()
@@ -135,7 +131,3 @@ class StatedumpStateProvider(sp.StateProvider):
 
         fdtype = proc.fds[fd].fdtype
         proc.track_chrono_fd(fd, filename, fdtype, event.timestamp)
-
-    def _process_lttng_statedump_block_device(self, event):
-        d = common.get_disk(event['dev'], self.disks)
-        d.prettyname = event['diskname']

@@ -782,18 +782,7 @@ class IoAnalysis(Command):
             self.iolatency_syscalls_log_output()
 
     def _reset_total(self, start_ts):
-        for dev in self.state.disks.keys():
-            self.state.disks[dev].init_counts()
-
-        for iface in self.state.ifaces.keys():
-            self.state.ifaces[iface].init_counts()
-
-        for tid in self.state.tids.values():
-            for fd in tid.fds.values():
-                fd.init_counts()
-            for fd in tid.closed_fds.values():
-                fd.init_counts()
-            tid.init_counts()
+        self._analysis.reset()
 
     def _add_arguments(self, ap):
         ap.add_argument('--usage', action='store_true',

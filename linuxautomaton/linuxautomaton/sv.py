@@ -44,29 +44,8 @@ class Process():
         # index) at a given point in time
         self.chrono_fds = {}
         self.current_syscall = {}
-        self.init_counts()
-
-    def init_counts(self):
-        # network read/write
-        self.net_read = 0
-        self.net_write = 0
-        # disk read/write (might be cached)
-        self.disk_read = 0
-        self.disk_write = 0
-        # actual block access read/write
-        self.block_read = 0
-        self.block_write = 0
-        # unclassified read/write (FD passing and statedump)
-        self.unk_read = 0
-        self.unk_write = 0
-        # total I/O read/write
-        self.read = 0
-        self.write = 0
         # the process scheduled before this one
         self.prev_tid = None
-        # array of IORequest objects for freq analysis later (block and
-        # syscalls with no FD like sys_sync)
-        self.iorequests = []
 
     def track_chrono_fd(self, fd, filename, fdtype, timestamp):
         chrono_metadata = {}
@@ -98,47 +77,28 @@ class MemoryManagement():
     def __init__(self):
         self.page_count = 0
 
-
-class Syscall():
-    # One instance for each unique syscall name per process
-    def __init__(self):
-        self.name = ''
-        self.count = 0
-        # duration min/max
-        self.min = None
-        self.max = 0
-        self.total_duration = 0
-        # list of all syscall events (SyscallEvent)
-        self.rq = []
-
-
 class SyscallEvent():
-    def __init__(self):
-        self.entry_ts = None
-        self.exit_ts = None
+    def __init__(self, name, begin_ts):
+        self.name = name
+        self.begin_ts = begin_ts
+        self.end_ts = None
         self.ret = None
         self.duration = None
+
+    def process_exit(self, event):
+        self.end_ts = event.timestamp
+        self.ret = event['ret']
+        self.duration = self.end_ts - self.begin_ts
+
+    @classmethod
+    def new_from_entry(cls, event):
+        return cls(event.name, event.timestamp)
 
 
 class Disk():
     def __init__(self):
-        self.name = ''
-        self.prettyname = ''
-        self.init_counts()
-
-    def init_counts(self):
-        self.nr_sector = 0
-        self.nr_requests = 0
-        self.completed_requests = 0
-        self.request_time = 0
+        # pending block IO Requests, indexed by sector
         self.pending_requests = {}
-        self.rq_list = []
-        self.max = None
-        self.min = None
-        self.total = None
-        self.count = None
-        self.rq_values = None
-        self.stdev = None
 
 
 class FDType():
@@ -232,10 +192,6 @@ class SoftIRQ(IRQ):
 
 
 class IORequest():
-    # I/O 'type'
-    IO_SYSCALL = 1
-    IO_BLOCK = 2
-    IO_NET = 3
     # I/O operations
     OP_OPEN = 1
     OP_READ = 2
@@ -243,39 +199,67 @@ class IORequest():
     OP_CLOSE = 4
     OP_SYNC = 5
 
-    def __init__(self):
-        # IORequest.IO_*
-        self.iotype = None
-        # bytes for syscalls and net, sectors for block
-        # FIXME: syscalls handling vectors (vector size missing)
-        self.size = None
-        # for syscalls and block: delay between issue and completion
-        # of the request
+    def __init__(self, begin_ts, size, tid, operation):
+        self.begin_ts = begin_ts
+        self.end_ts = None
         self.duration = None
-        # IORequest.OP_*
-        self.operation = None
-        # syscall name
-        self.name = None
-        # begin syscall timestamp
-        self.begin = None
-        # end syscall timestamp
-        self.end = None
-        # current process
-        self.proc = None
-        # current FD (for syscalls)
+        # request size in bytes
+        self.size = size
+        self.operation = operation
+        # tid of process that triggered the rq
+        self.tid = tid
+
+
+class SyscallIORequest(IORequest):
+    def __init__(self, begin_ts, size, tid, operation):
+        super().__init__(begin_ts, size, tid)
         self.fd = None
-        # buffers dirtied during the operation
-        self.dirty = 0
-        # pages allocated during the operation
-        self.page_alloc = 0
-        # pages freed during the operation
-        self.page_free = 0
-        # pages written on disk during the operation
-        self.page_written = 0
-        # kswapd was forced to wakeup during the operation
+        self.syscall_name = None
+        # Number of pages alloc'd/freed/written to disk during the rq
+        self.pages_allocated = 0
+        self.pages_freed = 0
+        self.pages_written = 0
+        # Whether kswapd was forced to wakeup during the rq
         self.woke_kswapd = False
-        # estimated pages flushed during a sync operation
-        self.page_cleared = 0
+
+
+class BlockIORequest(IORequest):
+    # Logical sector size in bytes, according to the kernel
+    SECTOR_SIZE = 512
+
+    def __init__(self, begin_ts, tid, operation, dev, sector, nr_sector):
+        size = nr_sector * BlockIORequest.SECTOR_SIZE
+        super().__init__(begin_ts, size, tid, operation)
+        self.dev = dev
+        self.sector = sector
+        self.nr_sector = nr_sector
+
+    def update_from_rq_complete(self, event):
+        self.end_ts = event.timestamp
+        self.duration = self.end_ts - self.begin_ts
+
+    @classmethod
+    def new_from_rq_issue(cls, event):
+        begin_ts = event.timestamp
+        dev = event['dev']
+        sector = event['sector']
+        nr_sector = event['nr_sector']
+        tid = event['tid']
+        # An even rwbs indicates read operation, odd indicates write
+        if event['rwbs'] % 2 == 0:
+            operation = IORequest.OP_READ
+        else:
+            operation = IORequest.OP_WRITE
+
+        return cls(begin_ts, tid, operation, dev, sector, nr_sector)
+
+
+class BlockRemapRequest():
+    def __init__(self, dev, sector, old_dev, old_sector):
+        self.dev = dev
+        self.sector = sector
+        self.old_dev = old_dev
+        self.old_sector = old_sector
 
 
 class Syscalls_stats():
