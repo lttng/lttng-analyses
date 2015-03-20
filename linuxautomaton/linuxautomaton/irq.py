@@ -28,7 +28,6 @@ from linuxautomaton import sp, sv
 
 class IrqStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self.state = state
         cbs = {
             'irq_handler_entry': self._process_irq_handler_entry,
             'irq_handler_exit': self._process_irq_handler_exit,
@@ -36,16 +35,18 @@ class IrqStateProvider(sp.StateProvider):
             'softirq_entry': self._process_softirq_entry,
             'softirq_exit': self._process_softirq_exit
         }
+
+        self._state = state
         self._register_cbs(cbs)
 
     def process_event(self, ev):
         self._process_event_cb(ev)
 
     def _get_cpu(self, cpu_id):
-        if cpu_id not in self.state.cpus:
-            self.state.cpus[cpu_id] = sv.CPU(cpu_id)
+        if cpu_id not in self._state.cpus:
+            self._state.cpus[cpu_id] = sv.CPU(cpu_id)
 
-        return self.state.cpus[cpu_id]
+        return self._state.cpus[cpu_id]
 
     # Hard IRQs
     def _process_irq_handler_entry(self, event):
@@ -53,9 +54,9 @@ class IrqStateProvider(sp.StateProvider):
         irq = sv.HardIRQ.new_from_irq_handler_entry(event)
         cpu.current_hard_irq = irq
 
-        self.state.send_notification_cb('irq_handler_entry',
-                                        id=irq.id,
-                                        irq_name=event['name'])
+        self._state.send_notification_cb('irq_handler_entry',
+                                         id=irq.id,
+                                         irq_name=event['name'])
 
     def _process_irq_handler_exit(self, event):
         cpu = self._get_cpu(event['cpu_id'])
@@ -67,8 +68,8 @@ class IrqStateProvider(sp.StateProvider):
         cpu.current_hard_irq.end_ts = event.timestamp
         cpu.current_hard_irq.ret = event['ret']
 
-        self.state.send_notification_cb('irq_handler_exit',
-                                        hard_irq=cpu.current_hard_irq)
+        self._state.send_notification_cb('irq_handler_exit',
+                                         hard_irq=cpu.current_hard_irq)
         cpu.current_hard_irq = None
 
     # SoftIRQs
@@ -110,6 +111,6 @@ class IrqStateProvider(sp.StateProvider):
             return
 
         cpu.current_softirqs[vec][0].end_ts = event.timestamp
-        self.state.send_notification_cb('softirq_exit',
-                                        softirq=cpu.current_softirqs[vec][0])
+        self._state.send_notification_cb('softirq_exit',
+                                         softirq=cpu.current_softirqs[vec][0])
         del cpu.current_softirqs[vec][0]

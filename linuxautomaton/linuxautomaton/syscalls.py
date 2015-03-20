@@ -23,16 +23,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from linuxautomaton import sp, sv
+from linuxautomaton import sp
 
 
 class SyscallsStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self._state = state
         cbs = {
             'syscall_entry': self._process_syscall_entry,
             'syscall_exit': self._process_syscall_exit
         }
+
+        self._state = state
         self._register_cbs(cbs)
 
     def process_event(self, ev):
@@ -72,7 +73,7 @@ class SyscallsStateProvider(sp.StateProvider):
         current_syscall['ret'] = event['ret']
 
         self._state.send_notification_cb('syscall_exit',
-                                        proc=proc,
-                                        event=event)
+                                         proc=proc,
+                                         event=event)
 
         self._state.tids[cpu.current_tid].current_syscall = {}

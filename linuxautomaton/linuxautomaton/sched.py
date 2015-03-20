@@ -28,7 +28,6 @@ from linuxautomaton import sp, sv
 
 class SchedStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self.state = state
         cbs = {
             'sched_switch': self._process_sched_switch,
             'sched_migrate_task': self._process_sched_migrate_task,
@@ -37,6 +36,8 @@ class SchedStateProvider(sp.StateProvider):
             'sched_process_fork': self._process_sched_process_fork,
             'sched_process_exec': self._process_sched_process_exec,
         }
+
+        self._state = state
         self._register_cbs(cbs)
 
     def process_event(self, ev):
@@ -44,19 +45,19 @@ class SchedStateProvider(sp.StateProvider):
 
     def _fix_process(self, tid, pid, comm):
         """Fix a process' pid and comm if it exists, create it otherwise"""
-        if tid not in self.state.tids:
+        if tid not in self._state.tids:
             proc = sv.Process(tid, pid, comm)
-            self.state.tids[tid] = proc
+            self._state.tids[tid] = proc
         else:
-            proc = self.state.tids[tid]
+            proc = self._state.tids[tid]
             proc.pid = pid
             proc.comm = comm
 
     def _sched_switch_per_cpu(self, cpu_id, next_tid):
-        if cpu_id not in self.state.cpus:
-            self.state.cpus[cpu_id] = sv.CPU(cpu_id)
+        if cpu_id not in self._state.cpus:
+            self._state.cpus[cpu_id] = sv.CPU(cpu_id)
 
-        cpu = self.state.cpus[cpu_id]
+        cpu = self._state.cpus[cpu_id]
         # exclude swapper process
         if next_tid == 0:
             cpu.current_tid = None
@@ -64,14 +65,14 @@ class SchedStateProvider(sp.StateProvider):
             cpu.current_tid = next_tid
 
     def _sched_switch_per_tid(self, next_tid, next_comm, prev_tid):
-        if next_tid not in self.state.tids:
+        if next_tid not in self._state.tids:
             if next_tid == 0:
                 # special case for the swapper
-                self.state.tids[next_tid] = sv.Process(tid=next_tid, pid=0)
+                self._state.tids[next_tid] = sv.Process(tid=next_tid, pid=0)
             else:
-                self.state.tids[next_tid] = sv.Process(tid=next_tid)
+                self._state.tids[next_tid] = sv.Process(tid=next_tid)
 
-        next_proc = self.state.tids[next_tid]
+        next_proc = self._state.tids[next_tid]
         next_proc.comm = next_comm
         next_proc.prev_tid = prev_tid
 
@@ -85,39 +86,39 @@ class SchedStateProvider(sp.StateProvider):
         self._sched_switch_per_cpu(cpu_id, next_tid)
         self._sched_switch_per_tid(next_tid, next_comm, prev_tid)
 
-        self.state.send_notification_cb('sched_switch_per_cpu',
-                                        timestamp=timestamp,
-                                        cpu_id=cpu_id,
-                                        next_tid=next_tid)
-        self.state.send_notification_cb('sched_switch_per_tid',
-                                        timestamp=timestamp,
-                                        prev_tid=prev_tid,
-                                        next_tid=next_tid,
-                                        next_comm=next_comm)
+        self._state.send_notification_cb('sched_switch_per_cpu',
+                                         timestamp=timestamp,
+                                         cpu_id=cpu_id,
+                                         next_tid=next_tid)
+        self._state.send_notification_cb('sched_switch_per_tid',
+                                         timestamp=timestamp,
+                                         prev_tid=prev_tid,
+                                         next_tid=next_tid,
+                                         next_comm=next_comm)
 
     def _process_sched_migrate_task(self, event):
         tid = event['tid']
-        if tid not in self.state.tids:
+        if tid not in self._state.tids:
             proc = sv.Process()
             proc.tid = tid
             proc.comm = event['comm']
-            self.state.tids[tid] = proc
+            self._state.tids[tid] = proc
         else:
-            proc = self.state.tids[tid]
+            proc = self._state.tids[tid]
 
-        self.state.send_notification_cb('sched_migrate_task', proc=proc)
+        self._state.send_notification_cb('sched_migrate_task', proc=proc)
 
     def _process_sched_wakeup(self, event):
         target_cpu = event['target_cpu']
         tid = event['tid']
 
-        if target_cpu not in self.state.cpus:
-            self.state.cpus[target_cpu] = sv.CPU(target_cpu)
+        if target_cpu not in self._state.cpus:
+            self._state.cpus[target_cpu] = sv.CPU(target_cpu)
 
-        if tid not in self.state.tids:
+        if tid not in self._state.tids:
             proc = sv.Process()
             proc.tid = tid
-            self.state.tids[tid] = proc
+            self._state.tids[tid] = proc
 
     def _process_sched_process_fork(self, event):
         child_tid = event['child_tid']
@@ -130,24 +131,24 @@ class SchedStateProvider(sp.StateProvider):
         child_proc = sv.Process(child_tid, child_pid, child_comm)
 
         self._fix_process(parent_tid, parent_pid, parent_comm)
-        parent_proc = self.state.tids[parent_pid]
+        parent_proc = self._state.tids[parent_pid]
 
         for fd in parent_proc.fds:
             old_fd = parent_proc.fds[fd]
             child_proc.fds[fd] = sv.FD.new_from_fd(old_fd)
             child_proc.fds[fd].parent = parent_pid
 
-        self.state.tids[child_tid] = child_proc
+        self._state.tids[child_tid] = child_proc
 
     def _process_sched_process_exec(self, event):
         tid = event['tid']
 
-        if tid not in self.state.tids:
+        if tid not in self._state.tids:
             proc = sv.Process()
             proc.tid = tid
-            self.state.tids[tid] = proc
+            self._state.tids[tid] = proc
         else:
-            proc = self.state.tids[tid]
+            proc = self._state.tids[tid]
 
         # Use LTTng procname context if available
         if 'procname' in event:

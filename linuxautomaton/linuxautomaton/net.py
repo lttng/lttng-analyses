@@ -28,11 +28,12 @@ from linuxautomaton import sp, sv
 
 class NetStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self._state = state
         cbs = {
             'net_dev_xmit': self._process_net_dev_xmit,
             'netif_receive_skb': self._process_netif_receive_skb,
         }
+
+        self._state = state
         self._register_cbs(cbs)
 
     def process_event(self, ev):
