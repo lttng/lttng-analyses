@@ -99,7 +99,7 @@ class IrqAnalysisCommand(Command):
 
         durations = []
         for irq in irq_stats_item.irq_list:
-            durations.append(irq.stop_ts - irq.start_ts)
+            durations.append(irq.end_ts - irq.begin_ts)
 
         return statistics.stdev(durations)
 
@@ -112,7 +112,7 @@ class IrqAnalysisCommand(Command):
             if irq.raise_ts is None:
                 continue
 
-            raise_latencies.append(irq.start_ts - irq.raise_ts)
+            raise_latencies.append(irq.begin_ts - irq.raise_ts)
 
         return statistics.stdev(raise_latencies)
 
@@ -137,7 +137,7 @@ class IrqAnalysisCommand(Command):
             buckets.append(i * step)
             values.append(0)
         for irq in irq_stats_item.irq_list:
-            duration = (irq.stop_ts - irq.start_ts) / 1000
+            duration = (irq.end_ts - irq.begin_ts) / 1000
             index = min(int((duration - min_duration) / step), resolution - 1)
             values[index] += 1
 
@@ -195,13 +195,13 @@ class IrqAnalysisCommand(Command):
                                                        self._arg_multi_day,
                                                        self._arg_gmt))
 
-            print(fmt.format(common.ns_to_hour_nsec(irq.start_ts,
+            print(fmt.format(common.ns_to_hour_nsec(irq.begin_ts,
                                                     self._arg_multi_day,
                                                     self._arg_gmt),
-                             common.ns_to_hour_nsec(irq.stop_ts,
+                             common.ns_to_hour_nsec(irq.end_ts,
                                                     self._arg_multi_day,
                                                     self._arg_gmt),
-                             '%0.03f' % ((irq.stop_ts - irq.start_ts) / 1000),
+                             '%0.03f' % ((irq.end_ts - irq.begin_ts) / 1000),
                              '%d' % irq.cpu_id, irqtype, irq.id,
                              name + raise_ts))
 
