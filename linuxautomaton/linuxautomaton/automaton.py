@@ -27,6 +27,7 @@ from .sched import SchedStateProvider
 from .mem import MemStateProvider
 from .irq import IrqStateProvider
 from .syscalls import SyscallsStateProvider
+from .io import IoStateProvider
 from .statedump import StatedumpStateProvider
 from .block import BlockStateProvider
 from .net import NetStateProvider
@@ -63,9 +64,10 @@ class Automaton:
             MemStateProvider(self._state),
             IrqStateProvider(self._state),
             SyscallsStateProvider(self._state),
+            IoStateProvider(self._state),
             StatedumpStateProvider(self._state),
             BlockStateProvider(self._state),
-            NetStateProvider(self._state),
+            NetStateProvider(self._state)
         ]
 
     def process_event(self, ev):

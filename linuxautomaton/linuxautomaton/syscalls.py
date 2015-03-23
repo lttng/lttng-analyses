@@ -76,4 +76,7 @@ class SyscallsStateProvider(sp.StateProvider):
                                          proc=proc,
                                          event=event)
 
-        self._state.tids[cpu.current_tid].current_syscall = {}
+        # If it's an IO Syscall, the IO state provider will take care of
+        # clearing the current syscall, so only clear here if it's not
+        if current_syscall['name'] not in sv.SyscallConsts.IO_SYSCALLS:
+            self._state.tids[cpu.current_tid].current_syscall = {}
