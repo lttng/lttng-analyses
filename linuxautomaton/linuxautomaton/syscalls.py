@@ -23,7 +23,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from linuxautomaton import sp
+from linuxautomaton import common, sp, sv
 
 
 class SyscallsStateProvider(sp.StateProvider):
@@ -40,7 +40,7 @@ class SyscallsStateProvider(sp.StateProvider):
         self._process_event_cb(ev)
 
     def _process_syscall_entry(self, event):
-        name = event.name
+        name = common.get_syscall_name(event)
         cpu_id = event['cpu_id']
 
         if cpu_id not in self._state.cpus:

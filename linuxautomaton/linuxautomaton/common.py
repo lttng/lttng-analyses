@@ -28,12 +28,22 @@ import time
 import datetime
 import socket
 import struct
-from linuxautomaton import sv
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
 
 O_CLOEXEC = 0o2000000
+
+
+def get_syscall_name(event):
+    name = event.name
+
+    if name.startswith('sys_'):
+        # Start at 5 because sys_ is 4 chars long
+        return name[5:-1]
+
+    # Name begins with syscall_entry_ (14 chars long)
+    return name[15:-1]
 
 
 def convert_size(size, padding_after=False, padding_before=False):

@@ -298,36 +298,22 @@ class SyscallConsts():
     INET_FAMILIES = [socket.AF_INET, socket.AF_INET6]
     DISK_FAMILIES = [socket.AF_UNIX]
     # list nof syscalls that open a FD on disk (in the exit_syscall event)
-    DISK_OPEN_SYSCALLS = ['sys_open', 'syscall_entry_open',
-                          'sys_openat', 'syscall_entry_openat']
+    DISK_OPEN_SYSCALLS = ['open', 'openat']
     # list of syscalls that open a FD on the network
     # (in the exit_syscall event)
-    NET_OPEN_SYSCALLS = ['sys_accept', 'syscall_entry_accept',
-                         'sys_accept4', 'syscall_entry_accept4',
-                         'sys_socket', 'syscall_entry_socket']
+    NET_OPEN_SYSCALLS = ['accept', 'accept4', 'socket']
     # list of syscalls that can duplicate a FD
-    DUP_OPEN_SYSCALLS = ['sys_fcntl', 'syscall_entry_fcntl',
-                         'sys_dup2', 'syscall_entry_dup2']
-    SYNC_SYSCALLS = ['sys_sync', 'syscall_entry_sync',
-                     'sys_sync_file_range', 'syscall_entry_sync_file_range',
-                     'sys_fsync', 'syscall_entry_fsync',
-                     'sys_fdatasync', 'syscall_entry_fdatasync']
+    DUP_OPEN_SYSCALLS = ['fcntl', 'dup2']
+    SYNC_SYSCALLS = ['sync', 'sync_file_range', 'fsync', 'fdatasync']
     # merge the 3 open lists
     OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
     # list of syscalls that close a FD (in the 'fd =' field)
-    CLOSE_SYSCALLS = ['sys_close', 'syscall_entry_close']
+    CLOSE_SYSCALLS = ['close']
     # list of syscall that read on a FD, value in the exit_syscall following
-    READ_SYSCALLS = ['sys_read', 'syscall_entry_read',
-                     'sys_recvmsg', 'syscall_entry_recvmsg',
-                     'sys_recvfrom', 'syscall_entry_recvfrom',
-                     'sys_splice', 'syscall_entry_splice',
-                     'sys_readv', 'syscall_entry_readv',
-                     'sys_sendfile64', 'syscall_entry_sendfile64']
+    READ_SYSCALLS = ['read', 'recvmsg', 'recvfrom', 'splice', 'readv',
+                     'sendfile64']
     # list of syscall that write on a FD, value in the exit_syscall following
-    WRITE_SYSCALLS = ['sys_write', 'syscall_entry_write',
-                      'sys_sendmsg', 'syscall_entry_sendmsg',
-                      'sys_sendto', 'syscall_entry_sendto',
-                      'sys_writev', 'syscall_entry_writev']
+    WRITE_SYSCALLS = ['write', 'sendmsg', 'sendto', 'writev']
     # All I/O related syscalls
     IO_SYSCALLS = OPEN_SYSCALLS + CLOSE_SYSCALLS + READ_SYSCALLS + \
         WRITE_SYSCALLS + SYNC_SYSCALLS
