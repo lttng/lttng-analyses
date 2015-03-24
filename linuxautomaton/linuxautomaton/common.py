@@ -39,11 +39,11 @@ def get_syscall_name(event):
     name = event.name
 
     if name.startswith('sys_'):
-        # Start at 5 because sys_ is 4 chars long
-        return name[5:-1]
+        # Strip first 4 because sys_ is 4 chars long
+        return name[4:]
 
     # Name begins with syscall_entry_ (14 chars long)
-    return name[15:-1]
+    return name[14:]
 
 
 def convert_size(size, padding_after=False, padding_before=False):
