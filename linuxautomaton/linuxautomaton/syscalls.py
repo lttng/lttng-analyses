@@ -23,7 +23,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from linuxautomaton import common, sp, sv
+from linuxautomaton import sp, sv
 
 
 class SyscallsStateProvider(sp.StateProvider):
@@ -40,7 +40,6 @@ class SyscallsStateProvider(sp.StateProvider):
         self._process_event_cb(ev)
 
     def _process_syscall_entry(self, event):
-        name = common.get_syscall_name(event)
         cpu_id = event['cpu_id']
 
         if cpu_id not in self._state.cpus:
@@ -51,8 +50,7 @@ class SyscallsStateProvider(sp.StateProvider):
             return
 
         proc = self._state.tids[cpu.current_tid]
-        proc.current_syscall['name'] = name
-        proc.current_syscall['start'] = event.timestamp
+        proc.current_syscall = sv.SyscallEvent.new_from_entry(event)
 
     def _process_syscall_exit(self, event):
         cpu_id = event['cpu_id']
@@ -65,12 +63,10 @@ class SyscallsStateProvider(sp.StateProvider):
 
         proc = self._state.tids[cpu.current_tid]
         current_syscall = proc.current_syscall
-        if not current_syscall:
+        if current_syscall is None:
             return
 
-        current_syscall['duration'] = event.timestamp - \
-                                      current_syscall['start']
-        current_syscall['ret'] = event['ret']
+        current_syscall.process_exit(event)
 
         self._state.send_notification_cb('syscall_exit',
                                          proc=proc,
@@ -78,5 +74,5 @@ class SyscallsStateProvider(sp.StateProvider):
 
         # If it's an IO Syscall, the IO state provider will take care of
         # clearing the current syscall, so only clear here if it's not
-        if current_syscall['name'] not in sv.SyscallConsts.IO_SYSCALLS:
-            self._state.tids[cpu.current_tid].current_syscall = {}
+        if current_syscall.name not in sv.SyscallConsts.IO_SYSCALLS:
+            self._state.tids[cpu.current_tid].current_syscall = None
