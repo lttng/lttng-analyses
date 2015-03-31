@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 import socket
-from collections import OrderedDict
+from linuxautomaton import common
 
 
 class StateVariable:
@@ -58,6 +58,7 @@ class MemoryManagement():
     def __init__(self):
         self.page_count = 0
 
+
 class SyscallEvent():
     def __init__(self, name, begin_ts):
         self.name = name
@@ -73,7 +74,8 @@ class SyscallEvent():
 
     @classmethod
     def new_from_entry(cls, event):
-        return cls(event.name, event.timestamp)
+        name = common.get_syscall_name(event)
+        return cls(name, event.timestamp)
 
 
 class Disk():
