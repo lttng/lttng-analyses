@@ -27,11 +27,13 @@ import socket
 from linuxautomaton import sp, sv, common
 from babeltrace import CTFScope
 
+
 class IoStateProvider(sp.StateProvider):
     def __init__(self, state):
         cbs = {
             'syscall_entry': self._process_syscall_entry,
             'syscall_exit': self._process_syscall_exit,
+            'syscall_entry_connect': self._process_connect,
             'writeback_pages_written': self._process_writeback_pages_written,
             'mm_vmscan_wakeup_kswapd': self._process_mm_vmscan_wakeup_kswapd,
             'mm_page_free': self._process_mm_page_free
@@ -49,16 +51,30 @@ class IoStateProvider(sp.StateProvider):
         if name not in sv.SyscallConsts.IO_SYSCALLS:
             return
 
-        self._track_fds(event)
+        cpu_id = event['cpu_id']
+        if cpu_id not in self._state.cpus:
+            return
 
-        if name in sv.SyscallConsts.READ_SYSCALLS or \
-           name in sv.SyscallConsts.WRITE_SYSCALLS:
-            self._track_read_write(event)
+        cpu = self._state.cpus[cpu_id]
+        if cpu.current_tid is None:
+            return
+
+        proc = self._state.tids[cpu.current_tid]
+
+        # check if we can fix the pid from a context
+        self._fix_context_pid(event, proc)
+
+        if name in sv.SyscallConsts.OPEN_SYSCALLS:
+            self._track_open(event, name, proc)
+        elif name in sv.SyscallConsts.CLOSE_SYSCALLS:
+            self._track_close(event, name, proc)
+        elif name in sv.SyscallConsts.READ_SYSCALLS or \
+             name in sv.SyscallConsts.WRITE_SYSCALLS:
+            self._track_read_write(event, name, proc)
         elif name in sv.SyscallConsts.SYNC_SYSCALLS:
-            self._track_sync(event)
+            self._track_sync(event, name, proc)
 
     def _process_syscall_exit(self, event):
-        ret = event['ret']
         cpu_id = event['cpu_id']
         if cpu_id not in self._state.cpus:
             return
@@ -69,38 +85,44 @@ class IoStateProvider(sp.StateProvider):
 
         proc = self._state.tids[cpu.current_tid]
         current_syscall = proc.current_syscall
-        if not current_syscall:
+        if current_syscall is None:
             return
 
+        name = current_syscall.name
         if name not in sv.SyscallConsts.IO_SYSCALLS:
             return
 
-        current_syscall['iorequest'] = sv.IORequest()
-        current_syscall['iorequest'].iotype = sv.IORequest.IO_SYSCALL
-        current_syscall['iorequest'].name = name
         if name in sv.SyscallConsts.OPEN_SYSCALLS:
-            self._add_tid_fd(event)
-            if ret < 0:
-                return
-
-            current_syscall['fd'] = self._get_fd(proc, ret, event)
-            current_syscall['count'] = 0
-            current_syscall['fd'].fdtype = current_syscall['fdtype']
-            current_syscall['iorequest'].operation = sv.IORequest.OP_OPEN
-            self._track_rw_latency(event)
+            self._track_open_exit(event, proc)
+        elif name in sv.SyscallConsts.CLOSE_SYSCALLS:
+            self._track_close_exit(event, proc)
         elif name in sv.SyscallConsts.READ_SYSCALLS or \
-                name in sv.SyscallConsts.WRITE_SYSCALLS:
-            self._track_read_write_return(name, ret, cpu)
-            self._track_rw_latency(event)
+             name in sv.SyscallConsts.WRITE_SYSCALLS:
+            self._track_read_write_exit(event, proc)
         elif name in sv.SyscallConsts.SYNC_SYSCALLS:
-            current_syscall['iorequest'].operation = sv.IORequest.OP_SYNC
-            self._track_rw_latency(event)
-            if name in ['sys_sync', 'syscall_entry_sync']:
-                t = self._state.tids[cpu.current_tid]
-                t.iorequests.append(current_syscall['iorequest'])
+            self._track_sync_exit(event, proc)
 
-        if proc in self._state.pending_syscalls:
-            self._state.pending_syscalls.remove(proc)
+        proc.current_syscall = None
+
+    def _process_connect(self, event):
+        cpu_id = event['cpu_id']
+        if cpu_id not in self._state.cpus:
+            return
+
+        cpu = self._state.cpus[cpu_id]
+        if cpu.current_tid is None:
+            return
+
+        proc = self._state.tids[cpu.current_tid]
+        parent_proc = self._get_parent_proc(proc)
+
+        # FIXME: handle on syscall_exit_connect only when succesful
+        if 'family' in event and event['family'] == socket.AF_INET:
+            fd = event['fd']
+            if fd in parent_proc.fds:
+                parent_proc.fds[fd].filename = (
+                    '%s:%d' % (common.get_v4_addr_str(event['v4addr']),
+                               event['dport']))
 
     def _process_writeback_pages_written(self, event):
         for cpu in self._state.cpus.values():
@@ -108,10 +130,11 @@ class IoStateProvider(sp.StateProvider):
                 continue
 
             current_syscall = self._state.tids[cpu.current_tid].current_syscall
-            if not current_syscall:
+            if current_syscall is None:
                 continue
 
-            current_syscall['pages_written'] = event['pages']
+            if current_syscall.io_rq:
+                current_syscall.io_rq.pages_written += event['pages']
 
     def _process_mm_vmscan_wakeup_kswapd(self, event):
         cpu_id = event['cpu_id']
@@ -123,10 +146,11 @@ class IoStateProvider(sp.StateProvider):
             return
 
         current_syscall = self._state.tids[cpu.current_tid].current_syscall
-        if not current_syscall:
+        if current_syscall is None:
             return
 
-        current_syscall['wakeup_kswapd'] = True
+        if current_syscall.io_rq:
+            current_syscall.io_rq.woke_kswapd = True
 
     def _process_mm_page_free(self, event):
         for cpu in self._state.cpus.values():
@@ -142,288 +166,187 @@ class IoStateProvider(sp.StateProvider):
                 proc = self._state.tids[proc.prev_tid]
 
             current_syscall = proc.current_syscall
-            if not current_syscall:
+            if current_syscall is None:
                 continue
 
-            if 'wakeup_kswapd' in current_syscall:
-                if 'page_free' in current_syscall:
-                    current_syscall['page_free'] += 1
-                else:
-                    current_syscall['page_free'] = 1
+            if current_syscall.io_rq and current_syscall.io_rq.woke_kswapd:
+                current_syscall.io_rq.pages_freed += 1
 
-    def _track_fds(self, event):
-        name = common.get_syscall_name(event)
-        cpu_id = event['cpu_id']
-        if cpu_id not in self._state.cpus:
-            return
-
-        cpu = self._state.cpus[cpu_id]
-        if cpu.current_tid is None:
-            return
-
-        proc = self._state.tids[cpu.current_tid]
-        # check if we can fix the pid from a context
-        self._fix_context_pid(event, proc)
-        # if it's a thread, we want the parent
-        if proc.pid is not None and proc.tid != proc.pid:
-            proc = self._state.tids[proc.pid]
-
-        if name in sv.SyscallConsts.OPEN_SYSCALLS:
-            self.track_open(name, proc, event, cpu)
-        elif name in sv.SyscallConsts.CLOSE_SYSCALLS:
-            self._track_close(name, proc, event, cpu)
-        # when a connect occurs, no new sv.FD is returned, but we can fix
-        # the 'filename' if we have the destination info
-        elif name == 'connect' and event['family'] == socket.AF_INET:
-            fd = self._get_fd(proc, event['fd'], event)
-            ipport = '%s:%d' % (common.get_v4_addr_str(event['v4addr']),
-                                event['dport'])
-            fd.filename = ipport
-
-    def _track_read_write(self, event):
-        name = common.get_syscall_name(event)
-        cpu_id = event['cpu_id']
-
-        if cpu_id not in self._state.cpus:
-            return
-
-        cpu = self._state.cpus[cpu_id]
-        if cpu.current_tid is None:
-            return
-
-        proc = self._state.tids[cpu.current_tid]
-        self._state.pending_syscalls.append(proc)
-        # if it's a thread, we want the parent
-        if proc.pid is not None and proc.tid != proc.pid:
-            proc = self._state.tids[proc.pid]
-
+    def _track_open(self, event, name, proc):
         current_syscall = proc.current_syscall
-        current_syscall['name'] = name
-        current_syscall['start'] = event.timestamp
-
-        if name == 'splice':
-            current_syscall['fd_in'] = self._get_fd(proc, event['fd_in'],
-                                                    event)
-            current_syscall['fd_out'] = self._get_fd(proc, event['fd_out'],
-                                                     event)
-            current_syscall['count'] = event['len']
-            current_syscall['filename'] = current_syscall['fd_in'].filename
-            return
-        elif name == 'sendfile64':
-            current_syscall['fd_in'] = self._get_fd(proc, event['in_fd'],
-                                                    event)
-            current_syscall['fd_out'] = self._get_fd(proc, event['out_fd'],
-                                                     event)
-            current_syscall['count'] = event['count']
-            current_syscall['filename'] = current_syscall['fd_in'].filename
-            return
-
-        fileno = event['fd']
-        fd = self._get_fd(proc, fileno, event)
-        current_syscall['fd'] = fd
-        if name in ['writev', 'readv']:
-            current_syscall['count'] = event['vlen']
-        elif name == 'recvfrom':
-            current_syscall['count'] = event['size']
-        elif name in ['recvmsg', 'sendmsg']:
-            current_syscall['count'] = ''
-        elif name == 'sendto':
-            current_syscall['count'] = event['len']
-        else:
-            current_syscall['count'] = event['count']
-
-        current_syscall['filename'] = fd.filename
-
-    def track_open(self, name, proc, event, cpu):
-        self._state.tids[cpu.current_tid].current_syscall = {}
-        current_syscall = self._state.tids[cpu.current_tid].current_syscall
         if name in sv.SyscallConsts.DISK_OPEN_SYSCALLS:
-            current_syscall['filename'] = event['filename']
-            if event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC:
-                current_syscall['cloexec'] = True
+            current_syscall.io_rq = sv.OpenIORequest.new_from_disk_open(
+                event, proc.tid)
         elif name in ['accept', 'accept4']:
-            if 'family' in event.keys() and event['family'] == socket.AF_INET:
-                ipport = '%s:%d' % (common.get_v4_addr_str(event['v4addr']),
-                                    event['sport'])
-                current_syscall['filename'] = ipport
-            else:
-                current_syscall['filename'] = 'socket'
-        elif name in sv.SyscallConsts.NET_OPEN_SYSCALLS:
-            current_syscall['filename'] = 'socket'
-        elif name == 'dup2':
-            newfd = event['newfd']
+            current_syscall.io_rq = sv.OpenIORequest.new_from_accept(
+                event, proc.tid)
+        elif name == 'socket':
+            current_syscall.io_rq = sv.OpenIORequest.new_from_socket(
+                event, proc.tid)
+        elif name in sv.SyscallConsts.DUP_OPEN_SYSCALLS:
+            self._track_dup(event, name, proc)
+
+    def _track_dup(self, event, name, proc):
+        current_syscall = proc.current_syscall
+
+        # If the process that triggered the io_rq is a thread,
+        # its FDs are that of the parent process
+        parent_proc = self._get_parent_proc(proc)
+        fds = parent_proc.fds
+
+        if name == 'dup':
+            oldfd = event['fildes']
+        elif name in ['dup2', 'dup3']:
             oldfd = event['oldfd']
-            if newfd in proc.fds.keys():
-                self._close_fd(proc, newfd)
-            if oldfd in proc.fds.keys():
-                current_syscall['filename'] = proc.fds[oldfd].filename
-                current_syscall['fdtype'] = proc.fds[oldfd].fdtype
-            else:
-                current_syscall['filename'] = ''
+            newfd = event['newfd']
+            if newfd in fds:
+                self._close_fd(parent_proc, newfd)
         elif name == 'fcntl':
-            # F_DUPsv.FD
+            # Only handle if cmd == F_DUPFD (0)
             if event['cmd'] != 0:
                 return
+
             oldfd = event['fd']
-            if oldfd in proc.fds.keys():
-                current_syscall['filename'] = proc.fds[oldfd].filename
-                current_syscall['fdtype'] = proc.fds[oldfd].fdtype
-            else:
-                current_syscall['filename'] = ''
 
-        if name in sv.SyscallConsts.NET_OPEN_SYSCALLS and \
-                'family' in event.keys():
-            family = event['family']
-            current_syscall['family'] = family
-        else:
-            family = socket.AF_UNSPEC
-            current_syscall['family'] = family
+        old_file = None
+        if oldfd in fds:
+            old_file = fds[oldfd]
 
-        current_syscall['name'] = name
-        current_syscall['start'] = event.timestamp
-        current_syscall['fdtype'] = self._get_fd_type(name, family)
+        current_syscall.io_rq = sv.OpenIORequest.new_from_old_fd(
+            event, proc.tid, old_file)
 
-    def _track_close(self, name, proc, event, cpu):
-        fd = event['fd']
-        if fd not in proc.fds:
-            return
+        if name == 'dup3':
+            cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
+            current_syscall.io_rq.cloexec = cloexec
 
-        tid = self._state.tids[cpu.current_tid]
-        tid.current_syscall = {}
-        current_syscall = tid.current_syscall
-        current_syscall['filename'] = proc.fds[fd].filename
-        current_syscall['name'] = name
-        current_syscall['start'] = event.timestamp
+    def _track_close(self, event, name, proc):
+        # name unused because there's only one close syscall. Remove?
+        proc.current_syscall.io_rq = sv.CloseIORequest(
+            event.timestamp, proc.tid, event['fd'])
 
-        self._close_fd(proc, fd)
-
-    def _close_fd(self, proc, fileno):
-        filename = proc.fds[fileno].filename
-        if filename not in sv.SyscallConsts.GENERIC_NAMES \
-           and filename in proc.closed_fds:
-            fd = proc.closed_fds[filename]
-            fd.net_read += proc.fds[fileno].net_read
-            fd.disk_read += proc.fds[fileno].disk_read
-            fd.net_write += proc.fds[fileno].net_write
-            fd.disk_write += proc.fds[fileno].disk_write
-        else:
-            proc.closed_fds[filename] = proc.fds[fileno]
-
-        del proc.fds[fileno]
-
-    def _track_sync(self, event):
-        name = common.get_syscall_name(event)
-        cpu_id = event['cpu_id']
-
-        if cpu_id not in self._state.cpus:
-            return
-
-        cpu = self._state.cpus[cpu_id]
-        if cpu.current_tid is None:
-            return
-
-        proc = self._state.tids[cpu.current_tid]
-        self._state.pending_syscalls.append(proc)
-        # if it's a thread, we want the parent
-        if proc.pid is not None and proc.tid != proc.pid:
-            proc = self._state.tids[proc.pid]
-
-        current_syscall = proc.current_syscall
-        current_syscall['name'] = name
-        current_syscall['start'] = event.timestamp
-        if name != 'sync':
-            fileno = event['fd']
-            fd = self._get_fd(proc, fileno, event)
-            current_syscall['fd'] = fd
-            current_syscall['filename'] = fd.filename
-
-    def _track_read_write_return(self, name, ret, cpu):
-        if ret < 0:
-            # TODO: track errors
-            return
-        proc = self._state.tids[cpu.current_tid]
-        # if it's a thread, we want the parent
-        if proc.pid is not None and proc.tid != proc.pid:
-            proc = self._state.tids[proc.pid]
-        current_syscall = self._state.tids[cpu.current_tid].current_syscall
-        if name in ['splice', 'sendfile64']:
-            self.read_append(current_syscall['fd_in'], proc, ret,
-                             current_syscall['iorequest'])
-            self.write_append(current_syscall['fd_out'], proc, ret,
-                              current_syscall['iorequest'])
-        elif name in sv.SyscallConsts.READ_SYSCALLS:
-            if ret > 0:
-                self.read_append(current_syscall['fd'], proc, ret,
-                                 current_syscall['iorequest'])
-        elif name in sv.SyscallConsts.WRITE_SYSCALLS:
-            if ret > 0:
-                self.write_append(current_syscall['fd'], proc, ret,
-                                  current_syscall['iorequest'])
-
-    def _track_rw_latency(self, event):
-        cpu_id = event['cpu_id']
-        cpu = self._state.cpus[cpu_id]
-        proc = self._state.tids[cpu.current_tid]
+    def _track_read_write(self, event, name, proc):
         current_syscall = proc.current_syscall
 
-        rq = current_syscall['iorequest']
-        rq.begin = current_syscall['start']
-        rq.end = event.timestamp
-        rq.duration = rq.end - rq.begin
-        rq.proc = proc
+        if name == 'splice':
+            current_syscall.io_rq = sv.ReadWriteIORequest.new_from_splice(
+                event, proc.tid)
+            return
+        elif name == 'sendfile64':
+            current_syscall.io_rq = sv.ReadWriteIORequest.new_from_sendfile64(
+                event, proc.tid)
+            return
 
-        if 'fd' in current_syscall:
-            rq.fd = current_syscall['fd']
-        elif 'fd_in' in current_syscall:
-            rq.fd = current_syscall['fd_in']
+        if name in ['writev', 'readv']:
+            size_key = 'vlen'
+        elif name == 'recvfrom':
+            size_key = 'size'
+        elif name == 'sendto':
+            size_key = 'len'
+        elif name in ['recvmsg', 'sendmsg']:
+            size_key = None
+        else:
+            size_key = 'count'
 
-        # pages written during the latency
-        if 'pages_written' in current_syscall:
-            rq.page_written = current_syscall['pages_written']
-        # allocated pages during the latency
-        if 'pages_allocated' in current_syscall:
-            rq.page_alloc = current_syscall['pages_allocated']
-        if 'page_free' in current_syscall:
-            rq.page_free = current_syscall['page_free']
-        # wakeup_kswapd during the latency
-        if 'wakeup_kswapd' in current_syscall:
-            rq.woke_kswapd = True
+        current_syscall.io_rq = sv.ReadWriteIORequest.new_from_fd_event(
+            event, proc.tid, size_key)
 
-        rq.fd.iorequests.append(rq)
+    def _track_sync(self, event, name, proc):
+        current_syscall = proc.current_syscall
 
-    def _add_tid_fd(self, event):
-        cpu = self._state.cpus[event['cpu_id']]
+        if name == 'sync':
+            current_syscall.io_rq = sv.SyncIORequest.new_from_sync(
+                event, proc.tid)
+        elif name in ['fsync', 'fdatasync']:
+            current_syscall.io_rq = sv.SyncIORequest.new_from_fsync(
+                event, proc.tid)
+        elif name == 'sync_file_range':
+            current_syscall.io_rq = sv.SyncIORequest.new_from_sync_file_range(
+                event, proc.tid)
+
+    def _track_io_rq_exit(self, event, proc):
+        io_rq = proc.current_syscall.io_rq
+        io_rq.update_from_exit(event)
+
         ret = event['ret']
-        proc = self._state.tids[cpu.current_tid]
-        # set current syscall to that of proc even if it's a thread
-        current_syscall = proc.current_syscall
-
-        # if it's a thread, we want the parent
-        if proc.pid is not None and proc.tid != proc.pid:
-            proc = self._state.tids[proc.pid]
-
-        filename = current_syscall['filename']
-        if filename not in sv.SyscallConsts.GENERIC_NAMES \
-           and filename in proc.closed_fds:
-            fd = proc.closed_fds[filename]
-        else:
-            fd = sv.FD()
-            fd.filename = filename
-            if current_syscall['name'] in sv.SyscallConsts.NET_OPEN_SYSCALLS:
-                fd.family = current_syscall['family']
-                if fd.family in sv.SyscallConsts.INET_FAMILIES:
-                    fd.fdtype = sv.FDType.net
-
         if ret >= 0:
-            fd.fd = ret
-        else:
+            self._create_fd(proc, io_rq)
+
+    def _track_open_exit(self, event, proc):
+        io_rq = proc.current_syscall.io_rq
+        # io_rq can be None in the case of fcntl when cmd is not
+        # F_DUPFD, in which case we disregard the syscall as it did
+        # not open any FD
+        if io_rq is None:
             return
 
-        if 'cloexec' in current_syscall.keys():
-            fd.cloexec = True
+        self._track_io_rq_exit(event, proc)
+        self._state.send_notification_cb('open_exit',
+                                         io_rq=io_rq,
+                                         proc=proc)
 
-        proc.fds[fd.fd] = fd
-        proc.track_chrono_fd(fd.fd, fd.filename, fd.fdtype, event.timestamp)
+    def _track_close_exit(self, event, proc):
+        io_rq = proc.current_syscall.io_rq
+        self._track_io_rq_exit(event, proc)
+        self._state.send_notification_cb('close_exit',
+                                         io_rq=io_rq,
+                                         proc=proc)
+
+        if event['ret'] == 0:
+            self._close_fd(proc, io_rq.fd)
+
+    def _track_read_write_exit(self, event, proc):
+        io_rq = proc.current_syscall.io_rq
+        self._track_io_rq_exit(event, proc)
+        self._state.send_notification_cb('read_write_exit',
+                                         io_rq=io_rq,
+                                         proc=proc)
+
+    def _track_sync_exit(self, event, proc):
+        io_rq = proc.current_syscall.io_rq
+        self._track_io_rq_exit(event, proc)
+        self._state.send_notification_cb('sync_exit',
+                                         io_rq=io_rq,
+                                         proc=proc)
+
+    def _create_fd(self, proc, io_rq):
+        parent_proc = self._get_parent_proc(proc)
+
+        if io_rq.fd is not None and io_rq.fd not in parent_proc.fds:
+            if isinstance(io_rq, sv.OpenIORequest):
+                parent_proc.fds[io_rq.fd] = sv.FD.new_from_open_rq(io_rq)
+            else:
+                parent_proc.fds[io_rq.fd] = sv.FD(io_rq.fd)
+                self._state.send_notification_cb('create_fd',
+                                                 fd=io_rq.fd,
+                                                 parent_proc=parent_proc)
+        elif isinstance(io_rq, sv.ReadWriteIORequest):
+            if io_rq.fd_in is not None and io_rq.fd_in not in parent_proc.fds:
+                parent_proc.fds[io_rq.fd_in] = sv.FD(io_rq.fd_in)
+                self._state.send_notification_cb('create_fd',
+                                                 fd=io_rq.fd_in,
+                                                 parent_proc=parent_proc)
+
+            if io_rq.fd_out is not None and \
+               io_rq.fd_out not in parent_proc.fds:
+                parent_proc.fds[io_rq.fd_out] = sv.FD(io_rq.fd_out)
+                self._state.send_notification_cb('create_fd',
+                                                 fd=io_rq.fd_out,
+                                                 parent_proc=parent_proc)
+
+    def _close_fd(self, proc, fd):
+        parent_proc = self._get_parent_proc(proc)
+        self._state.send_notification_cb('close_fd',
+                                         fd=fd,
+                                         parent_proc=parent_proc)
+        del parent_proc.fds[fd]
+
+    def _get_parent_proc(self, proc):
+        if proc.pid is not None and proc.tid != proc.pid:
+            parent_proc = self._state.tids[proc.pid]
+        else:
+            parent_proc = proc
+
+        return parent_proc
 
     def _fix_context_pid(self, event, proc):
         for context in event.field_list_with_scope(
@@ -443,58 +366,3 @@ class IoStateProvider(sp.StateProvider):
                     proc.pid = event['pid']
                     parent_proc = sv.Process(proc.pid, proc.proc, proc.comm)
                     self._state.tids[parent_proc.pid] = parent_proc
-
-    def _get_fd(self, proc, fileno, event):
-        if fileno not in proc.fds:
-            fd = sv.FD()
-            fd.fd = fileno
-            fd.filename = 'unknown (origin not found)'
-            proc.fds[fileno] = fd
-        else:
-            fd = proc.fds[fileno]
-
-        proc.track_chrono_fd(fileno, fd.filename, fd.fdtype, event.timestamp)
-
-        return fd
-
-    def _get_fd_type(self, name, family):
-        if name in sv.SyscallConsts.NET_OPEN_SYSCALLS:
-            if family in sv.SyscallConsts.INET_FAMILIES:
-                return sv.FDType.net
-            if family in sv.SyscallConsts.DISK_FAMILIES:
-                return sv.FDType.disk
-
-        if name in sv.SyscallConsts.DISK_OPEN_SYSCALLS:
-            return sv.FDType.disk
-
-        return sv.FDType.unknown
-
-    def read_append(self, fd, proc, count, rq):
-        rq.operation = sv.IORequest.OP_READ
-        rq.size = count
-        if fd.fdtype in [sv.FDType.net, sv.FDType.maybe_net]:
-            fd.net_read += count
-            proc.net_read += count
-        elif fd.fdtype == sv.FDType.disk:
-            fd.disk_read += count
-            proc.disk_read += count
-        else:
-            fd.unk_read += count
-            proc.unk_read += count
-        fd.read += count
-        proc.read += count
-
-    def write_append(self, fd, proc, count, rq):
-        rq.operation = sv.IORequest.OP_WRITE
-        rq.size = count
-        if fd.fdtype in [sv.FDType.net, sv.FDType.maybe_net]:
-            fd.net_write += count
-            proc.net_write += count
-        elif fd.fdtype == sv.FDType.disk:
-            fd.disk_write += count
-            proc.disk_write += count
-        else:
-            fd.unk_write += count
-            proc.unk_write += count
-        fd.write += count
-        proc.write += count
