@@ -303,7 +303,7 @@ class SyscallConsts():
     # (in the exit_syscall event)
     NET_OPEN_SYSCALLS = ['accept', 'accept4', 'socket']
     # list of syscalls that can duplicate a FD
-    DUP_OPEN_SYSCALLS = ['fcntl', 'dup2']
+    DUP_OPEN_SYSCALLS = ['fcntl', 'dup', 'dup2', 'dup3']
     SYNC_SYSCALLS = ['sync', 'sync_file_range', 'fsync', 'fdatasync']
     # merge the 3 open lists
     OPEN_SYSCALLS = DISK_OPEN_SYSCALLS + NET_OPEN_SYSCALLS + DUP_OPEN_SYSCALLS
@@ -317,6 +317,3 @@ class SyscallConsts():
     # All I/O related syscalls
     IO_SYSCALLS = OPEN_SYSCALLS + CLOSE_SYSCALLS + READ_SYSCALLS + \
         WRITE_SYSCALLS + SYNC_SYSCALLS
-    # generic names assigned to special FDs, don't try to match these in the
-    # closed_fds dict
-    GENERIC_NAMES = ['unknown', 'socket']
