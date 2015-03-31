@@ -54,15 +54,13 @@ class MemStateProvider(sp.StateProvider):
         self._state.mm.page_count += 1
 
         # Increment the number of pages allocated during the execution
-        # of all currently pending syscalls
+        # of all currently syscall io requests
         for process in self._state.tids.values():
-            if not process.current_syscall:
+            if process.current_syscall is None:
                 continue
 
-            if 'pages_allocated' not in process.current_syscall:
-                process.current_syscall['pages_allocated'] = 1
-            else:
-                process.current_syscall['pages_allocated'] += 1
+            if process.current_syscall.io_rq:
+                process.current_syscall.io_rq.pages_allocated += 1
 
         current_process = self._get_current_proc(event)
         if current_process is None:
