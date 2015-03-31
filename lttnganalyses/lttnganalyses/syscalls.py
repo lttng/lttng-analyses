@@ -46,7 +46,7 @@ class SyscallsAnalysis(Analysis):
         proc = kwargs['proc']
         tid = proc.tid
         current_syscall = proc.current_syscall
-        name = current_syscall['name']
+        name = current_syscall.name
 
         if tid not in self.tids:
             self.tids[tid] = ProcessSyscallStats.new_from_process(proc)
@@ -88,7 +88,7 @@ class SyscallStats():
         return len(self.syscalls_list)
 
     def update_stats(self, syscall):
-        duration = syscall['duration']
+        duration = syscall.duration
 
         if self.min is None or self.min > duration:
             self.min = duration
@@ -96,4 +96,3 @@ class SyscallStats():
             self.max = duration
         self.total_duration += duration
         self.syscalls_list.append(syscall)
-
