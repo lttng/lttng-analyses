@@ -66,6 +66,8 @@ class SyscallEvent():
         self.end_ts = None
         self.ret = None
         self.duration = None
+        # Only applicable to I/O syscalls
+        self.io_rq = None
 
     def process_exit(self, event):
         self.end_ts = event.timestamp
@@ -191,19 +193,207 @@ class IORequest():
         self.operation = operation
         # tid of process that triggered the rq
         self.tid = tid
+        # Error number if request failed
+        self.errno = None
 
 
 class SyscallIORequest(IORequest):
-    def __init__(self, begin_ts, size, tid, operation):
-        super().__init__(begin_ts, size, tid)
+    def __init__(self, begin_ts, size, tid, operation, syscall_name):
+        super().__init__(begin_ts, None, tid, operation)
         self.fd = None
-        self.syscall_name = None
+        self.syscall_name = syscall_name
+        # The size returned on syscall exit, in bytes. May differ from
+        # the size initially requested
+        self.returned_size = None
         # Number of pages alloc'd/freed/written to disk during the rq
         self.pages_allocated = 0
         self.pages_freed = 0
         self.pages_written = 0
         # Whether kswapd was forced to wakeup during the rq
         self.woke_kswapd = False
+
+    def update_from_exit(self, event):
+        self.end_ts = event.timestamp
+        self.duration = self.end_ts - self.begin_ts
+        if event['ret'] < 0:
+            self.errno = -event['ret']
+
+
+class OpenIORequest(SyscallIORequest):
+    def __init__(self, begin_ts, tid, syscall_name, filename,
+                 fd_type):
+        super().__init__(begin_ts, None, tid, IORequest.OP_OPEN, syscall_name)
+        # FD set on syscall exit
+        self.fd = None
+        self.filename = filename
+        self.fd_type = fd_type
+        self.family = None
+        self.cloexec = False
+
+    def update_from_exit(self, event):
+        super().update_from_exit(event)
+        if event['ret'] >= 0:
+            self.fd = event['ret']
+
+    @classmethod
+    def new_from_disk_open(cls, event, tid):
+        begin_ts = event.timestamp
+        name = common.get_syscall_name(event)
+        filename = event['filename']
+
+        req = cls(begin_ts, tid, name, filename, FDType.disk)
+        req.cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
+
+        return req
+
+    @classmethod
+    def new_from_accept(cls, event, tid):
+        # Handle both accept and accept4
+        begin_ts = event.timestamp
+        name = common.get_syscall_name(event)
+        req = cls(begin_ts, tid, name, 'socket', FDType.net)
+
+        if 'family' in event:
+            req.family = event['family']
+            # Set filename to ip:port if INET socket
+            if req.family == socket.AF_INET:
+                req.filename = '%s:%d' % (common.get_v4_addr_str(
+                    event['v4addr']), event['sport'])
+
+        return req
+
+    @classmethod
+    def new_from_socket(cls, event, tid):
+        begin_ts = event.timestamp
+        req = cls(begin_ts, tid, 'socket', 'socket', FDType.net)
+
+        if 'family' in event:
+            req.family = event['family']
+
+        return req
+
+    @classmethod
+    def new_from_old_fd(cls, event, tid, old_fd):
+        begin_ts = event.timestamp
+        name = common.get_syscall_name(event)
+        if old_fd is None:
+            filename = 'unknown'
+            fd_type = FDType.unknown
+        else:
+            filename = old_fd.filename
+            fd_type = old_fd.fd_type
+
+        return cls(begin_ts, tid, name, filename, fd_type)
+
+
+class CloseIORequest(SyscallIORequest):
+    def __init__(self, begin_ts, tid, fd):
+        super().__init__(begin_ts, None, tid, IORequest.OP_CLOSE, 'close')
+        self.fd = fd
+
+
+class ReadWriteIORequest(SyscallIORequest):
+    def __init__(self, begin_ts, size, tid, operation, syscall_name):
+        super().__init__(begin_ts, size, tid, operation, syscall_name)
+        # Unused if fd is set
+        self.fd_in = None
+        self.fd_out = None
+
+    def update_from_exit(self, event):
+        super().update_from_exit(event)
+        ret = event['ret']
+        if ret >= 0:
+            self.returned_size = ret
+            # Set the size to the returned one if none was set at
+            # entry, as with recvmsg or sendmsg
+            if self.size is None:
+                self.size = ret
+
+    @classmethod
+    def new_from_splice(cls, event, tid):
+        begin_ts = event.timestamp
+        size = event['len']
+
+        req = cls(begin_ts, size, tid, IORequest.OP_READ, 'splice')
+        req.fd_in = event['fd_in']
+        req.fd_out = event['fd_out']
+
+        return req
+
+    @classmethod
+    def new_from_sendfile64(cls, event, tid):
+        begin_ts = event.timestamp
+        size = event['count']
+
+        req = cls(begin_ts, size, tid, IORequest.OP_READ, 'sendfile64')
+        req.fd_in = event['in_fd']
+        req.fd_out = event['out_fd']
+
+        return req
+
+    @classmethod
+    def new_from_fd_event(cls, event, tid, size_key):
+        begin_ts = event.timestamp
+        # Some events, like recvmsg or sendmsg, only have size info on return
+        if size_key is not None:
+            size = event[size_key]
+        else:
+            size = None
+
+        syscall_name = common.get_syscall_name(event)
+        if syscall_name in SyscallConsts.READ_SYSCALLS:
+            operation = IORequest.OP_READ
+        else:
+            operation = IORequest.OP_WRITE
+
+        req = cls(begin_ts, size, tid, operation, syscall_name)
+        req.fd = event['fd']
+
+        return req
+
+
+class SyncIORequest(SyscallIORequest):
+    def __init__(self, begin_ts, size, tid, syscall_name):
+        super().__init__(begin_ts, size, tid, IORequest.OP_SYNC, syscall_name)
+
+    def update_from_exit(self, event):
+        super().update_from_exit(event)
+        ret = event['ret']
+        if ret >= 0:
+            self.returned_size = ret
+            # Set the size to the returned one if none was set at
+            # entry, as with sync, fsync, and fdatasync
+            if self.size is None:
+                self.size = ret
+
+    @classmethod
+    def new_from_sync(cls, event, tid):
+        begin_ts = event.timestamp
+        size = None
+
+        return cls(begin_ts, size, tid, 'sync')
+
+    @classmethod
+    def new_from_fsync(cls, event, tid):
+        # Also handle fdatasync
+        begin_ts = event.timestamp
+        size = None
+        syscall_name = common.get_syscall_name(event)
+
+        req = cls(begin_ts, size, tid, syscall_name)
+        req.fd = event['fd']
+
+        return req
+
+    @classmethod
+    def new_from_sync_file_range(cls, event, tid):
+        begin_ts = event.timestamp
+        size = event['nbytes']
+
+        req = cls(begin_ts, size, tid, 'sync_file_range')
+        req.fd = event['fd']
+
+        return req
 
 
 class BlockIORequest(IORequest):
