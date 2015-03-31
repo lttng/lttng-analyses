@@ -94,6 +94,19 @@ class FDType():
     # called during a write syscall and the type in unknown).
     maybe_net = 3
 
+    @staticmethod
+    def get_fd_type(name, family):
+        if name in SyscallConsts.NET_OPEN_SYSCALLS:
+            if family in SyscallConsts.INET_FAMILIES:
+                return FDType.net
+            if family in SyscallConsts.DISK_FAMILIES:
+                return FDType.disk
+
+        if name in SyscallConsts.DISK_OPEN_SYSCALLS:
+            return FDType.disk
+
+        return FDType.unknown
+
 
 class FD():
     def __init__(self):
