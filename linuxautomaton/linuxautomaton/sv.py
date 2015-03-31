@@ -428,37 +428,6 @@ class BlockRemapRequest():
         self.old_sector = old_sector
 
 
-class Syscalls_stats():
-    def __init__(self):
-        self.read_max = 0
-        self.read_min = None
-        self.read_total = 0
-        self.read_count = 0
-        self.read_rq = []
-        self.all_read = []
-
-        self.write_max = 0
-        self.write_min = None
-        self.write_total = 0
-        self.write_count = 0
-        self.write_rq = []
-        self.all_write = []
-
-        self.open_max = 0
-        self.open_min = None
-        self.open_total = 0
-        self.open_count = 0
-        self.open_rq = []
-        self.all_open = []
-
-        self.sync_max = 0
-        self.sync_min = None
-        self.sync_total = 0
-        self.sync_count = 0
-        self.sync_rq = []
-        self.all_sync = []
-
-
 class SyscallConsts():
     # TODO: decouple socket/family logic from this class
     INET_FAMILIES = [socket.AF_INET, socket.AF_INET6]
