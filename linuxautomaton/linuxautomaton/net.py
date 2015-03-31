@@ -52,13 +52,20 @@ class NetStateProvider(sp.StateProvider):
         if cpu.current_tid is None:
             return
 
-        current_syscall = self._state.tids[cpu.current_tid].current_syscall
-        if not current_syscall:
+        proc = self._state.tids[cpu.current_tid]
+        current_syscall = proc.current_syscall
+        if current_syscall is None:
             return
 
-        if current_syscall['name'] in sv.SyscallConsts.WRITE_SYSCALLS and \
-           current_syscall['fd'].fdtype == sv.FDType.unknown:
-            current_syscall['fd'].fdtype = sv.FDType.maybe_net
+        if proc.pid is not None and proc.pid != proc.tid:
+            proc = self._state.tids[proc.pid]
+
+        if current_syscall.name in sv.SyscallConsts.WRITE_SYSCALLS:
+            # TODO: find a way to set fd_type on the write rq to allow
+            # setting FD Type if FD hasn't yet been created
+            fd = current_syscall.io_rq.fd
+            if fd in proc.fds and proc.fds[fd].fd_type == sv.FDType.unknown:
+                proc.fds[fd].fd_type = sv.FDType.maybe_net
 
     def _process_netif_receive_skb(self, event):
         self._state.send_notification_cb('netif_receive_skb',
