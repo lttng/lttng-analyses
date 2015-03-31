@@ -136,7 +136,6 @@ class SchedStateProvider(sp.StateProvider):
         for fd in parent_proc.fds:
             old_fd = parent_proc.fds[fd]
             child_proc.fds[fd] = sv.FD.new_from_fd(old_fd)
-            child_proc.fds[fd].parent = parent_pid
 
         self._state.tids[child_tid] = child_proc
 
