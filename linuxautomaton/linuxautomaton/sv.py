@@ -109,43 +109,23 @@ class FDType():
 
 
 class FD():
-    def __init__(self):
-        self.filename = ''
-        self.fd = None
+    def __init__(self, fd, filename='unknown', fd_type=FDType.unknown,
+                 cloexec=False, family=None):
+        self.fd = fd
+        self.filename = filename
         # address family
-        self.family = socket.AF_UNSPEC
-        self.fdtype = FDType.unknown
-        # if FD was inherited, parent PID
-        self.parent = None
-        self.cloexec = False
-        self.init_counts()
+        self.fd_type = fd_type
+        self.cloexec = cloexec
+        self.family = family
 
     @classmethod
     def new_from_fd(cls, fd):
-        new_fd = cls()
-        new_fd.filename = fd.filename
-        new_fd.fd = fd.fd
-        new_fd.family = fd.family
-        new_fd.fdtype = fd.fdtype
-        new_fd.parent = fd.parent
-        new_fd.cloexec = fd.cloexec
-        return new_fd
+        return cls(fd.fd, fd.filename, fd.fd_type, fd.cloexec, fd.family)
 
-    def init_counts(self):
-        # network read/write
-        self.net_read = 0
-        self.net_write = 0
-        # disk read/write (might be cached)
-        self.disk_read = 0
-        self.disk_write = 0
-        # unclassified read/write (FD passing and statedump)
-        self.unk_read = 0
-        self.unk_write = 0
-        # total read/write
-        self.read = 0
-        self.write = 0
-        # array of syscall IORequest objects for freq analysis later
-        self.iorequests = []
+    @classmethod
+    def new_from_open_rq(cls, io_rq):
+        return cls(io_rq.fd, io_rq.filename, io_rq.fd_type, io_rq.cloexec,
+                   io_rq.family)
 
 
 class IRQ():
