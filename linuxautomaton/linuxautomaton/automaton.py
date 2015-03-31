@@ -40,7 +40,6 @@ class State:
         self.tids = {}
         self.disks = {}
         self.mm = MemoryManagement()
-        self.pending_syscalls = []
         self._notification_cbs = {}
 
     def register_notification_cbs(self, cbs):
