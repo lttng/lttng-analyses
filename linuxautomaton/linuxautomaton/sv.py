@@ -197,9 +197,6 @@ class SyscallIORequest(IORequest):
         super().__init__(begin_ts, None, tid, operation)
         self.fd = None
         self.syscall_name = syscall_name
-        # The size returned on syscall exit, in bytes. May differ from
-        # the size initially requested
-        self.returned_size = None
         # Number of pages alloc'd/freed/written to disk during the rq
         self.pages_allocated = 0
         self.pages_freed = 0
@@ -290,6 +287,9 @@ class CloseIORequest(SyscallIORequest):
 class ReadWriteIORequest(SyscallIORequest):
     def __init__(self, begin_ts, size, tid, operation, syscall_name):
         super().__init__(begin_ts, size, tid, operation, syscall_name)
+        # The size returned on syscall exit, in bytes. May differ from
+        # the size initially requested
+        self.returned_size = None
         # Unused if fd is set
         self.fd_in = None
         self.fd_out = None
@@ -350,16 +350,6 @@ class ReadWriteIORequest(SyscallIORequest):
 class SyncIORequest(SyscallIORequest):
     def __init__(self, begin_ts, size, tid, syscall_name):
         super().__init__(begin_ts, size, tid, IORequest.OP_SYNC, syscall_name)
-
-    def update_from_exit(self, event):
-        super().update_from_exit(event)
-        ret = event['ret']
-        if ret >= 0:
-            self.returned_size = ret
-            # Set the size to the returned one if none was set at
-            # entry, as with sync, fsync, and fdatasync
-            if self.size is None:
-                self.size = ret
 
     @classmethod
     def new_from_sync(cls, event, tid):
