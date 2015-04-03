@@ -286,9 +286,10 @@ class IoStateProvider(sp.StateProvider):
                 parent_proc.fds[io_rq.fd] = sv.FD.new_from_open_rq(io_rq)
             else:
                 parent_proc.fds[io_rq.fd] = sv.FD(io_rq.fd)
-                self._state.send_notification_cb('create_fd',
-                                                 fd=io_rq.fd,
-                                                 parent_proc=parent_proc)
+
+            self._state.send_notification_cb('create_fd',
+                                             fd=io_rq.fd,
+                                             parent_proc=parent_proc)
         elif isinstance(io_rq, sv.ReadWriteIORequest):
             if io_rq.fd_in is not None and io_rq.fd_in not in parent_proc.fds:
                 parent_proc.fds[io_rq.fd_in] = sv.FD(io_rq.fd_in)
