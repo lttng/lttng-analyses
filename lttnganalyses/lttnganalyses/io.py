@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 from .analysis import Analysis
-from linuxautomaton import sv
+from linuxautomaton import sv, statedump
 
 
 class IoAnalysis(Analysis):
@@ -31,7 +31,11 @@ class IoAnalysis(Analysis):
         notification_cbs = {
             'net_dev_xmit': self._process_net_dev_xmit,
             'netif_receive_skb': self._process_netif_receive_skb,
-            'block_rq_complete': self._process_block_rq_complete
+            'block_rq_complete': self._process_block_rq_complete,
+            'io_rq_exit': self._process_io_rq_exit,
+            'create_fd': self._process_create_fd,
+            'close_fd': self._process_close_fd,
+            'create_parent_proc': self._process_create_parent_proc
         }
 
         event_cbs = {
@@ -92,7 +96,7 @@ class IoAnalysis(Analysis):
         if proc.tid not in self.tids:
             self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
 
-        self.tids[proc.tid].update_stats(req)
+        self.tids[proc.tid].update_block_stats(req)
 
     def _process_lttng_statedump_block_device(self, event):
         dev = event['dev']
@@ -102,6 +106,70 @@ class IoAnalysis(Analysis):
             self.disks[dev] = DiskStats(dev, disk_name)
         else:
             self.disks[dev].disk_name = disk_name
+
+    def _process_io_rq_exit(self, **kwargs):
+        proc = kwargs['proc']
+        parent_proc = kwargs['parent_proc']
+        io_rq = kwargs['io_rq']
+
+        if proc.tid not in self.tids:
+            self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
+
+        if parent_proc.tid not in self.tids:
+            self.tids[parent_proc.tid] = (
+                ProcessIOStats.new_from_process(parent_proc))
+
+        proc_stats = self.tids[proc.tid]
+        parent_stats = self.tids[parent_proc.tid]
+
+        fd_types = {}
+        if io_rq.errno is None:
+            if io_rq.operation == sv.IORequest.OP_READ or \
+               io_rq.operation == sv.IORequest.OP_WRITE:
+                fd_types['fd'] = parent_stats.fds[io_rq.fd].fd_type
+            elif io_rq.operation == sv.IORequest.OP_READ_WRITE:
+                fd_types['fd_in'] = parent_stats.fds[io_rq.fd_in].fd_type
+                fd_types['fd_out'] = parent_stats.fds[io_rq.fd_out].fd_type
+
+        proc_stats.update_io_stats(io_rq, fd_types)
+        parent_stats.update_fd_stats(io_rq)
+
+    def _process_create_parent_proc(self, **kwargs):
+        proc = kwargs['proc']
+        parent_proc = kwargs['parent_proc']
+
+        if proc.tid not in self.tids:
+            self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
+
+        if parent_proc.tid not in self.tids:
+            self.tids[parent_proc.tid] = (
+                ProcessIOStats.new_from_process(parent_proc))
+
+        proc_stats = self.tids[proc.tid]
+        parent_stats = self.tids[parent_proc.tid]
+
+        proc_stats.pid = parent_stats.tid
+        statedump.StatedumpStateProvider._assign_fds_to_parent(proc_stats,
+                                                               parent_stats)
+
+    def _process_create_fd(self, **kwargs):
+        parent_proc = kwargs['parent_proc']
+        tid = parent_proc.tid
+        fd = kwargs['fd']
+
+        if tid not in self.tids:
+            self.tids[tid] = ProcessIOStats.new_from_process(parent_proc)
+
+        parent_stats = self.tids[tid]
+        parent_stats.fds[fd] = FDStats.new_from_fd(parent_proc.fds[fd])
+
+    def _process_close_fd(self, **kwargs):
+        parent_proc = kwargs['parent_proc']
+        tid = parent_proc.tid
+        fd = kwargs['fd']
+
+        parent_stats = self.tids[tid]
+        # TODO mark FD as closed
 
 
 class DiskStats():
@@ -182,6 +250,8 @@ class ProcessIOStats():
         # block layer
         self.block_read = 0
         self.block_write = 0
+        # FDStats objects, indexed by fd (fileno)
+        self.fds = {}
         self.rq_list = []
 
     @classmethod
@@ -197,22 +267,58 @@ class ProcessIOStats():
     def total_write(self):
         return self.disk_write + self.net_write + self.unk_write
 
-    def update_stats(self, req):
-        if isinstance(req, sv.BlockIORequest):
-            self._update_block_stats(req)
-        else:
-            self._update_io_stats(req)
+    def update_fd_stats(self, req):
+        if req.errno is not None:
+            return
 
+        if req.fd is not None:
+            self.fds[req.fd].update_stats(req)
+        elif isinstance(req, sv.ReadWriteIORequest):
+            if req.fd_in is not None:
+                self.fds[req.fd_in].update_stats(req)
+
+            if req.fd_out is not None:
+                self.fds[req.fd_out].update_stats(req)
+
+    def update_block_stats(self, req):
         self.rq_list.append(req)
 
-    def _update_block_stats(self, req):
         if req.operation is sv.IORequest.OP_READ:
             self.block_read += req.size
         elif req.operation is sv.IORequest.OP_WRITE:
             self.block_write += req.size
 
-    def _update_io_stats(self, req):
-        pass
+    def update_io_stats(self, req, fd_types):
+        self.rq_list.append(req)
+
+        if req.size is None or req.errno is not None:
+            return
+
+        if req.operation is sv.IORequest.OP_READ:
+            self._update_read(req.returned_size, fd_types['fd'])
+        elif req.operation is sv.IORequest.OP_WRITE:
+            self._update_write(req.returned_size, fd_types['fd'])
+        elif req.operation is sv.IORequest.OP_READ_WRITE:
+            self._update_read(req.returned_size, fd_types['fd_in'])
+            self._update_write(req.returned_size, fd_types['fd_out'])
+
+        self.rq_list.append(req)
+
+    def _update_read(self, size, fd_type):
+        if fd_type == sv.FDType.disk:
+            self.disk_read += size
+        elif fd_type == sv.FDType.net or fd_type == sv.FDType.maybe_net:
+            self.net_read += size
+        else:
+            self.unk_read += size
+
+    def _update_write(self, size, fd_type):
+        if fd_type == sv.FDType.disk:
+            self.disk_write += size
+        elif fd_type == sv.FDType.net or fd_type == sv.FDType.maybe_net:
+            self.net_write += size
+        else:
+            self.unk_write += size
 
     def reset(self):
         self.disk_read = 0
@@ -223,4 +329,41 @@ class ProcessIOStats():
         self.unk_write = 0
         self.block_read = 0
         self.block_write = 0
+        self.rq_list = []
+
+
+class FDStats():
+    def __init__(self, fd, filename, fd_type, cloexec, family):
+        self.fd = fd
+        self.filename = filename
+        self.fd_type = fd_type
+        self.cloexec = cloexec
+        self.family = family
+
+        # Number of bytes read or written
+        self.read = 0
+        self.write = 0
+        # IO Requests that acted upon the FD
+        self.rq_list = []
+
+    @classmethod
+    def new_from_fd(cls, fd):
+        return cls(fd.fd, fd.filename, fd.fd_type, fd.cloexec, fd.family)
+
+    def update_stats(self, req):
+        if req.operation is sv.IORequest.OP_READ:
+            self.read += req.returned_size
+        elif req.operation is sv.IORequest.OP_WRITE:
+            self.write += req.returned_size
+        elif req.operation is sv.IORequest.OP_READ_WRITE:
+            if self.fd == req.fd_in:
+                self.read += req.returned_size
+            elif self.fd == req.fd_out:
+                self.write += req.returned_size
+
+        self.rq_list.append(req)
+
+    def reset(self):
+        self.read = 0
+        self.write = 0
         self.rq_list = []
