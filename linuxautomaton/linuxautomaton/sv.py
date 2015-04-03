@@ -113,7 +113,6 @@ class FD():
                  cloexec=False, family=None):
         self.fd = fd
         self.filename = filename
-        # address family
         self.fd_type = fd_type
         self.cloexec = cloexec
         self.family = family
@@ -176,6 +175,9 @@ class IORequest():
     OP_WRITE = 3
     OP_CLOSE = 4
     OP_SYNC = 5
+    # Operation used for requests that both read and write,
+    # e.g. splice and sendfile
+    OP_READ_WRITE = 6
 
     def __init__(self, begin_ts, size, tid, operation):
         self.begin_ts = begin_ts
@@ -307,7 +309,7 @@ class ReadWriteIORequest(SyscallIORequest):
         begin_ts = event.timestamp
         size = event['len']
 
-        req = cls(begin_ts, size, tid, IORequest.OP_READ, 'splice')
+        req = cls(begin_ts, size, tid, IORequest.OP_READ_WRITE, 'splice')
         req.fd_in = event['fd_in']
         req.fd_out = event['fd_out']
 
@@ -318,7 +320,7 @@ class ReadWriteIORequest(SyscallIORequest):
         begin_ts = event.timestamp
         size = event['count']
 
-        req = cls(begin_ts, size, tid, IORequest.OP_READ, 'sendfile64')
+        req = cls(begin_ts, size, tid, IORequest.OP_READ_WRITE, 'sendfile64')
         req.fd_in = event['in_fd']
         req.fd_out = event['out_fd']
 
@@ -445,10 +447,11 @@ class SyscallConsts():
     # list of syscalls that close a FD (in the 'fd =' field)
     CLOSE_SYSCALLS = ['close']
     # list of syscall that read on a FD, value in the exit_syscall following
-    READ_SYSCALLS = ['read', 'recvmsg', 'recvfrom', 'splice', 'readv',
-                     'sendfile64']
+    READ_SYSCALLS = ['read', 'recvmsg', 'recvfrom', 'readv']
     # list of syscall that write on a FD, value in the exit_syscall following
     WRITE_SYSCALLS = ['write', 'sendmsg', 'sendto', 'writev']
+    # list of syscalls that both read and write on two FDs
+    READ_WRITE_SYSCALLS = ['splice', 'sendfile64']
     # All I/O related syscalls
     IO_SYSCALLS = OPEN_SYSCALLS + CLOSE_SYSCALLS + READ_SYSCALLS + \
-        WRITE_SYSCALLS + SYNC_SYSCALLS
+        WRITE_SYSCALLS + SYNC_SYSCALLS + READ_WRITE_SYSCALLS
