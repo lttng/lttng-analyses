@@ -136,6 +136,12 @@ class SchedStateProvider(sp.StateProvider):
         for fd in parent_proc.fds:
             old_fd = parent_proc.fds[fd]
             child_proc.fds[fd] = sv.FD.new_from_fd(old_fd)
+            # Note: the parent_proc key in the notification function
+            # refers to the parent of the FD, which in this case is
+            # the child_proc created by the fork
+            self._state.send_notification_cb('create_fd',
+                                             fd=fd,
+                                             parent_proc=child_proc)
 
         self._state.tids[child_tid] = child_proc
 
@@ -158,4 +164,7 @@ class SchedStateProvider(sp.StateProvider):
             if proc.fds[fd].cloexec:
                 toremove.append(fd)
         for fd in toremove:
+            self._state.send_notification_cb('close_fd',
+                                             fd=fd,
+                                             parent_proc=proc)
             del proc.fds[fd]
