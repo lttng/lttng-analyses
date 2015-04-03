@@ -437,9 +437,11 @@ class SyscallConsts():
     # list of syscalls that close a FD (in the 'fd =' field)
     CLOSE_SYSCALLS = ['close']
     # list of syscall that read on a FD, value in the exit_syscall following
-    READ_SYSCALLS = ['read', 'recvmsg', 'recvfrom', 'readv']
+    READ_SYSCALLS = ['read', 'recvmsg', 'recvfrom', 'readv', 'pread',
+                     'pread64', 'preadv']
     # list of syscall that write on a FD, value in the exit_syscall following
-    WRITE_SYSCALLS = ['write', 'sendmsg', 'sendto', 'writev']
+    WRITE_SYSCALLS = ['write', 'sendmsg', 'sendto', 'writev', 'pwrite',
+                      'pwrite64', 'pwritev']
     # list of syscalls that both read and write on two FDs
     READ_WRITE_SYSCALLS = ['splice', 'sendfile64']
     # All I/O related syscalls

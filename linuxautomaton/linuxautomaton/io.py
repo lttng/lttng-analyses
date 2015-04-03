@@ -228,7 +228,7 @@ class IoStateProvider(sp.StateProvider):
                 event, proc.tid)
             return
 
-        if name in ['writev', 'readv']:
+        if name in ['writev', 'pwritev', 'readv', 'preadv']:
             size_key = 'vlen'
         elif name == 'recvfrom':
             size_key = 'size'
