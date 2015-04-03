@@ -92,15 +92,7 @@ class IoStateProvider(sp.StateProvider):
         if name not in sv.SyscallConsts.IO_SYSCALLS:
             return
 
-        if name in sv.SyscallConsts.OPEN_SYSCALLS:
-            self._track_open_exit(event, proc)
-        elif name in sv.SyscallConsts.CLOSE_SYSCALLS:
-            self._track_close_exit(event, proc)
-        elif name in sv.SyscallConsts.READ_SYSCALLS or \
-             name in sv.SyscallConsts.WRITE_SYSCALLS:
-            self._track_read_write_exit(event, proc)
-        elif name in sv.SyscallConsts.SYNC_SYSCALLS:
-            self._track_sync_exit(event, proc)
+        self._track_io_rq_exit(event, proc)
 
         proc.current_syscall = None
 
@@ -264,14 +256,7 @@ class IoStateProvider(sp.StateProvider):
                 event, proc.tid)
 
     def _track_io_rq_exit(self, event, proc):
-        io_rq = proc.current_syscall.io_rq
-        io_rq.update_from_exit(event)
-
         ret = event['ret']
-        if ret >= 0:
-            self._create_fd(proc, io_rq)
-
-    def _track_open_exit(self, event, proc):
         io_rq = proc.current_syscall.io_rq
         # io_rq can be None in the case of fcntl when cmd is not
         # F_DUPFD, in which case we disregard the syscall as it did
@@ -279,34 +264,19 @@ class IoStateProvider(sp.StateProvider):
         if io_rq is None:
             return
 
-        self._track_io_rq_exit(event, proc)
-        self._state.send_notification_cb('open_exit',
-                                         io_rq=io_rq,
-                                         proc=proc)
+        io_rq.update_from_exit(event)
 
-    def _track_close_exit(self, event, proc):
-        io_rq = proc.current_syscall.io_rq
-        self._track_io_rq_exit(event, proc)
-        self._state.send_notification_cb('close_exit',
-                                         io_rq=io_rq,
-                                         proc=proc)
+        if ret >= 0:
+            self._create_fd(proc, io_rq)
 
-        if event['ret'] == 0:
+        parent_proc = self._get_parent_proc(proc)
+        self._state.send_notification_cb('io_rq_exit',
+                                         io_rq=io_rq,
+                                         proc=proc,
+                                         parent_proc=parent_proc)
+
+        if isinstance(io_rq, sv.CloseIORequest) and ret == 0:
             self._close_fd(proc, io_rq.fd)
-
-    def _track_read_write_exit(self, event, proc):
-        io_rq = proc.current_syscall.io_rq
-        self._track_io_rq_exit(event, proc)
-        self._state.send_notification_cb('read_write_exit',
-                                         io_rq=io_rq,
-                                         proc=proc)
-
-    def _track_sync_exit(self, event, proc):
-        io_rq = proc.current_syscall.io_rq
-        self._track_io_rq_exit(event, proc)
-        self._state.send_notification_cb('sync_exit',
-                                         io_rq=io_rq,
-                                         proc=proc)
 
     def _create_fd(self, proc, io_rq):
         parent_proc = self._get_parent_proc(proc)
