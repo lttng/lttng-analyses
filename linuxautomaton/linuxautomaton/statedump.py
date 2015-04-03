@@ -68,6 +68,9 @@ class StatedumpStateProvider(sp.StateProvider):
             # If the thread had opened FDs, they need to be assigned
             # to the parent.
             StatedumpStateProvider._assign_fds_to_parent(proc, parent)
+            self._state.send_notification_cb('create_parent_proc',
+                                             proc=proc,
+                                             parent_proc=parent)
 
     def _process_lttng_statedump_file_descriptor(self, event):
         pid = event['pid']
@@ -85,10 +88,14 @@ class StatedumpStateProvider(sp.StateProvider):
 
         if fd not in proc.fds:
             proc.fds[fd] = sv.FD(fd, filename, sv.FDType.unknown, cloexec)
+            self._state.send_notification_cb('create_fd',
+                                             fd=fd,
+                                             parent_proc=proc)
         else:
             # just fix the filename
             proc.fds[fd].filename = filename
 
+    # FIXME: this is also used in IO Analysis, possibly move
     @staticmethod
     def _assign_fds_to_parent(proc, parent):
         if proc.fds:
