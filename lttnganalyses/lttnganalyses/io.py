@@ -331,6 +331,9 @@ class ProcessIOStats():
         self.block_write = 0
         self.rq_list = []
 
+        for fd in self.fds:
+            self.fds[fd].reset()
+
 
 class FDStats():
     def __init__(self, fd, filename, fd_type, cloexec, family):
