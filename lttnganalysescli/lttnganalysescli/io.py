@@ -460,7 +460,6 @@ class IoAnalysis(Command):
         self.iotop_output_dev_latency()
         self.iotop_output_net_recv_bytes()
         self.iotop_output_net_sent_bytes()
-#        self.output_latencies()
 
     def iolatency_freq_histogram(self, _min, _max, res, rq_list, title):
         step = (_max - _min) / res
@@ -527,16 +526,6 @@ class IoAnalysis(Command):
 
     def iolatency_output(self):
         self.iolatency_output_disk()
-
-#    def output_latencies(self):
-#        graph = Pyasciigraph()
-#        for proc in self.latency_hist.keys():
-#            values = []
-#            for v in self.latency_hist[proc]:
-#                values.append(('%s' % (v[0]), v[1]))
-#            for line in graph.graph('%s requests latency (ms)' % proc, values,
-#                                    unit=' ms'):
-#                print(line)
 
     def iostats_minmax(self, duration, current_min, current_max):
         _min = current_min
@@ -802,8 +791,6 @@ class IoAnalysis(Command):
                              '(default 20)')
         ap.add_argument('--extra', type=str, default=0,
                         help='Show extra information in stats (beta)')
-        # specific argument
-        pass
 
 
 # entry point
