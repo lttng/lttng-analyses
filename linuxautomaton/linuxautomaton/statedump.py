@@ -90,12 +90,12 @@ class StatedumpStateProvider(sp.StateProvider):
             proc.fds[fd] = sv.FD(fd, filename, sv.FDType.unknown, cloexec)
             self._state.send_notification_cb('create_fd',
                                              fd=fd,
-                                             parent_proc=proc)
+                                             parent_proc=proc,
+                                             timestamp=event.timestamp)
         else:
             # just fix the filename
             proc.fds[fd].filename = filename
 
-    # FIXME: this is also used in IO Analysis, possibly move
     @staticmethod
     def _assign_fds_to_parent(proc, parent):
         if proc.fds:

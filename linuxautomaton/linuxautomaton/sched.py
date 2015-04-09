@@ -141,7 +141,8 @@ class SchedStateProvider(sp.StateProvider):
             # the child_proc created by the fork
             self._state.send_notification_cb('create_fd',
                                              fd=fd,
-                                             parent_proc=child_proc)
+                                             parent_proc=child_proc,
+                                             timestamp=event.timestamp)
 
         self._state.tids[child_tid] = child_proc
 
@@ -166,5 +167,6 @@ class SchedStateProvider(sp.StateProvider):
         for fd in toremove:
             self._state.send_notification_cb('close_fd',
                                              fd=fd,
-                                             parent_proc=proc)
+                                             parent_proc=proc,
+                                             timestamp=event.timestamp)
             del proc.fds[fd]

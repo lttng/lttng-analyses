@@ -192,7 +192,7 @@ class IoStateProvider(sp.StateProvider):
             oldfd = event['oldfd']
             newfd = event['newfd']
             if newfd in fds:
-                self._close_fd(parent_proc, newfd)
+                self._close_fd(parent_proc, newfd, event.timestamp)
         elif name == 'fcntl':
             # Only handle if cmd == F_DUPFD (0)
             if event['cmd'] != 0:
@@ -276,7 +276,7 @@ class IoStateProvider(sp.StateProvider):
                                          parent_proc=parent_proc)
 
         if isinstance(io_rq, sv.CloseIORequest) and ret == 0:
-            self._close_fd(proc, io_rq.fd)
+            self._close_fd(proc, io_rq.fd, io_rq.end_ts)
 
     def _create_fd(self, proc, io_rq):
         parent_proc = self._get_parent_proc(proc)
@@ -289,26 +289,30 @@ class IoStateProvider(sp.StateProvider):
 
             self._state.send_notification_cb('create_fd',
                                              fd=io_rq.fd,
-                                             parent_proc=parent_proc)
+                                             parent_proc=parent_proc,
+                                             timestamp=io_rq.end_ts)
         elif isinstance(io_rq, sv.ReadWriteIORequest):
             if io_rq.fd_in is not None and io_rq.fd_in not in parent_proc.fds:
                 parent_proc.fds[io_rq.fd_in] = sv.FD(io_rq.fd_in)
                 self._state.send_notification_cb('create_fd',
                                                  fd=io_rq.fd_in,
-                                                 parent_proc=parent_proc)
+                                                 parent_proc=parent_proc,
+                                                 timestamp=io_rq.end_ts)
 
             if io_rq.fd_out is not None and \
                io_rq.fd_out not in parent_proc.fds:
                 parent_proc.fds[io_rq.fd_out] = sv.FD(io_rq.fd_out)
                 self._state.send_notification_cb('create_fd',
                                                  fd=io_rq.fd_out,
-                                                 parent_proc=parent_proc)
+                                                 parent_proc=parent_proc,
+                                                 timestamp=io_rq.end_ts)
 
-    def _close_fd(self, proc, fd):
+    def _close_fd(self, proc, fd, timestamp):
         parent_proc = self._get_parent_proc(proc)
         self._state.send_notification_cb('close_fd',
                                          fd=fd,
-                                         parent_proc=parent_proc)
+                                         parent_proc=parent_proc,
+                                         timestamp=timestamp)
         del parent_proc.fds[fd]
 
     def _get_parent_proc(self, proc):
