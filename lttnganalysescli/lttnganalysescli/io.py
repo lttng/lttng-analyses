@@ -31,7 +31,7 @@ import operator
 import statistics
 
 
-class IoAnalysis(Command):
+class IoAnalysisCommand(Command):
     _VERSION = '0.1.0'
     _DESC = """The I/O command."""
 
@@ -796,34 +796,34 @@ class IoAnalysis(Command):
 # entry point
 def runstats():
     # create command
-    iocmd = IoAnalysis()
+    iocmd = IoAnalysisCommand()
     # execute command
     iocmd.run_stats()
 
 
 def runlatencytop():
     # create command
-    iocmd = IoAnalysis()
+    iocmd = IoAnalysisCommand()
     # execute command
     iocmd.run_latencytop()
 
 
 def runlog():
     # create command
-    iocmd = IoAnalysis()
+    iocmd = IoAnalysisCommand()
     # execute command
     iocmd.run_log()
 
 
 def runfreq():
     # create command
-    iocmd = IoAnalysis()
+    iocmd = IoAnalysisCommand()
     # execute command
     iocmd.run_freq()
 
 
 def runusage():
     # create command
-    iocmd = IoAnalysis()
+    iocmd = IoAnalysisCommand()
     # execute command
     iocmd.run_usage()

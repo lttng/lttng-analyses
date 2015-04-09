@@ -212,7 +212,6 @@ class IoStateProvider(sp.StateProvider):
             current_syscall.io_rq.cloexec = cloexec
 
     def _track_close(self, event, name, proc):
-        # name unused because there's only one close syscall. Remove?
         proc.current_syscall.io_rq = sv.CloseIORequest(
             event.timestamp, proc.tid, event['fd'])
 
