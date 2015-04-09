@@ -51,8 +51,6 @@ class Memtop(Command):
         self._create_analysis()
         # run the analysis
         self._run_analysis(self._reset_total, self._refresh)
-        # process the results
-        self._compute_stats()
         # print results
         self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
@@ -61,14 +59,10 @@ class Memtop(Command):
     def _create_analysis(self):
         self._analysis = lttnganalyses.memtop.Memtop(self.state)
 
-    def _compute_stats(self):
-        pass
-
     def _reset_total(self, start_ts):
         self._analysis.reset()
 
     def _refresh(self, begin, end):
-        self._compute_stats()
         self._print_results(begin, end)
         self._reset_total(end)
 
