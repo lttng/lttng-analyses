@@ -75,8 +75,7 @@ class IoAnalysisCommand(Command):
         # create the appropriate analysis/analyses
         self._create_analysis()
         # run the analysis
-        self._run_analysis(self._reset_total, self._refresh,
-                           break_cb=self._breakcb)
+        self._run_analysis(self._reset_total, self._refresh)
         # print results
         self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
@@ -99,11 +98,6 @@ class IoAnalysisCommand(Command):
 
     def _create_analysis(self):
         self._analysis = lttnganalyses.io.IoAnalysis(self.state)
-
-    def _breakcb(self):
-        if len(self.state.pending_syscalls) > 0:
-            return False
-        return True
 
     def _refresh(self, begin, end):
         self._print_results(begin, end)
