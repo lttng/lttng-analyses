@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 from .analysis import Analysis
-from linuxautomaton import sv, statedump
+from linuxautomaton import sv
 
 
 class IoAnalysis(Analysis):
@@ -63,6 +63,21 @@ class IoAnalysis(Analysis):
 
         for tid in self.tids:
             self.tids[tid].reset()
+
+    @staticmethod
+    def _assign_fds_to_parent(proc, parent):
+        if proc.fds:
+            toremove = []
+            for fd in proc.fds:
+                if fd not in parent.fds:
+                    parent.fds[fd] = proc.fds[fd]
+                else:
+                    # best effort to fix the filename
+                    if not parent.get_fd(fd).filename:
+                        parent.get_fd(fd).filename = proc.get_fd(fd).filename
+                toremove.append(fd)
+            for fd in toremove:
+                del proc.fds[fd]
 
     def _process_net_dev_xmit(self, **kwargs):
         name = kwargs['iface_name']
@@ -126,10 +141,10 @@ class IoAnalysis(Analysis):
         if io_rq.errno is None:
             if io_rq.operation == sv.IORequest.OP_READ or \
                io_rq.operation == sv.IORequest.OP_WRITE:
-                fd_types['fd'] = parent_stats.fds[io_rq.fd].fd_type
+                fd_types['fd'] = parent_stats.get_fd(io_rq.fd).fd_type
             elif io_rq.operation == sv.IORequest.OP_READ_WRITE:
-                fd_types['fd_in'] = parent_stats.fds[io_rq.fd_in].fd_type
-                fd_types['fd_out'] = parent_stats.fds[io_rq.fd_out].fd_type
+                fd_types['fd_in'] = parent_stats.get_fd(io_rq.fd_in).fd_type
+                fd_types['fd_out'] = parent_stats.get_fd(io_rq.fd_out).fd_type
 
         proc_stats.update_io_stats(io_rq, fd_types)
         parent_stats.update_fd_stats(io_rq)
@@ -149,10 +164,10 @@ class IoAnalysis(Analysis):
         parent_stats = self.tids[parent_proc.tid]
 
         proc_stats.pid = parent_stats.tid
-        statedump.StatedumpStateProvider._assign_fds_to_parent(proc_stats,
-                                                               parent_stats)
+        IoAnalysis._assign_fds_to_parent(proc_stats, parent_stats)
 
     def _process_create_fd(self, **kwargs):
+        timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
         fd = kwargs['fd']
@@ -161,15 +176,20 @@ class IoAnalysis(Analysis):
             self.tids[tid] = ProcessIOStats.new_from_process(parent_proc)
 
         parent_stats = self.tids[tid]
-        parent_stats.fds[fd] = FDStats.new_from_fd(parent_proc.fds[fd])
+        if fd not in parent_stats.fds:
+            parent_stats.fds[fd] = []
+        parent_stats.fds[fd].append(FDStats.new_from_fd(parent_proc.fds[fd],
+                                                        timestamp))
 
     def _process_close_fd(self, **kwargs):
+        timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
         fd = kwargs['fd']
 
         parent_stats = self.tids[tid]
-        # TODO mark FD as closed
+        last_fd = parent_stats.get_fd(fd)
+        last_fd.close_ts = timestamp
 
 
 class DiskStats():
@@ -272,13 +292,13 @@ class ProcessIOStats():
             return
 
         if req.fd is not None:
-            self.fds[req.fd].update_stats(req)
+            self.get_fd(req.fd).update_stats(req)
         elif isinstance(req, sv.ReadWriteIORequest):
             if req.fd_in is not None:
-                self.fds[req.fd_in].update_stats(req)
+                self.get_fd(req.fd_in).update_stats(req)
 
             if req.fd_out is not None:
-                self.fds[req.fd_out].update_stats(req)
+                self.get_fd(req.fd_out).update_stats(req)
 
     def update_block_stats(self, req):
         self.rq_list.append(req)
@@ -320,6 +340,67 @@ class ProcessIOStats():
         else:
             self.unk_write += size
 
+    def _get_current_fd(self, fd):
+        fd_stats = self.fds[fd][-1]
+        if fd_stats.close_ts is not None:
+            return None
+
+        return fd_stats
+
+    @staticmethod
+    def _get_fd_by_timestamp(fd_list, timestamp):
+        """Return the FDStats object whose lifetime contains timestamp
+
+        This method performs a recursive binary search on the given
+        fd_list argument, and will find the FDStats object for which
+        the timestamp is contained within its open_ts and close_ts
+        attributes.
+
+        Args:
+            fd_list (list): list of FDStats object, sorted
+            chronologically by open_ts
+
+            timestamp (int): timestamp in nanoseconds (ns) since unix
+            epoch which should be contained in the FD's lifetime.
+
+        Returns:
+            The FDStats object whose lifetime contains the given
+            timestamp, None if no such object exists.
+        """
+        list_size = len(fd_list)
+        if list_size == 0:
+            return None
+
+        midpoint = list_size // 2
+        fd_stats = fd_list[midpoint]
+
+        # Handle case of currently open fd (i.e. no close_ts)
+        if fd_stats.close_ts is None:
+            if timestamp >= fd_stats.open_ts:
+                return fd_stats
+        else:
+            if fd_stats.open_ts <= timestamp <= fd_stats.close_ts:
+                return fd_stats
+            else:
+                if timestamp < fd_stats.open_ts:
+                    return ProcessIOStats._get_fd_by_timestamp(
+                        fd_stats[:midpoint], timestamp)
+                else:
+                    return ProcessIOStats._get_fd_by_timestamp(
+                        fd_stats[midpoint + 1:], timestamp)
+
+    def get_fd(self, fd, timestamp=None):
+        if not self.fds[fd]:
+            return None
+
+        if timestamp is None:
+            fd_stats = self._get_current_fd(fd)
+        else:
+            fd_stats = ProcessIOStats._get_fd_by_timestamp(self.fds[fd],
+                                                           timestamp)
+
+        return fd_stats
+
     def reset(self):
         self.disk_read = 0
         self.disk_write = 0
@@ -332,16 +413,20 @@ class ProcessIOStats():
         self.rq_list = []
 
         for fd in self.fds:
-            self.fds[fd].reset()
+            fd_stats = self.get_fd(fd)
+            if fd_stats is not None:
+                fd_stats.reset()
 
 
 class FDStats():
-    def __init__(self, fd, filename, fd_type, cloexec, family):
+    def __init__(self, fd, filename, fd_type, cloexec, family, open_ts):
         self.fd = fd
         self.filename = filename
         self.fd_type = fd_type
         self.cloexec = cloexec
         self.family = family
+        self.open_ts = open_ts
+        self.close_ts = None
 
         # Number of bytes read or written
         self.read = 0
@@ -350,8 +435,9 @@ class FDStats():
         self.rq_list = []
 
     @classmethod
-    def new_from_fd(cls, fd):
-        return cls(fd.fd, fd.filename, fd.fd_type, fd.cloexec, fd.family)
+    def new_from_fd(cls, fd, open_ts):
+        return cls(fd.fd, fd.filename, fd.fd_type, fd.cloexec, fd.family,
+                   open_ts)
 
     def update_stats(self, req):
         if req.operation is sv.IORequest.OP_READ:
