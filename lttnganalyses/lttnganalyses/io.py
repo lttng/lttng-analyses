@@ -64,6 +64,35 @@ class IoAnalysis(Analysis):
         for tid in self.tids:
             self.tids[tid].reset()
 
+    def get_files_stats(self, pid_filter_list, comm_filter_list):
+        if pid_filter_list is None:
+            pid_filter_list = []
+        if comm_filter_list is None:
+            comm_filter_list = []
+
+        files_stats = {}
+
+        for proc_stats in self.tids.values():
+            if proc_stats.pid not in pid_filter_list or \
+               proc_stats.comm not in comm_filter_list:
+                continue
+
+            for fd_list in proc_stats.fds.values():
+                for fd_stats in fd_list:
+                    filename = fd_stats.filename
+                    # Add process name to generic filenames to
+                    # distinguish them
+                    if FileStats.is_generic_name(filename):
+                        filename += '(%s)' % proc_stats.comm
+
+                    if filename not in files_stats:
+                        files_stats[filename] = FileStats(
+                            filename, fd_stats.fd, proc_stats.pid)
+
+                    files_stats[filename].update_stats(fd_stats, proc_stats)
+
+        return files_stats
+
     @staticmethod
     def _assign_fds_to_parent(proc, parent):
         if proc.fds:
@@ -353,7 +382,7 @@ class ProcessIOStats():
 
         This method performs a recursive binary search on the given
         fd_list argument, and will find the FDStats object for which
-        the timestamp is contained within its open_ts and close_ts
+        the timestamp is contained between its open_ts and close_ts
         attributes.
 
         Args:
@@ -456,3 +485,33 @@ class FDStats():
         self.read = 0
         self.write = 0
         self.rq_list = []
+
+class FileStats():
+    GENERIC_NAMES = ['pipe', 'socket', 'anon_inode', 'unknown']
+
+    def __init__(self, filename, fd, pid):
+        self.filename = filename
+        # Number of bytes read or written
+        self.read = 0
+        self.write = 0
+        # Dict of file descriptors representing this file, indexed by
+        # parent pid
+        self.fd_by_pid = {pid: fd}
+
+    def update_stats(self, fd_stats, proc_stats):
+        self.read += fd_stats.read
+        self.write += fd_stats.write
+        if proc_stats.pid not in self.fd_by_pid:
+            self.fd_by_pid[proc_stats.pid] = fd_stats.fd
+
+    def reset(self):
+        read = 0
+        write = 0
+
+    @staticmethod
+    def is_generic_name(filename):
+        for generic_name in FileStats.GENERIC_NAMES:
+            if filename.startswith(generic_name):
+                return True
+
+        return False

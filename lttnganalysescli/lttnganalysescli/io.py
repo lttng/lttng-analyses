@@ -166,55 +166,6 @@ class IoAnalysisCommand(Command):
         for line in graph.graph(graph_label, data, **graph_args):
             print(line)
 
-    # Stats by files methods
-    def add_fd_dict(self, tid, fd, files):
-        if fd.read == 0 and fd.write == 0:
-            return
-        pid = tid.pid
-        if pid is None:
-            pid = 'unknown (tid=%d)' % (tid.tid)
-        else:
-            pid = str(pid)
-        if fd.filename.startswith('pipe') or \
-                fd.filename.startswith('socket') or \
-                fd.filename.startswith('anon_inode') or \
-                fd.filename.startswith('unknown'):
-            filename = '%s (%s)' % (fd.filename, tid.comm)
-            files[filename] = {}
-            files[filename]['read'] = fd.read
-            files[filename]['write'] = fd.write
-            files[filename]['name'] = filename
-            files[filename]['other'] = ['fd %d in %s (%s)' % (fd.fd,
-                                        tid.comm, pid)]
-        else:
-            # merge counters of shared files
-            filename = fd.filename
-            if filename not in files.keys():
-                files[filename] = {}
-                files[filename]['read'] = fd.read
-                files[filename]['write'] = fd.write
-                files[filename]['name'] = filename
-                files[filename]['other'] = ['fd %d in %s (%s)' %
-                                            (fd.fd, tid.comm, pid)]
-                files[filename]['tids'] = [tid.tid]
-            else:
-                files[filename]['read'] += fd.read
-                files[filename]['write'] += fd.write
-                files[filename]['other'].append('fd %d in %s (%s)' %
-                                                (fd.fd, tid.comm,
-                                                 pid))
-
-    def create_files_dict(self):
-        files = {}
-        for tid in self.state.tids.values():
-            if not self._filter_process(tid):
-                continue
-            for fd in tid.fds.values():
-                self.add_fd_dict(tid, fd, files)
-            for fd in tid.closed_fds.values():
-                self.add_fd_dict(tid, fd, files)
-        return files
-
     # I/O Top output methods
     def _get_read_datum(self, proc_stats):
         if not self._filter_process(proc_stats):
@@ -325,6 +276,40 @@ class IoAnalysisCommand(Command):
         return ('%s %s' % (common.convert_size(iface.sent_bytes), iface.name),
                        iface.sent_bytes)
 
+    def _get_file_read_datum(self, file_stats):
+        if file_stats.read == 0:
+            return None
+
+        fd_by_pid_str = ''
+        for pid, fd in file_stats.fd_by_pid.items():
+            comm = self._analysis.tids[pid].comm
+            fd_by_pid_str += 'fd %d in %s (%s) ' % (fd, comm, pid)
+
+        format_str = '{:>10} {} {}'
+        output_str = format_str.format(
+            common.convert_size(file_stats.read, padding_after=True),
+            file_stats.filename,
+            fd_by_pid_str)
+
+        return (output_str, file_stats.read)
+
+    def _get_file_write_datum(self, file_stats):
+        if file_stats.write == 0:
+            return None
+
+        fd_by_pid_str = ''
+        for pid, fd in file_stats.fd_by_pid.items():
+            comm = self._analysis.tids[pid].comm
+            fd_by_pid_str += 'fd %d in %s (%s) ' % (fd, comm, pid)
+
+        format_str = '{:>10} {} {}'
+        output_str = format_str.format(
+            common.convert_size(file_stats.write, padding_after=True),
+            file_stats.filename,
+            fd_by_pid_str)
+
+        return (output_str, file_stats.write)
+
     def _output_read(self):
         input_list = sorted(self._analysis.tids.values(),
                             key=operator.attrgetter('total_read'),
@@ -404,58 +389,29 @@ class IoAnalysisCommand(Command):
         self._print_ascii_graph(input_list, self._get_net_sent_bytes_datum,
                                 label, graph_args)
 
-    # I/O Top output by file methods
-    def _output_print_file_read(self, files):
-        count = 0
-        limit = self._arg_limit
-        graph = Pyasciigraph()
-        values = []
-        sorted_f = sorted(files.items(), key=lambda files: files[1]['read'],
-                          reverse=True)
-        for f in sorted_f:
-            if f[1]['read'] == 0:
-                continue
-            info_fmt = '{:>10}'.format(common.convert_size(f[1]['read'],
-                                       padding_after=True))
-            values.append(('%s %s %s' % (info_fmt,
-                                         f[1]['name'],
-                                         str(f[1]['other'])[1:-1]),
-                           f[1]['read']))
-            count = count + 1
-            if limit > 0 and count >= limit:
-                break
-        for line in graph.graph('Files Read', values, sort=2,
-                                with_value=False):
-            print(line)
+    def _output_file_read(self, files):
+        input_list = sorted(files.values(),
+                            key=lambda file_stats: file_stats.read,
+                            reverse=True)
+        label = 'Files read'
+        graph_args = {'with_value': False, 'sort': 2}
+        self._print_ascii_graph(input_list, self._get_file_read_datum,
+                                label, graph_args)
 
-    def _output_print_file_write(self, files):
-        # Compute files read
-        count = 0
-        limit = self._arg_limit
-        graph = Pyasciigraph()
-        values = []
-        sorted_f = sorted(files.items(), key=lambda files: files[1]['write'],
-                          reverse=True)
-        for f in sorted_f:
-            if f[1]['write'] == 0:
-                continue
-            info_fmt = '{:>10}'.format(common.convert_size(f[1]['write'],
-                                       padding_after=True))
-            values.append(('%s %s %s' % (info_fmt,
-                                         f[1]['name'],
-                                         str(f[1]['other'])[1:-1]),
-                           f[1]['write']))
-            count = count + 1
-            if limit > 0 and count >= limit:
-                break
-        for line in graph.graph('Files Write', values, sort=2,
-                                with_value=False):
-            print(line)
+    def _output_file_write(self, files):
+        input_list = sorted(files.values(),
+                            key=lambda file_stats: file_stats.write,
+                            reverse=True)
+        label = 'Files write'
+        graph_args = {'with_value': False, 'sort': 2}
+        self._print_ascii_graph(input_list, self._get_file_write_datum,
+                                label, graph_args)
 
     def _output_file_read_write(self):
-        files = self.create_files_dict()
-        self._output_print_file_read(files)
-        self._output_print_file_write(files)
+        files = self._analysis.get_files_stats(self._arg_pid_list,
+                                               self._arg_proc_list)
+        self._output_file_read(files)
+        self._output_file_write(files)
 
     def iotop_output(self):
         self._output_read()
