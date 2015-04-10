@@ -107,7 +107,7 @@ class IoAnalysisCommand(Command):
     def _filter_process(self, proc):
         if self._arg_proc_list and proc.comm not in self._arg_proc_list:
             return False
-        if self._arg_pid_list and str(proc.pid) not in self._arg_pid_list:
+        if self._arg_pid_list and proc.pid not in self._arg_pid_list:
             return False
         return True
 

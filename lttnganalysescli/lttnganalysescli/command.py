@@ -175,6 +175,7 @@ class Command:
             self._arg_pid_list = None
             if args.pid:
                 self._arg_pid_list = args.pid.split(',')
+                self._arg_pid_list = [int(pid) for pid in self._arg_pid_list]
 
         if self._enable_max_min_arg:
             self._arg_max = args.max
