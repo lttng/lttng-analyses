@@ -505,8 +505,8 @@ class FileStats():
             self.fd_by_pid[proc_stats.pid] = fd_stats.fd
 
     def reset(self):
-        read = 0
-        write = 0
+        self.read = 0
+        self.write = 0
 
     @staticmethod
     def is_generic_name(filename):
