@@ -166,6 +166,7 @@ class IoAnalysisCommand(Command):
         for line in graph.graph(graph_label, data, **graph_args):
             print(line)
 
+    # Stats by files methods
     def add_fd_dict(self, tid, fd, files):
         if fd.read == 0 and fd.write == 0:
             return
@@ -214,8 +215,197 @@ class IoAnalysisCommand(Command):
                 self.add_fd_dict(tid, fd, files)
         return files
 
-    # iotop functions
-    def iotop_output_print_file_read(self, files):
+    # I/O Top output methods
+    def _get_read_datum(self, proc_stats):
+        if not self._filter_process(proc_stats):
+            return None
+
+        if proc_stats.pid is None:
+            pid_str = 'unknown (tid=%d)' % (proc_stats.tid)
+        else:
+            pid_str = str(proc_stats.pid)
+
+        format_str = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown'
+        output_str = format_str.format(
+            common.convert_size(proc_stats.total_read, padding_after=True),
+            '%s (%s)' % (proc_stats.comm, pid_str),
+            common.convert_size(proc_stats.disk_read, padding_after=True),
+            common.convert_size(proc_stats.net_read, padding_after=True),
+            common.convert_size(proc_stats.unk_read, padding_after=True))
+
+        return (output_str, proc_stats.total_read)
+
+    def _get_write_datum(self, proc_stats):
+        if not self._filter_process(proc_stats):
+            return None
+
+        if proc_stats.pid is None:
+            pid_str = 'unknown (tid=%d)' % (proc_stats.tid)
+        else:
+            pid_str = str(proc_stats.pid)
+
+        format_str = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown'
+        output_str = format_str.format(
+            common.convert_size(proc_stats.total_write, padding_after=True),
+            '%s (%s)' % (proc_stats.comm, pid_str),
+            common.convert_size(proc_stats.disk_write, padding_after=True),
+            common.convert_size(proc_stats.net_write, padding_after=True),
+            common.convert_size(proc_stats.unk_write, padding_after=True))
+
+        return (output_str, proc_stats.total_write)
+
+    def _get_block_read_datum(self, proc_stats):
+        if not self._filter_process(proc_stats) or proc_stats.block_read == 0:
+            return None
+
+        comm = proc_stats.comm
+        if not comm:
+            comm = 'unknown'
+
+        if proc_stats.pid is None:
+            pid_str = 'unknown (tid=%d)' % (proc_stats.tid)
+        else:
+            pid_str = str(proc_stats.pid)
+
+        format_str = '{:>10} {:<22}'
+        output_str = format_str.format(
+            common.convert_size(proc_stats.block_read, padding_after=True),
+            '%s (pid=%s)' % (comm, pid_str))
+
+        return (output_str, proc_stats.block_read)
+
+    def _get_block_write_datum(self, proc_stats):
+        if not self._filter_process(proc_stats) or \
+           proc_stats.block_write == 0:
+            return None
+
+        comm = proc_stats.comm
+        if not comm:
+            comm = 'unknown'
+
+        if proc_stats.pid is None:
+            pid_str = 'unknown (tid=%d)' % (proc_stats.tid)
+        else:
+            pid_str = str(proc_stats.pid)
+
+        format_str = '{:>10} {:<22}'
+        output_str = format_str.format(
+            common.convert_size(proc_stats.block_write, padding_after=True),
+            '%s (pid=%s)' % (comm, pid_str))
+
+        return (output_str, proc_stats.block_write)
+
+    def _get_total_rq_sectors_datum(self, disk):
+        if disk.total_rq_sectors == 0:
+            return None
+
+        return (disk.disk_name, disk.total_rq_sectors)
+
+    def _get_rq_count_datum(self, disk):
+        if disk.rq_count == 0:
+            return None
+
+        return (disk.disk_name, disk.rq_count)
+
+    def _get_avg_disk_latency_datum(self, disk):
+        if disk.rq_count == 0:
+            return None
+
+        avg_latency = ((disk.total_rq_duration / disk.rq_count) /
+                       common.MSEC_PER_NSEC)
+        avg_latency = round(avg_latency, 3)
+
+        return ('%s' % disk.disk_name, avg_latency)
+
+    def _get_net_recv_bytes_datum(self, iface):
+        return ('%s %s' % (common.convert_size(iface.recv_bytes), iface.name),
+                       iface.recv_bytes)
+
+    def _get_net_sent_bytes_datum(self, iface):
+        return ('%s %s' % (common.convert_size(iface.sent_bytes), iface.name),
+                       iface.sent_bytes)
+
+    def _output_read(self):
+        input_list = sorted(self._analysis.tids.values(),
+                            key=operator.attrgetter('total_read'),
+                            reverse=True)
+        label = 'Per-process I/O Read'
+        graph_args = {'with_value': False}
+        self._print_ascii_graph(input_list, self._get_read_datum, label,
+                                graph_args)
+
+    def _output_write(self):
+        input_list = sorted(self._analysis.tids.values(),
+                            key=operator.attrgetter('total_write'),
+                            reverse=True)
+        label = 'Per-process I/O Write'
+        graph_args = {'with_value': False}
+        self._print_ascii_graph(input_list, self._get_write_datum, label,
+                                graph_args)
+
+    def _output_block_read(self):
+        input_list = sorted(self._analysis.tids.values(),
+                            key=operator.attrgetter('block_read'),
+                            reverse=True)
+        label = 'Block I/O Read'
+        graph_args = {'with_value': False}
+        self._print_ascii_graph(input_list, self._get_block_read_datum,
+                                label, graph_args)
+
+    def _output_block_write(self):
+        input_list = sorted(self._analysis.tids.values(),
+                            key=operator.attrgetter('block_write'),
+                            reverse=True)
+        label = 'Block I/O Write'
+        graph_args = {'with_value': False}
+        self._print_ascii_graph(input_list, self._get_block_write_datum,
+                                label, graph_args)
+
+    def _output_total_rq_sectors(self):
+        input_list = sorted(self._analysis.disks.values(),
+                            key=operator.attrgetter('total_rq_sectors'),
+                            reverse=True)
+        label = 'Disk requests sector count'
+        graph_args = {'unit': ' sectors'}
+        self._print_ascii_graph(input_list, self._get_total_rq_sectors_datum,
+                                label, graph_args)
+
+    def _output_rq_count(self):
+        input_list = sorted(self._analysis.disks.values(),
+                            key=operator.attrgetter('rq_count'),
+                            reverse=True)
+        label = 'Disk request count'
+        graph_args = {'unit': ' requests'}
+        self._print_ascii_graph(input_list, self._get_rq_count_datum,
+                                label, graph_args)
+
+    def _output_avg_disk_latency(self):
+        input_list = self._analysis.disks.values()
+        label = 'Disk request average latency'
+        graph_args = {'unit': ' ms', 'sort': 2}
+        self._print_ascii_graph(input_list, self._get_avg_disk_latency_datum,
+                                label, graph_args)
+
+    def _output_net_recv_bytes(self):
+        input_list = sorted(self._analysis.ifaces.values(),
+                            key=operator.attrgetter('recv_bytes'),
+                            reverse=True)
+        label = 'Network received bytes'
+        graph_args = {'with_value': False}
+        self._print_ascii_graph(input_list, self._get_net_recv_bytes_datum,
+                                label, graph_args)
+
+    def _output_net_sent_bytes(self):
+        input_list = sorted(self._analysis.ifaces.values(),
+                            key=operator.attrgetter('sent_bytes'),
+                            reverse=True)
+        label = 'Network sent bytes'
+        graph_args = {'with_value': False}
+        self._print_ascii_graph(input_list, self._get_net_sent_bytes_datum,
+                                label, graph_args)
+
+    # I/O Top output by file methods
+    def _output_print_file_read(self, files):
         count = 0
         limit = self._arg_limit
         graph = Pyasciigraph()
@@ -238,7 +428,7 @@ class IoAnalysisCommand(Command):
                                 with_value=False):
             print(line)
 
-    def iotop_output_print_file_write(self, files):
+    def _output_print_file_write(self, files):
         # Compute files read
         count = 0
         limit = self._arg_limit
@@ -262,232 +452,24 @@ class IoAnalysisCommand(Command):
                                 with_value=False):
             print(line)
 
-    def iotop_output_file_read_write(self):
+    def _output_file_read_write(self):
         files = self.create_files_dict()
-        self.iotop_output_print_file_read(files)
-        self.iotop_output_print_file_write(files)
-
-    def iotop_output_read(self):
-        count = 0
-        limit = self._arg_limit
-        graph = Pyasciigraph()
-        values = []
-        for tid in sorted(self.state.tids.values(),
-                          key=operator.attrgetter('read'), reverse=True):
-            if not self.filter_process(tid):
-                continue
-            pid = tid.pid
-            if pid is None:
-                pid = 'unknown (tid=%d)' % (tid.tid)
-            else:
-                pid = str(pid)
-            info_fmt = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown'
-            values.append((info_fmt.format(
-                           common.convert_size(tid.read, padding_after=True),
-                           '%s (%s)' % (tid.comm, pid),
-                           common.convert_size(tid.disk_read,
-                                               padding_after=True),
-                           common.convert_size(tid.net_read,
-                                               padding_after=True),
-                           common.convert_size(tid.unk_read,
-                                               padding_after=True)),
-                           tid.read))
-            count = count + 1
-            if limit > 0 and count >= limit:
-                break
-        for line in graph.graph('Per-process I/O Read', values,
-                                with_value=False):
-            print(line)
-
-    def iotop_output_write(self):
-        count = 0
-        limit = self._arg_limit
-        graph = Pyasciigraph()
-        values = []
-        for tid in sorted(self.state.tids.values(),
-                          key=operator.attrgetter('write'), reverse=True):
-            if not self.filter_process(tid):
-                continue
-            pid = tid.pid
-            if pid is None:
-                pid = 'unknown (tid=%d)' % (tid.tid)
-            else:
-                pid = str(pid)
-            info_fmt = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown '
-            values.append((info_fmt.format(
-                           common.convert_size(tid.write, padding_after=True),
-                           '%s (%s)' % (tid.comm, pid),
-                           common.convert_size(tid.disk_write,
-                                               padding_after=True),
-                           common.convert_size(tid.net_write,
-                                               padding_after=True),
-                           common.convert_size(tid.unk_write,
-                                               padding_after=True)),
-                           tid.write))
-            count = count + 1
-            if limit > 0 and count >= limit:
-                break
-        for line in graph.graph('Per-process I/O Write', values,
-                                with_value=False):
-            print(line)
-
-    def iotop_output_disk_read(self):
-        count = 0
-        limit = self._arg_limit
-        graph = Pyasciigraph()
-        values = []
-
-        for tid in sorted(self.state.tids.values(),
-                          key=operator.attrgetter('block_read'),
-                          reverse=True):
-
-            if not self.filter_process(tid):
-                continue
-
-            if tid.block_read == 0:
-                continue
-
-            info_fmt = '{:>10} {:<22}'
-
-            comm = tid.comm
-            if not comm:
-                comm = 'unknown'
-
-            pid = tid.pid
-            if pid is None:
-                pid = 'unknown (tid=%d)' % (tid.tid)
-            else:
-                pid = str(pid)
-
-            values.append((info_fmt.format(
-                common.convert_size(tid.block_read, padding_after=True),
-                '%s (pid=%s)' % (comm, pid)),
-                tid.block_read))
-
-            count = count + 1
-
-            if limit > 0 and count >= limit:
-                break
-
-        for line in graph.graph('Block I/O Read', values, with_value=False):
-            print(line)
-
-    def iotop_output_disk_write(self):
-        count = 0
-        limit = self._arg_limit
-        graph = Pyasciigraph()
-        values = []
-
-        for tid in sorted(self.state.tids.values(),
-                          key=operator.attrgetter('block_write'),
-                          reverse=True):
-
-            if not self.filter_process(tid):
-                continue
-
-            if tid.block_write == 0:
-                continue
-
-            info_fmt = '{:>10} {:<22}'
-
-            comm = tid.comm
-            if not comm:
-                comm = 'unknown'
-
-            pid = tid.pid
-            if pid is None:
-                pid = 'unknown (tid=%d)' % (tid.tid)
-            else:
-                pid = str(pid)
-
-            values.append((info_fmt.format(
-                common.convert_size(tid.block_write, padding_after=True),
-                '%s (pid=%s)' % (comm, pid)),
-                tid.block_write))
-
-            count = count + 1
-
-            if limit > 0 and count >= limit:
-                break
-
-        for line in graph.graph('Block I/O Write', values, with_value=False):
-            print(line)
-
-    def iotop_output_nr_sector(self):
-        graph = Pyasciigraph()
-        values = []
-        for disk in sorted(self.state.disks.values(),
-                           key=operator.attrgetter('nr_sector'), reverse=True):
-            if disk.nr_sector == 0:
-                continue
-            values.append((disk.prettyname, disk.nr_sector))
-        for line in graph.graph('Disk nr_sector', values, unit=' sectors'):
-            print(line)
-
-    def iotop_output_nr_requests(self):
-        graph = Pyasciigraph()
-        values = []
-        for disk in sorted(self.state.disks.values(),
-                           key=operator.attrgetter('nr_requests'),
-                           reverse=True):
-            if disk.nr_sector == 0:
-                continue
-            values.append((disk.prettyname, disk.nr_requests))
-        for line in graph.graph('Disk nr_requests', values, unit=' requests'):
-            print(line)
-
-    def iotop_output_dev_latency(self):
-        graph = Pyasciigraph()
-        values = []
-        for disk in self.state.disks.values():
-            if disk.completed_requests == 0:
-                continue
-            total = (disk.request_time / disk.completed_requests) \
-                / common.MSEC_PER_NSEC
-            total = float('%0.03f' % total)
-            values.append(('%s' % disk.prettyname, total))
-        for line in graph.graph('Disk request time/sector', values, sort=2,
-                                unit=' ms'):
-            print(line)
-
-    def iotop_output_net_recv_bytes(self):
-        graph = Pyasciigraph()
-        values = []
-        for iface in sorted(self._analysis.ifaces.values(),
-                            key=operator.attrgetter('recv_bytes'),
-                            reverse=True):
-            values.append(('%s %s' % (common.convert_size(iface.recv_bytes),
-                                      iface.name),
-                          iface.recv_bytes))
-        for line in graph.graph('Network recv_bytes', values,
-                                with_value=False):
-            print(line)
-
-    def iotop_output_net_sent_bytes(self):
-        graph = Pyasciigraph()
-        values = []
-        for iface in sorted(self._analysis.ifaces.values(),
-                            key=operator.attrgetter('sent_bytes'),
-                            reverse=True):
-            values.append(('%s %s' % (common.convert_size(iface.sent_bytes),
-                                      iface.name),
-                          iface.sent_bytes))
-        for line in graph.graph('Network sent_bytes', values,
-                                with_value=False):
-            print(line)
+        self._output_print_file_read(files)
+        self._output_print_file_write(files)
 
     def iotop_output(self):
-        self.iotop_output_read()
-        self.iotop_output_write()
-        self.iotop_output_file_read_write()
-        self.iotop_output_disk_read()
-        self.iotop_output_disk_write()
-        self.iotop_output_nr_sector()
-        self.iotop_output_nr_requests()
-        self.iotop_output_dev_latency()
-        self.iotop_output_net_recv_bytes()
-        self.iotop_output_net_sent_bytes()
+        self._output_read()
+        self._output_write()
+        self._output_file_read_write()
+        self._output_block_read()
+        self._output_block_write()
+        self._output_total_rq_sectors()
+        self._output_rq_count()
+        self._output_avg_disk_latency()
+        self._output_net_recv_bytes()
+        self._output_net_sent_bytes()
 
+    # IO Latency output methods
     def iolatency_freq_histogram(self, _min, _max, res, rq_list, title):
         step = (_max - _min) / res
         if step == 0:
