@@ -65,16 +65,13 @@ class IoAnalysis(Analysis):
             self.tids[tid].reset()
 
     def get_files_stats(self, pid_filter_list, comm_filter_list):
-        if pid_filter_list is None:
-            pid_filter_list = []
-        if comm_filter_list is None:
-            comm_filter_list = []
-
         files_stats = {}
 
         for proc_stats in self.tids.values():
-            if proc_stats.pid not in pid_filter_list or \
-               proc_stats.comm not in comm_filter_list:
+            if pid_filter_list is not None and \
+            proc_stats.pid not in pid_filter_list or \
+            comm_filter_list is not None and \
+            proc_stats.comm not in comm_filter_list:
                 continue
 
             for fd_list in proc_stats.fds.values():
