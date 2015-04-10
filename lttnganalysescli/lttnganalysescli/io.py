@@ -127,6 +127,45 @@ class IoAnalysisCommand(Command):
             return False
         return True
 
+    def _print_ascii_graph(self, input_list, get_datum_cb, graph_label,
+                           graph_args={}):
+        """Print an ascii graph for given data
+
+        This method wraps the ascii_graph module and facilitates the
+        printing of a graph with a limited number of lines.
+
+        Args:
+            input_list (list): A list of objects from which the data
+            for the graph will be generated.
+
+            get_datum_cb (function): function that takes a single
+            object from the input list as an argument, and returns a
+            datum tuple for the graph, of the form (string, int). The
+            string element is printed as is in the graph, and the int
+            is the numeric value corresponding to this graph entry.
+
+            graph_label (string): Label used to identify the printed
+            graph.
+
+            graph_args (dict, optional): Dict of keyword args to be
+            passed to the graph() function as is.
+        """
+        count = 0
+        limit = self._arg_limit
+        graph = Pyasciigraph()
+        data = []
+
+        for elem in input_list:
+            datum = get_datum_cb(elem)
+            if datum is not None:
+                data.append(datum)
+                count += 1
+                if limit is not None and count >= limit:
+                    break
+
+        for line in graph.graph(graph_label, data, **graph_args):
+            print(line)
+
     def add_fd_dict(self, tid, fd, files):
         if fd.read == 0 and fd.write == 0:
             return
