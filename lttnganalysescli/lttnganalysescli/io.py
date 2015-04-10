@@ -103,6 +103,30 @@ class IoAnalysisCommand(Command):
         self._print_results(begin, end)
         self._reset_total(end)
 
+    # Filter predicates
+    def _filter_process(self, proc):
+        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
+            return False
+        if self._arg_pid_list and str(proc.pid) not in self._arg_pid_list:
+            return False
+        return True
+
+    def _filter_size(self, size):
+        if size is None:
+            return True
+        if self._arg_maxsize is not None and size > self._arg_maxsize:
+            return False
+        if self._arg_minsize is not None and size < self._arg_minsize:
+            return False
+        return True
+
+    def _filter_latency(self, duration):
+        if self._arg_max is not None and (duration/1000) > self._arg_max:
+            return False
+        if self._arg_min is not None and (duration/1000) < self._arg_min:
+            return False
+        return True
+
     def add_fd_dict(self, tid, fd, files):
         if fd.read == 0 and fd.write == 0:
             return
@@ -143,7 +167,7 @@ class IoAnalysisCommand(Command):
     def create_files_dict(self):
         files = {}
         for tid in self.state.tids.values():
-            if not self.filter_process(tid):
+            if not self._filter_process(tid):
                 continue
             for fd in tid.fds.values():
                 self.add_fd_dict(tid, fd, files)
@@ -203,30 +227,6 @@ class IoAnalysisCommand(Command):
         files = self.create_files_dict()
         self.iotop_output_print_file_read(files)
         self.iotop_output_print_file_write(files)
-
-    def filter_process(self, proc):
-        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
-            return False
-        if self._arg_pid_list and str(proc.pid) not in self._arg_pid_list:
-            return False
-        return True
-
-    def filter_size(self, size):
-        # don't filter sync and open
-        if size is None:
-            return True
-        if self._arg_maxsize is not None and size > self._arg_maxsize:
-            return False
-        if self._arg_minsize is not None and size < self._arg_minsize:
-            return False
-        return True
-
-    def filter_latency(self, duration):
-        if self._arg_max is not None and (duration/1000) > self._arg_max:
-            return False
-        if self._arg_min is not None and (duration/1000) < self._arg_min:
-            return False
-        return True
 
     def iotop_output_read(self):
         count = 0
