@@ -301,3 +301,10 @@ class Command:
     def _create_automaton(self):
         self._automaton = linuxautomaton.automaton.Automaton()
         self.state = self._automaton.state
+
+    def _filter_process(self, proc):
+        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
+            return False
+        if self._arg_pid_list and proc.pid not in self._arg_pid_list:
+            return False
+        return True

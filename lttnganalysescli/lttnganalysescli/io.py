@@ -104,13 +104,6 @@ class IoAnalysisCommand(Command):
         self._reset_total(end)
 
     # Filter predicates
-    def _filter_process(self, proc):
-        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
-            return False
-        if self._arg_pid_list and proc.pid not in self._arg_pid_list:
-            return False
-        return True
-
     def _filter_size(self, size):
         if size is None:
             return True

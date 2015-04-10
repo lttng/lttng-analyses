@@ -66,14 +66,6 @@ class Memtop(Command):
         self._print_results(begin, end)
         self._reset_total(end)
 
-    def _filter_process(self, proc):
-        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
-            return False
-        if self._arg_pid_list and proc.pid not in self._arg_pid_list:
-            return False
-
-        return True
-
     def _print_results(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
         self._print_per_tid_alloc()
