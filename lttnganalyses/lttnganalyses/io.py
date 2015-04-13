@@ -64,6 +64,57 @@ class IoAnalysis(Analysis):
         for tid in self.tids:
             self.tids[tid].reset()
 
+    @property
+    def disk_io_requests(self):
+        for disk in self.disks.values():
+            for io_rq in disk.rq_list:
+                yield io_rq
+
+    @property
+    def io_requests(self):
+        return self._get_io_requests()
+
+    @property
+    def open_io_requests(self):
+        return self._get_io_requests(sv.IORequest.OP_OPEN)
+
+    @property
+    def read_io_requests(self):
+        return self._get_io_requests(sv.IORequest.OP_READ)
+
+    @property
+    def write_io_requests(self):
+        return self._get_io_requests(sv.IORequest.OP_WRITE)
+
+    @property
+    def close_io_requests(self):
+        return self._get_io_requests(sv.IORequest.OP_CLOSE)
+
+    @property
+    def sync_io_requests(self):
+        return self._get_io_requests(sv.IORequest.OP_SYNC)
+
+    @property
+    def read_write_io_requests(self):
+        return self._get_io_requests(sv.IORequest.OP_READ_WRITE)
+
+    def _get_io_requests(self, io_operation=None):
+        """Create a generator of syscall io requests by operation
+
+        Args:
+            io_operation (IORequest.OP_*, optional): The operation of
+            the io_requests to return. Return all IO requests if None.
+        """
+        for proc in self.tids.values():
+                for io_rq in proc.rq_list:
+                    if isinstance(io_rq, sv.BlockIORequest):
+                        continue
+
+                    if io_operation is None or \
+                       sv.IORequest.is_equivalent_operation(io_operation,
+                                                            io_rq.operation):
+                        yield io_rq
+
     def get_files_stats(self, pid_filter_list, comm_filter_list):
         files_stats = {}
 
