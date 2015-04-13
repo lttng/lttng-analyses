@@ -191,6 +191,23 @@ class IORequest():
         # Error number if request failed
         self.errno = None
 
+    @staticmethod
+    def is_equivalent_operation(left_op, right_op):
+        """Predicate used to compare equivalence of IO_OPERATION.
+
+        This method is employed because OP_READ_WRITE behaves like a
+        set containing both OP_READ and OP_WRITE and is therefore
+        equivalent to these operations as well as itself
+        """
+        if left_op == IORequest.OP_READ_WRITE:
+            return right_op in [IORequest.OP_READ, IORequest.OP_WRITE,
+                                IORequest.OP_READ_WRITE]
+        if left_op == IORequest.OP_READ:
+            return right_op in [IORequest.OP_READ, IORequest.OP_READ_WRITE]
+        if left_op == IORequest.OP_WRITE:
+            return right_op in [IORequest.OP_WRITE, IORequest.OP_READ_WRITE]
+
+        return left_op == right_op
 
 class SyscallIORequest(IORequest):
     def __init__(self, begin_ts, size, tid, operation, syscall_name):
