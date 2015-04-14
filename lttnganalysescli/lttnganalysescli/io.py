@@ -124,7 +124,7 @@ class IoAnalysisCommand(Command):
         return True
 
     def _filter_time_range(self, begin, end):
-        return not (self._arg_begin and self._arg_end and end and \
+        return not (self._arg_begin and self._arg_end and end and
                     begin > self._arg_end)
 
     def _filter_io_request(self, io_rq):
@@ -277,11 +277,11 @@ class IoAnalysisCommand(Command):
 
     def _get_net_recv_bytes_datum(self, iface):
         return ('%s %s' % (common.convert_size(iface.recv_bytes), iface.name),
-                       iface.recv_bytes)
+                iface.recv_bytes)
 
     def _get_net_sent_bytes_datum(self, iface):
         return ('%s %s' % (common.convert_size(iface.sent_bytes), iface.name),
-                       iface.sent_bytes)
+                iface.sent_bytes)
 
     def _get_file_read_datum(self, file_stats):
         if file_stats.read == 0:
@@ -629,7 +629,6 @@ class IoAnalysisCommand(Command):
             self._analysis.write_io_requests, 'Write')
         self._output_latency_stats_from_requests(
             self._analysis.sync_io_requests, 'Sync')
-
 
     def _output_disk_latency_stats(self):
         if not self._analysis.disks:
