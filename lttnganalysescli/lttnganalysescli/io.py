@@ -35,6 +35,9 @@ class IoAnalysisCommand(Command):
     _VERSION = '0.1.0'
     _DESC = """The I/O command."""
 
+    _LATENCY_STATS_FORMAT = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'
+    _SECTION_SEPARATOR_STRING = '-' * 89
+
     def __init__(self):
         super().__init__(self._add_arguments,
                          enable_proc_filter_args=True,
@@ -119,6 +122,17 @@ class IoAnalysisCommand(Command):
         if self._arg_min is not None and (duration/1000) < self._arg_min:
             return False
         return True
+
+    def _filter_time_range(self, begin, end):
+        return not (self._arg_begin and self._arg_end and end and \
+                    begin > self._arg_end)
+
+    def _filter_io_request(self, io_rq):
+        proc = self._analysis.tids[io_rq.tid]
+        return self._filter_process(proc) and \
+            self._filter_size(io_rq.size) and \
+            self._filter_latency(io_rq.duration) and \
+            self._filter_time_range(io_rq.begin_ts, io_rq.end_ts)
 
     def _print_ascii_graph(self, input_list, get_datum_cb, graph_label,
                            graph_args={}):
@@ -442,32 +456,6 @@ class IoAnalysisCommand(Command):
             print(line)
         print('')
 
-    def compute_disk_stats(self, dev):
-        _max = 0
-        _min = None
-        total = 0
-        values = []
-        count = len(dev.rq_list)
-        if count == 0:
-            return
-        for rq in dev.rq_list:
-            if rq.duration > _max:
-                _max = rq.duration
-            if _min is None or rq.duration < _min:
-                _min = rq.duration
-            total += rq.duration
-            values.append(rq.duration)
-        if count > 2:
-            stdev = statistics.stdev(values) / 1000
-        else:
-            stdev = '?'
-        dev.min = _min / 1000
-        dev.max = _max / 1000
-        dev.total = total / 1000
-        dev.count = count
-        dev.rq_values = values
-        dev.stdev = stdev
-
     # iolatency functions
     def iolatency_output_disk(self):
         for dev in self.state.disks.keys():
@@ -483,101 +471,7 @@ class IoAnalysisCommand(Command):
                                               (d.prettyname))
 
     def iolatency_output(self):
-        self.iolatency_output_disk()
-
-    def iostats_minmax(self, duration, current_min, current_max):
-        _min = current_min
-        _max = current_max
-        if current_min is None or duration < current_min:
-            _min = duration
-        if duration > current_max:
-            _max = duration
-        return (_min, _max)
-
-    def iostats_syscalls_line(self, fmt, name, count, _min, _max, total, rq):
-        if count < 2:
-            stdev = '?'
-        else:
-            stdev = '%0.03f' % (statistics.stdev(rq) / 1000)
-        if count < 1:
-            avg = '0.000'
-        else:
-            avg = '%0.03f' % (total / (count * 1000))
-        if _min is None:
-            _min = 0
-        _min = '%0.03f' % (_min / 1000)
-        _max = '%0.03f' % (_max / 1000)
-        print(fmt.format(name, count, _min, avg, _max, stdev))
-
-    def account_syscall_iorequests(self, s, iorequests):
-        for rq in iorequests:
-            # filter out if completely out of range but accept the
-            # union to show the real begin/end time
-            if self._arg_begin and self._arg_end and rq.end and \
-                    rq.begin > self._arg_end:
-                continue
-            if rq.iotype != sv.IORequest.IO_SYSCALL:
-                continue
-            if not self.filter_size(rq.size):
-                continue
-            if not self.filter_latency(rq.duration):
-                continue
-            if rq.operation == sv.IORequest.OP_READ:
-                s.read_count += 1
-                s.read_total += rq.duration
-                s.read_rq.append(rq.duration)
-                s.all_read.append(rq)
-                s.read_min, s.read_max = self.iostats_minmax(
-                    rq.duration, s.read_min, s.read_max)
-            elif rq.operation == sv.IORequest.OP_WRITE:
-                s.write_count += 1
-                s.write_total += rq.duration
-                s.write_rq.append(rq.duration)
-                s.all_write.append(rq)
-                s.write_min, s.write_max = self.iostats_minmax(
-                    rq.duration, s.write_min, s.write_max)
-            elif rq.operation == sv.IORequest.OP_SYNC:
-                s.sync_count += 1
-                s.sync_total += rq.duration
-                s.sync_rq.append(rq.duration)
-                s.all_sync.append(rq)
-                s.sync_min, s.sync_max = self.iostats_minmax(
-                    rq.duration, s.sync_min, s.sync_max)
-            elif rq.operation == sv.IORequest.OP_OPEN:
-                s.open_count += 1
-                s.open_total += rq.duration
-                s.open_rq.append(rq.duration)
-                s.all_open.append(rq)
-                s.open_min, s.open_max = self.iostats_minmax(
-                    rq.duration, s.open_min, s.open_max)
-
-    def compute_syscalls_latency_stats(self, end_ns):
-        s = sv.Syscalls_stats()
-        for tid in self.state.tids.values():
-            if not self.filter_process(tid):
-                continue
-            self.account_syscall_iorequests(s, tid.iorequests)
-            for fd in tid.fds.values():
-                self.account_syscall_iorequests(s, fd.iorequests)
-            for fd in tid.closed_fds.values():
-                self.account_syscall_iorequests(s, fd.iorequests)
-        return s
-
-    def iostats_output_syscalls(self):
-        s = self.syscalls_stats
-        print('\nSyscalls latency statistics (usec):')
-        fmt = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'
-        print(fmt.format('Type', 'Count', 'Min', 'Average',
-                         'Max', 'Stdev'))
-        print('-' * 89)
-        self.iostats_syscalls_line(fmt, 'Open', s.open_count, s.open_min,
-                                   s.open_max, s.open_total, s.open_rq)
-        self.iostats_syscalls_line(fmt, 'Read', s.read_count, s.read_min,
-                                   s.read_max, s.read_total, s.read_rq)
-        self.iostats_syscalls_line(fmt, 'Write', s.write_count, s.write_min,
-                                   s.write_max, s.write_total, s.write_rq)
-        self.iostats_syscalls_line(fmt, 'Sync', s.sync_count, s.sync_min,
-                                   s.sync_max, s.sync_total, s.sync_rq)
+        self._output_disk_latency_freq()
 
     def iolatency_syscalls_output(self):
         s = self.syscalls_stats
@@ -694,34 +588,77 @@ class IoAnalysisCommand(Command):
             s.all_open + s.all_read + s.all_write + s.all_sync,
             'begin', False)
 
-    # iostats functions
-    def iostats_output_disk(self):
-        # TODO same with network
-        if not self.state.disks:
-            return
-        print('\nDisk latency statistics (usec):')
-        fmt = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'
-        print(fmt.format('Name', 'Count', 'Min', 'Average', 'Max', 'Stdev'))
-        print('-' * 89)
+    # IO Stats output methods
+    def _output_latency_stats(self, name, rq_count, min_duration, max_duration,
+                              total_duration, rq_durations):
+        if rq_count < 2:
+            stdev = '?'
+        else:
+            stdev = '%0.03f' % (statistics.stdev(rq_durations) / 1000)
 
-        for dev in self.state.disks.keys():
-            d = self.state.disks[dev]
-            if d.max is None:
-                d = self.state.disks[dev]
-            self.compute_disk_stats(d)
-            if d.count is not None:
-                self.iostats_syscalls_line(fmt, d.prettyname, d.count, d.min,
-                                           d.max, d.total, d.rq_values)
+        avg = '%0.03f' % (total_duration / (rq_count) / 1000)
+        min_duration = '%0.03f' % (min_duration / 1000)
+        max_duration = '%0.03f' % (max_duration / 1000)
+
+        print(IoAnalysisCommand._LATENCY_STATS_FORMAT.format(
+            name, rq_count, min_duration, avg, max_duration, stdev))
+
+    def _output_latency_stats_from_requests(self, io_requests, name):
+        rq_durations = [io_rq.duration for io_rq in io_requests if
+                        self._filter_io_request(io_rq)]
+        rq_count = len(rq_durations)
+        min_duration = min(rq_durations)
+        max_duration = max(rq_durations)
+        total_duration = sum(rq_durations)
+
+        self._output_latency_stats(name, rq_count, min_duration,
+                                   max_duration, total_duration,
+                                   rq_durations)
+
+    def _output_syscalls_latency_stats(self):
+        print('\nSyscalls latency statistics (usec):')
+        print(IoAnalysisCommand._LATENCY_STATS_FORMAT.format(
+            'Type', 'Count', 'Min', 'Average', 'Max', 'Stdev'))
+        print(IoAnalysisCommand._SECTION_SEPARATOR_STRING)
+
+        self._output_latency_stats_from_requests(
+            self._analysis.open_io_requests, 'Open')
+        self._output_latency_stats_from_requests(
+            self._analysis.read_io_requests, 'Read')
+        self._output_latency_stats_from_requests(
+            self._analysis.write_io_requests, 'Write')
+        self._output_latency_stats_from_requests(
+            self._analysis.sync_io_requests, 'Sync')
+
+
+    def _output_disk_latency_stats(self):
+        if not self._analysis.disks:
+            return
+
+        print('\nDisk latency statistics (usec):')
+        print(IoAnalysisCommand._LATENCY_STATS_FORMAT.format(
+            'Name', 'Count', 'Min', 'Average', 'Max', 'Stdev'))
+        print(IoAnalysisCommand._SECTION_SEPARATOR_STRING)
+
+        for disk in self._analysis.disks.values():
+            if disk.rq_count:
+                rq_durations = map(lambda rq: rq.duration,
+                                   disk.rq_list)
+                self._output_latency_stats(disk.disk_name,
+                                           disk.rq_count,
+                                           disk.min_rq_duration,
+                                           disk.max_rq_duration,
+                                           disk.total_rq_duration,
+                                           rq_durations)
 
     def iostats_output(self):
-        self.iostats_output_syscalls()
-        self.iostats_output_disk()
+        self._output_syscalls_latency_stats()
+        self._output_disk_latency_stats()
 
     def _print_results(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
         if self._arg_usage:
             self.iotop_output()
-        self.syscalls_stats = self.compute_syscalls_latency_stats(end_ns)
         if self._arg_stats:
             self.iostats_output()
         if self._arg_latencytop:
