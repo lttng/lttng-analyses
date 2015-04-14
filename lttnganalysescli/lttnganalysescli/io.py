@@ -642,8 +642,7 @@ class IoAnalysisCommand(Command):
 
         for disk in self._analysis.disks.values():
             if disk.rq_count:
-                rq_durations = map(lambda rq: rq.duration,
-                                   disk.rq_list)
+                rq_durations = [rq.duration for rq in disk.rq_list]
                 self._output_latency_stats(disk.disk_name,
                                            disk.rq_count,
                                            disk.min_rq_duration,
