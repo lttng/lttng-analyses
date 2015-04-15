@@ -437,68 +437,84 @@ class IoAnalysisCommand(Command):
         self._output_net_recv_bytes()
         self._output_net_sent_bytes()
 
-    # IO Latency output methods
-    def iolatency_freq_histogram(self, _min, _max, res, rq_list, title):
-        step = (_max - _min) / res
+    # I/O Latency frequency output methods
+    def _print_frequency_distribution(self, duration_list, title):
+        if not duration_list:
+            return
+
+        # The number of bins for the histogram
+        resolution = self._arg_freq_resolution
+
+        min_duration = min(duration_list)
+        max_duration = max(duration_list)
+        # ns to µs
+        min_duration /= 1000
+        max_duration /= 1000
+
+        step = (max_duration - min_duration) / resolution
         if step == 0:
             return
+
         buckets = []
         values = []
         graph = Pyasciigraph()
-        for i in range(res):
+        for i in range(resolution):
             buckets.append(i * step)
             values.append(0)
-        for i in rq_list:
-            v = i / 1000
-            b = min(int((v-_min)/step), res - 1)
-            values[b] += 1
-        g = []
-        i = 0
-        for v in values:
-            g.append(('%0.03f' % (i * step + _min), v))
-            i += 1
-        for line in graph.graph(title, g, info_before=True, count=True):
-            print(line)
-        print('')
+        for duration in duration_list:
+            duration /= 1000
+            index = min(int((duration - min_duration) / step), resolution - 1)
+            values[index] += 1
 
-    # iolatency functions
-    def iolatency_output_disk(self):
-        for dev in self.state.disks.keys():
-            d = self.state.disks[dev]
-            if d.max is None:
-                self.compute_disk_stats(d)
-            if d.count is not None:
-                self.iolatency_freq_histogram(d.min, d.max,
-                                              self._arg_freq_resolution,
-                                              d.rq_values,
-                                              'Frequency distribution for '
-                                              'disk %s (usec)' %
-                                              (d.prettyname))
+        graph_data = []
+        for index, value in enumerate(values):
+            # The graph data format is a tuple (info, value). Here info
+            # is the lower bound of the bucket, value the bucket's count
+            graph_data.append(('%0.03f' % (index * step + min_duration),
+                               value))
+
+        graph_lines = graph.graph(
+            title,
+            graph_data,
+            info_before=True,
+            count=True
+        )
+
+        for line in graph_lines:
+            print(line)
+
+        print()
+
+    def _output_disk_latency_freq(self):
+        for disk in self._analysis.disks.values():
+            rq_durations = [rq.duration for rq in disk.rq_list]
+            self._print_frequency_distribution(
+                rq_durations,
+                'Frequency distribution for disk %s (usec)' % (disk.disk_name))
 
     def iolatency_output(self):
         self._output_disk_latency_freq()
 
     def iolatency_syscalls_output(self):
-        s = self.syscalls_stats
-        print('')
-        if s.open_count > 0:
-            self.iolatency_freq_histogram(s.open_min/1000, s.open_max/1000,
-                                          self._arg_freq_resolution, s.open_rq,
-                                          'Open latency distribution (usec)')
-        if s.read_count > 0:
-            self.iolatency_freq_histogram(s.read_min/1000, s.read_max/1000,
-                                          self._arg_freq_resolution, s.read_rq,
-                                          'Read latency distribution (usec)')
-        if s.write_count > 0:
-            self.iolatency_freq_histogram(s.write_min/1000, s.write_max/1000,
-                                          self._arg_freq_resolution,
-                                          s.write_rq,
-                                          'Write latency distribution (usec)')
-        if s.sync_count > 0:
-            self.iolatency_freq_histogram(s.sync_min/1000, s.sync_max/1000,
-                                          self._arg_freq_resolution, s.sync_rq,
-                                          'Sync latency distribution (usec)')
+        print()
+        self._print_frequency_distribution([io_rq.duration for io_rq in
+                                            self._analysis.open_io_requests if
+                                            self._filter_io_request(io_rq)],
+                                           'Open latency distribution (usec)')
+        self._print_frequency_distribution([io_rq.duration for io_rq in
+                                            self._analysis.read_io_requests if
+                                            self._filter_io_request(io_rq)],
+                                           'Read latency distribution (usec)')
+        self._print_frequency_distribution([io_rq.duration for io_rq in
+                                            self._analysis.write_io_requests if
+                                            self._filter_io_request(io_rq)],
+                                           'Write latency distribution (usec)')
+        self._print_frequency_distribution([io_rq.duration for io_rq in
+                                            self._analysis.sync_io_requests if
+                                            self._filter_io_request(io_rq)],
+                                           'Sync latency distribution (usec)')
 
+    # I/O latency top and log output methods
     def _output_io_request(self, io_rq):
         fmt = '{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} {:<14}'
 
@@ -612,7 +628,7 @@ class IoAnalysisCommand(Command):
             'Log of all I/O system calls',
             'begin_ts')
 
-    # IO Stats output methods
+    # I/O Stats output methods
     def _output_latency_stats(self, name, rq_count, min_duration, max_duration,
                               total_duration, rq_durations):
         if rq_count < 2:
