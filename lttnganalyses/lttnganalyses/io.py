@@ -461,13 +461,13 @@ class ProcessIOStats():
             else:
                 if timestamp < fd_stats.open_ts:
                     return ProcessIOStats._get_fd_by_timestamp(
-                        fd_stats[:midpoint], timestamp)
+                        fd_list[:midpoint], timestamp)
                 else:
                     return ProcessIOStats._get_fd_by_timestamp(
-                        fd_stats[midpoint + 1:], timestamp)
+                        fd_list[midpoint + 1:], timestamp)
 
     def get_fd(self, fd, timestamp=None):
-        if not self.fds[fd]:
+        if fd not in self.fds or not self.fds[fd]:
             return None
 
         if timestamp is None:
