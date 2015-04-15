@@ -25,7 +25,7 @@
 
 from .command import Command
 import lttnganalyses.io
-from linuxautomaton import common, sv
+from linuxautomaton import common
 from ascii_graph import Pyasciigraph
 import operator
 import statistics
@@ -138,7 +138,7 @@ class IoAnalysisCommand(Command):
             self._arg_end and io_rq.end_ts > self._arg_end
 
     def _print_ascii_graph(self, input_list, get_datum_cb, graph_label,
-                           graph_args={}):
+                           graph_args=None):
         """Print an ascii graph for given data
 
         This method wraps the ascii_graph module and facilitates the
@@ -164,6 +164,8 @@ class IoAnalysisCommand(Command):
         limit = self._arg_limit
         graph = Pyasciigraph()
         data = []
+        if graph_args is None:
+            graph_args = {}
 
         for elem in input_list:
             datum = get_datum_cb(elem)
