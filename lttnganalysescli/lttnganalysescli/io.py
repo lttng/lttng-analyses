@@ -133,6 +133,10 @@ class IoAnalysisCommand(Command):
             self._filter_latency(io_rq.duration) and \
             self._filter_time_range(io_rq.begin_ts, io_rq.end_ts)
 
+    def _is_io_rq_out_of_range(self, io_rq):
+        return self._arg_begin and io_rq.begin_ts < self._arg_begin or \
+            self._arg_end and io_rq.end_ts > self._arg_end
+
     def _print_ascii_graph(self, input_list, get_datum_cb, graph_label,
                            graph_args={}):
         """Print an ascii graph for given data
@@ -493,99 +497,118 @@ class IoAnalysisCommand(Command):
                                           self._arg_freq_resolution, s.sync_rq,
                                           'Sync latency distribution (usec)')
 
-    def iolatency_syscalls_list_output(self, title, rq_list,
-                                       sortkey, reverse):
-        limit = self._arg_limit
-        count = 0
-        outrange_legend = False
+    def _output_io_request(self, io_rq):
+        fmt = '{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} {:<14}'
+
+        begin_time = common.ns_to_hour_nsec(io_rq.begin_ts,
+                                            self._arg_multi_day,
+                                            self._arg_gmt)
+        end_time = common.ns_to_hour_nsec(io_rq.end_ts,
+                                          self._arg_multi_day,
+                                          self._arg_gmt)
+        time_range_str = '[' + begin_time + ',' + end_time + ']'
+        duration_str = '%0.03f' % (io_rq.duration / 1000)
+
+        if io_rq.size is None:
+            size = 'N/A'
+        else:
+            size = common.convert_size(io_rq.size)
+
+        tid = io_rq.tid
+        proc_stats = self._analysis.tids[tid]
+        comm = proc_stats.comm
+
+        # TODO: handle fd_in/fd_out for RW type operations
+        if io_rq.fd is None:
+            file_str = 'N/A'
+        else:
+            fd = io_rq.fd
+
+            parent_proc = proc_stats
+            if parent_proc.pid is not None:
+                parent_proc = self._analysis.tids[parent_proc.pid]
+
+            fd_stats = parent_proc.get_fd(fd, io_rq.end_ts)
+            if fd_stats is not None:
+                filename = fd_stats.filename
+            else:
+                filename = 'unknown'
+
+            file_str = '%s (fd=%s)' % (filename, fd)
+
+        if self._is_io_rq_out_of_range(io_rq):
+            time_range_str += '*'
+            duration_str += '*'
+        else:
+            time_range_str += ' '
+            duration_str += ' '
+
+        print(fmt.format(time_range_str, io_rq.syscall_name, duration_str,
+                         size, comm, tid, file_str))
+
+    def _output_io_requests_list(self, rq_list, title, sort_key, is_top=False):
         if not rq_list:
             return
+
+        count = 0
+        has_out_of_range_rq = False
+
+        print()
         print(title)
-        if self._arg_extra:
-            extra_fmt = '{:<48}'
-            extra_title = '{:<8} {:<8} {:<8} {:<8} {:<8} {:<8} '.format(
-                'Dirtied', 'Alloc', 'Free', 'Written', 'Kswap', 'Cleared')
-        else:
-            extra_fmt = '{:<0}'
-            extra_title = ''
-        title_fmt = '{:<19} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} ' + \
-            extra_fmt + '{:<14}'
-        fmt = '{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} ' + \
-            extra_fmt + '{:<14}'
-        print(title_fmt.format('Begin', 'End', 'Name', 'Duration (usec)',
-                               'Size', 'Proc', 'PID', extra_title, 'Filename'))
-        for rq in sorted(rq_list,
-                         key=operator.attrgetter(sortkey), reverse=reverse):
-            # only limit the output if in the 'top' view
-            if reverse and count > limit:
+
+        header_fmt = '{:<19} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} {:<14}'
+        print(header_fmt.format(
+            'Begin', 'End', 'Name', 'Duration (usec)', 'Size', 'Proc', 'PID',
+            'Filename'))
+
+        for io_rq in sorted(rq_list, key=operator.attrgetter(sort_key),
+                            reverse=is_top):
+            if is_top and count > self._arg_limit:
                 break
-            if rq.size is None:
-                size = 'N/A'
-            else:
-                size = common.convert_size(rq.size)
-            if self._arg_extra:
-                extra = '{:<8} {:<8} {:<8} {:<8} {:<8} {:<8} '.format(
-                    rq.dirty, rq.page_alloc, rq.page_free, rq.page_written,
-                    rq.woke_kswapd, rq.page_cleared)
-            else:
-                extra = ''
-            name = rq.name.replace('syscall_entry_', '').replace('sys_', '')
-            if rq.fd is None:
-                filename = 'None'
-                fd = 'None'
-            else:
-                filename = rq.fd.filename
-                fd = rq.fd.fd
-            if rq.proc.pid is None:
-                pid = 'unknown (tid=%d)' % (rq.proc.tid)
-            else:
-                pid = rq.proc.pid
-            end = common.ns_to_hour_nsec(rq.end, self._arg_multi_day,
-                                         self._arg_gmt)
 
-            outrange = ' '
-            duration = rq.duration
-            if self._arg_begin and rq.begin < self._arg_begin:
-                outrange = '*'
-                outrange_legend = True
-            if self._arg_end and rq.end > self._arg_end:
-                outrange = '*'
-                outrange_legend = True
+            self._output_io_request(io_rq)
+            if not has_out_of_range_rq and self._is_io_rq_out_of_range(io_rq):
+                has_out_of_range_rq = True
 
-            print(fmt.format('[' + common.ns_to_hour_nsec(
-                rq.begin, self._arg_multi_day, self._arg_gmt) + ',' +
-                end + ']' + outrange,
-                name,
-                '%0.03f' % (duration/1000) + outrange,
-                size, rq.proc.comm,
-                pid, extra,
-                '%s (fd=%s)' % (filename, fd)))
             count += 1
-        if outrange_legend:
+
+        if has_out_of_range_rq:
             print('*: Syscalls started and/or completed outside of the '
                   'range specified')
 
+    def _output_latency_log_from_requests(self, io_requests, title, sort_key,
+                                          is_top=False):
+        io_requests = [io_rq for io_rq in io_requests if
+                       self._filter_io_request(io_rq)]
+        self._output_io_requests_list(io_requests, title, sort_key, is_top)
+
     def iolatency_syscalls_top_output(self):
-        s = self.syscalls_stats
-        self.iolatency_syscalls_list_output(
-            '\nTop open syscall latencies (usec)', s.all_open,
-            'duration', True)
-        self.iolatency_syscalls_list_output(
-            '\nTop read syscall latencies (usec)', s.all_read,
-            'duration', True)
-        self.iolatency_syscalls_list_output(
-            '\nTop write syscall latencies (usec)', s.all_write,
-            'duration', True)
-        self.iolatency_syscalls_list_output(
-            '\nTop sync syscall latencies (usec)', s.all_sync,
-            'duration', True)
+        self._output_latency_log_from_requests(
+            [io_rq for io_rq in self._analysis.open_io_requests if
+             self._filter_io_request(io_rq)],
+            'Top open syscall latencies (usec)',
+            'duration', is_top=True)
+        self._output_io_requests_list(
+            [io_rq for io_rq in self._analysis.read_io_requests if
+             self._filter_io_request(io_rq)],
+            'Top read syscall latencies (usec)',
+            'duration', is_top=True)
+        self._output_io_requests_list(
+            [io_rq for io_rq in self._analysis.write_io_requests if
+             self._filter_io_request(io_rq)],
+            'Top write syscall latencies (usec)',
+            'duration', is_top=True)
+        self._output_io_requests_list(
+            [io_rq for io_rq in self._analysis.sync_io_requests if
+             self._filter_io_request(io_rq)],
+            'Top sync syscall latencies (usec)',
+            'duration', is_top=True)
 
     def iolatency_syscalls_log_output(self):
-        s = self.syscalls_stats
-        self.iolatency_syscalls_list_output(
-            '\nLog of all I/O system calls',
-            s.all_open + s.all_read + s.all_write + s.all_sync,
-            'begin', False)
+        self._output_io_requests_list(
+            self._analysis.io_requests,
+            'Log of all I/O system calls',
+            'begin_ts')
 
     # IO Stats output methods
     def _output_latency_stats(self, name, rq_count, min_duration, max_duration,
