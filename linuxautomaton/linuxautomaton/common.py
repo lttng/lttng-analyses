@@ -199,11 +199,11 @@ def ns_to_hour_nsec(ns, multi_day=False, gmt=False):
     else:
         date = time.localtime(ns / NSEC_PER_SEC)
     if multi_day:
-        return ('%04d-%02d-%02d %02d:%02d:%02date.%09d' %
+        return ('%04d-%02d-%02d %02d:%02d:%02d.%09d' %
                 (date.tm_year, date.tm_mon, date.tm_mday, date.tm_hour,
                  date.tm_min, date.tm_sec, ns % NSEC_PER_SEC))
     else:
-        return ('%02d:%02d:%02date.%09d' %
+        return ('%02d:%02d:%02d.%09d' %
                 (date.tm_hour, date.tm_min, date.tm_sec, ns % NSEC_PER_SEC))
 
 
