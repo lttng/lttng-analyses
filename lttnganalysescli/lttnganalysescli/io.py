@@ -46,7 +46,6 @@ class IoAnalysisCommand(Command):
                          enable_log_arg=True)
 
     def _validate_transform_args(self):
-        self._arg_extra = self._args.extra
         self._arg_usage = self._args.usage
         self._arg_stats = self._args.latencystats
         self._arg_latencytop = self._args.latencytop
@@ -682,8 +681,6 @@ class IoAnalysisCommand(Command):
         ap.add_argument('--freq-resolution', type=int, default=20,
                         help='Frequency distribution resolution '
                              '(default 20)')
-        ap.add_argument('--extra', type=str, default=0,
-                        help='Show extra information in stats (beta)')
 
 
 # entry point
