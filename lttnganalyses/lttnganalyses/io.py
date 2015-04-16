@@ -134,8 +134,13 @@ class IoAnalysis(Analysis):
                         filename += '(%s)' % proc_stats.comm
 
                     if filename not in files_stats:
+                        if proc_stats.pid is not None:
+                            pid = proc_stats.pid
+                        else:
+                            pid = proc_stats.tid
+
                         files_stats[filename] = FileStats(
-                            filename, fd_stats.fd, proc_stats.pid)
+                            filename, fd_stats.fd, pid)
 
                     files_stats[filename].update_stats(fd_stats, proc_stats)
 
@@ -556,7 +561,7 @@ class FileStats():
             pid = proc_stats.tid
 
         if pid not in self.fd_by_pid:
-            self.fd_by_pid[proc_stats.pid] = fd_stats.fd
+            self.fd_by_pid[pid] = fd_stats.fd
 
     def reset(self):
         self.read = 0
