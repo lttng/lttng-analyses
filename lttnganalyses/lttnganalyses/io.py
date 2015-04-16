@@ -106,14 +106,14 @@ class IoAnalysis(Analysis):
             the io_requests to return. Return all IO requests if None.
         """
         for proc in self.tids.values():
-                for io_rq in proc.rq_list:
-                    if isinstance(io_rq, sv.BlockIORequest):
-                        continue
+            for io_rq in proc.rq_list:
+                if isinstance(io_rq, sv.BlockIORequest):
+                    continue
 
-                    if io_operation is None or \
-                       sv.IORequest.is_equivalent_operation(io_operation,
-                                                            io_rq.operation):
-                        yield io_rq
+                if io_operation is None or \
+                   sv.IORequest.is_equivalent_operation(io_operation,
+                                                        io_rq.operation):
+                    yield io_rq
 
     def get_files_stats(self, pid_filter_list, comm_filter_list):
         files_stats = {}
