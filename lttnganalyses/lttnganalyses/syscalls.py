@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+# Copyright (C) 2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,10 +27,72 @@ from .analysis import Analysis
 
 class SyscallsAnalysis(Analysis):
     def __init__(self, state):
+        notification_cbs = {
+            'syscall_exit': self._process_syscall_exit
+        }
+
         self._state = state
+        self._state.register_notification_cbs(notification_cbs)
+        self.tids = {}
+        self.total_syscalls = 0
 
     def process_event(self, ev):
         pass
 
     def reset(self):
         pass
+
+    def _process_syscall_exit(self, **kwargs):
+        proc = kwargs['proc']
+        tid = proc.tid
+        current_syscall = proc.current_syscall
+        name = current_syscall.name
+
+        if tid not in self.tids:
+            self.tids[tid] = ProcessSyscallStats.new_from_process(proc)
+
+        proc_stats = self.tids[tid]
+        if name not in proc_stats.syscalls:
+            proc_stats.syscalls[name] = SyscallStats(name)
+
+        proc_stats.syscalls[name].update_stats(current_syscall)
+        proc_stats.total_syscalls += 1
+        self.total_syscalls += 1
+
+
+class ProcessSyscallStats():
+    def __init__(self, pid, tid, comm):
+        self.pid = pid
+        self.tid = tid
+        self.comm = comm
+        # indexed by syscall name
+        self.syscalls = {}
+        self.total_syscalls = 0
+
+    @classmethod
+    def new_from_process(cls, proc):
+        return cls(proc.pid, proc.tid, proc.comm)
+
+
+class SyscallStats():
+    def __init__(self, name):
+        self.name = name
+        # duration min/max
+        self.min = None
+        self.max = None
+        self.total_duration = 0
+        self.syscalls_list = []
+
+    @property
+    def count(self):
+        return len(self.syscalls_list)
+
+    def update_stats(self, syscall):
+        duration = syscall.duration
+
+        if self.min is None or self.min > duration:
+            self.min = duration
+        if self.max is None or self.max < duration:
+            self.max = duration
+        self.total_duration += duration
+        self.syscalls_list.append(syscall)

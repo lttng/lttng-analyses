@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +27,7 @@ from .sched import SchedStateProvider
 from .mem import MemStateProvider
 from .irq import IrqStateProvider
 from .syscalls import SyscallsStateProvider
+from .io import IoStateProvider
 from .statedump import StatedumpStateProvider
 from .block import BlockStateProvider
 from .net import NetStateProvider
@@ -37,10 +39,7 @@ class State:
         self.cpus = {}
         self.tids = {}
         self.disks = {}
-        self.syscalls = {}
         self.mm = MemoryManagement()
-        self.ifaces = {}
-        self.pending_syscalls = []
         self._notification_cbs = {}
 
     def register_notification_cbs(self, cbs):
@@ -64,9 +63,10 @@ class Automaton:
             MemStateProvider(self._state),
             IrqStateProvider(self._state),
             SyscallsStateProvider(self._state),
+            IoStateProvider(self._state),
             StatedumpStateProvider(self._state),
             BlockStateProvider(self._state),
-            NetStateProvider(self._state),
+            NetStateProvider(self._state)
         ]
 
     def process_event(self, ev):

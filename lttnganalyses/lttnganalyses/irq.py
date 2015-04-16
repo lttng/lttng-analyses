@@ -70,7 +70,7 @@ class IrqAnalysis(Analysis):
     def _process_irq_handler_exit(self, **kwargs):
         irq = kwargs['hard_irq']
 
-        duration = irq.stop_ts - irq.start_ts
+        duration = irq.end_ts - irq.begin_ts
         if self._min_duration is not None and duration < self._min_duration:
             return
         if self._max_duration is not None and duration > self._max_duration:
@@ -85,7 +85,7 @@ class IrqAnalysis(Analysis):
     def _process_softirq_exit(self, **kwargs):
         irq = kwargs['softirq']
 
-        duration = irq.stop_ts - irq.start_ts
+        duration = irq.end_ts - irq.begin_ts
         if self._min_duration is not None and duration < self._min_duration:
             return
         if self._max_duration is not None and duration > self._max_duration:
@@ -112,7 +112,7 @@ class IrqStats():
         return len(self.irq_list)
 
     def update_stats(self, irq):
-        duration = irq.stop_ts - irq.start_ts
+        duration = irq.end_ts - irq.begin_ts
 
         if self.min_duration is None or duration < self.min_duration:
             self.min_duration = duration
@@ -161,7 +161,7 @@ class SoftIrqStats(IrqStats):
         if irq.raise_ts is None:
             return
 
-        raise_latency = irq.start_ts - irq.raise_ts
+        raise_latency = irq.begin_ts - irq.raise_ts
         if self.min_raise_latency is None or \
            raise_latency < self.min_raise_latency:
             self.min_raise_latency = raise_latency

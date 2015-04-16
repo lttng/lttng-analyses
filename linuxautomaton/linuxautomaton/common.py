@@ -28,7 +28,6 @@ import time
 import datetime
 import socket
 import struct
-from linuxautomaton import sv
 
 NSEC_PER_SEC = 1000000000
 MSEC_PER_NSEC = 1000000
@@ -36,24 +35,15 @@ MSEC_PER_NSEC = 1000000
 O_CLOEXEC = 0o2000000
 
 
-# imported from include/linux/kdev_t.h
-def kdev_major_minor(dev):
-    MINORBITS = 20
-    MINORMASK = ((1 << MINORBITS) - 1)
-    major = dev >> MINORBITS
-    minor = dev & MINORMASK
-    return '(%d,%d)' % (major, minor)
+def get_syscall_name(event):
+    name = event.name
 
+    if name.startswith('sys_'):
+        # Strip first 4 because sys_ is 4 chars long
+        return name[4:]
 
-def get_disk(dev, disks):
-    if dev not in disks:
-        disk = sv.Disk()
-        disk.name = '%d' % dev
-        disk.prettyname = kdev_major_minor(dev)
-        disks[dev] = disk
-    else:
-        disk = disks[dev]
-    return disk
+    # Name begins with syscall_entry_ (14 chars long)
+    return name[14:]
 
 
 def convert_size(size, padding_after=False, padding_before=False):
@@ -209,11 +199,11 @@ def ns_to_hour_nsec(ns, multi_day=False, gmt=False):
     else:
         date = time.localtime(ns / NSEC_PER_SEC)
     if multi_day:
-        return ('%04d-%02d-%02d %02d:%02d:%02date.%09d' %
+        return ('%04d-%02d-%02d %02d:%02d:%02d.%09d' %
                 (date.tm_year, date.tm_mon, date.tm_mday, date.tm_hour,
                  date.tm_min, date.tm_sec, ns % NSEC_PER_SEC))
     else:
-        return ('%02d:%02d:%02date.%09d' %
+        return ('%02d:%02d:%02d.%09d' %
                 (date.tm_hour, date.tm_min, date.tm_sec, ns % NSEC_PER_SEC))
 
 

@@ -72,8 +72,6 @@ class IrqAnalysisCommand(Command):
         self._create_analysis()
         # run the analysis
         self._run_analysis(self._reset_total, self._refresh)
-        # process the results
-        self._compute_stats()
         # print results
         self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
@@ -99,7 +97,7 @@ class IrqAnalysisCommand(Command):
 
         durations = []
         for irq in irq_stats_item.irq_list:
-            durations.append(irq.stop_ts - irq.start_ts)
+            durations.append(irq.end_ts - irq.begin_ts)
 
         return statistics.stdev(durations)
 
@@ -112,7 +110,7 @@ class IrqAnalysisCommand(Command):
             if irq.raise_ts is None:
                 continue
 
-            raise_latencies.append(irq.start_ts - irq.raise_ts)
+            raise_latencies.append(irq.begin_ts - irq.raise_ts)
 
         return statistics.stdev(raise_latencies)
 
@@ -137,7 +135,7 @@ class IrqAnalysisCommand(Command):
             buckets.append(i * step)
             values.append(0)
         for irq in irq_stats_item.irq_list:
-            duration = (irq.stop_ts - irq.start_ts) / 1000
+            duration = (irq.end_ts - irq.begin_ts) / 1000
             index = min(int((duration - min_duration) / step), resolution - 1)
             values[index] += 1
 
@@ -195,13 +193,13 @@ class IrqAnalysisCommand(Command):
                                                        self._arg_multi_day,
                                                        self._arg_gmt))
 
-            print(fmt.format(common.ns_to_hour_nsec(irq.start_ts,
+            print(fmt.format(common.ns_to_hour_nsec(irq.begin_ts,
                                                     self._arg_multi_day,
                                                     self._arg_gmt),
-                             common.ns_to_hour_nsec(irq.stop_ts,
+                             common.ns_to_hour_nsec(irq.end_ts,
                                                     self._arg_multi_day,
                                                     self._arg_gmt),
-                             '%0.03f' % ((irq.stop_ts - irq.start_ts) / 1000),
+                             '%0.03f' % ((irq.end_ts - irq.begin_ts) / 1000),
                              '%d' % irq.cpu_id, irqtype, irq.id,
                              name + raise_ts))
 
@@ -333,14 +331,10 @@ class IrqAnalysisCommand(Command):
                                   self._arg_softirq_filter_list,
                                   header)
 
-    def _compute_stats(self):
-        pass
-
     def _reset_total(self, start_ts):
         self._analysis.reset()
 
     def _refresh(self, begin, end):
-        self._compute_stats()
         self._print_results(begin, end)
         self._reset_total(end)
 

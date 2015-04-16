@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -32,16 +33,10 @@ import errno
 
 class SyscallsAnalysis(Command):
     _VERSION = '0.1.0'
-    _DESC = """The I/O command."""
+    _DESC = """The syscallstats command."""
 
     def __init__(self):
-        super().__init__(self._add_arguments,
-                         enable_proc_filter_args=True)
-#                         enable_max_min_args=True,
-#                         enable_max_min_size_arg=True,
-#                         enable_freq_arg=True,
-#                         enable_log_arg=True,
-#                         enable_stats_arg=True)
+        super().__init__(self._add_arguments, enable_proc_filter_args=True)
 
     def _validate_transform_args(self):
         pass
@@ -57,8 +52,6 @@ class SyscallsAnalysis(Command):
         self._create_analysis()
         # run the analysis
         self._run_analysis(self._reset_total, self._refresh)
-        # process the results
-        self._compute_stats()
         # print results
         self._print_results(self.start_ns, self.trace_end_ts)
         # close the trace
@@ -67,49 +60,46 @@ class SyscallsAnalysis(Command):
     def _create_analysis(self):
         self._analysis = lttnganalyses.syscalls.SyscallsAnalysis(self.state)
 
-    def _compute_stats(self):
-        pass
-
     def _refresh(self, begin, end):
-        self._compute_stats()
         self._print_results(begin, end)
         self._reset_total(end)
 
-    def filter_process(self, proc):
-        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
-            return False
-        if self._arg_pid_list and str(proc.pid) not in self._arg_pid_list:
-            return False
-        return True
-
     def _print_results(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
-        strformat = '{:<28} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
+        strformat = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
         print('Per-TID syscalls statistics (usec)')
-        for tid in sorted(self.state.tids.values(),
+        for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('total_syscalls'),
                           reverse=True):
-            if not self.filter_process(tid):
+            if not self._filter_process(tid):
                 continue
             if tid.total_syscalls == 0:
                 continue
-            print(strformat.format('%s (%d, tid = %d)' % (
-                tid.comm, tid.pid, tid.tid),
+
+            pid = tid.pid
+            if pid is None:
+                pid = '?'
+            else:
+                pid = str(pid)
+
+            print(strformat.format(
+                '%s (%s, tid = %d)' % (tid.comm, pid, tid.tid),
                 'Count', 'Min', 'Average', 'Max', 'Stdev', 'Return values'))
+
             for syscall in sorted(tid.syscalls.values(),
                                   key=operator.attrgetter('count'),
                                   reverse=True):
                 sysvalues = []
                 rets = {}
-                for s in syscall.rq:
-                    sysvalues.append(s.duration)
-                    if s.ret >= 0:
+                for s in syscall.syscalls_list:
+                    sysvalues.append(s['duration'])
+                    if s['ret'] >= 0:
                         key = 'success'
                     else:
                         try:
-                            key = errno.errorcode[-s.ret]
+                            key = errno.errorcode[-s['ret']]
                         except:
-                            key = str(s.ret)
+                            key = str(s['ret'])
                     if key in rets.keys():
                         rets[key] += 1
                     else:
@@ -118,7 +108,10 @@ class SyscallsAnalysis(Command):
                     syscallmin = '?'
                 else:
                     syscallmin = '%0.03f' % (syscall.min / 1000)
-                syscallmax = '%0.03f' % (syscall.max / 1000)
+                if syscall.max is None:
+                    syscallmax = '?'
+                else:
+                    syscallmax = '%0.03f' % (syscall.max / 1000)
                 syscallavg = '%0.03f' % \
                     (syscall.total_duration/(syscall.count*1000))
                 if len(sysvalues) > 2:
@@ -134,7 +127,7 @@ class SyscallsAnalysis(Command):
                                    '', ''))
             print('-' * 113)
 
-        print('\nTotal syscalls: %d' % (self.state.syscalls['total']))
+        print('\nTotal syscalls: %d' % (self._analysis.total_syscalls))
 
     def _reset_total(self, start_ts):
         pass

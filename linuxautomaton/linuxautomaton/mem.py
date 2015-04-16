@@ -28,11 +28,12 @@ from linuxautomaton import sp
 
 class MemStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self.state = state
         cbs = {
             'mm_page_alloc': self._process_mm_page_alloc,
             'mm_page_free': self._process_mm_page_free
         }
+
+        self._state = state
         self._register_cbs(cbs)
 
     def process_event(self, ev):
@@ -40,43 +41,42 @@ class MemStateProvider(sp.StateProvider):
 
     def _get_current_proc(self, event):
         cpu_id = event['cpu_id']
-        if cpu_id not in self.state.cpus:
+        if cpu_id not in self._state.cpus:
             return None
 
-        cpu = self.state.cpus[cpu_id]
+        cpu = self._state.cpus[cpu_id]
         if cpu.current_tid is None:
             return None
 
-        return self.state.tids[cpu.current_tid]
+        return self._state.tids[cpu.current_tid]
 
     def _process_mm_page_alloc(self, event):
-        self.state.mm.page_count += 1
+        self._state.mm.page_count += 1
 
         # Increment the number of pages allocated during the execution
-        # of all currently pending syscalls
-        for process in self.state.tids.values():
-            if not process.current_syscall:
+        # of all currently syscall io requests
+        for process in self._state.tids.values():
+            if process.current_syscall is None:
                 continue
 
-            if 'pages_allocated' not in process.current_syscall:
-                process.current_syscall['pages_allocated'] = 1
-            else:
-                process.current_syscall['pages_allocated'] += 1
+            if process.current_syscall.io_rq:
+                process.current_syscall.io_rq.pages_allocated += 1
 
         current_process = self._get_current_proc(event)
         if current_process is None:
             return
 
-        self.state.send_notification_cb('tid_page_alloc', proc=current_process)
+        self._state.send_notification_cb('tid_page_alloc',
+                                         proc=current_process)
 
     def _process_mm_page_free(self, event):
-        if self.state.mm.page_count == 0:
+        if self._state.mm.page_count == 0:
             return
 
-        self.state.mm.page_count -= 1
+        self._state.mm.page_count -= 1
 
         current_process = self._get_current_proc(event)
         if current_process is None:
             return
 
-        self.state.send_notification_cb('tid_page_free', proc=current_process)
+        self._state.send_notification_cb('tid_page_free', proc=current_process)

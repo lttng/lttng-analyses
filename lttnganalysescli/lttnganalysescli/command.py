@@ -175,6 +175,7 @@ class Command:
             self._arg_pid_list = None
             if args.pid:
                 self._arg_pid_list = args.pid.split(',')
+                self._arg_pid_list = [int(pid) for pid in self._arg_pid_list]
 
         if self._enable_max_min_arg:
             self._arg_max = args.max
@@ -297,6 +298,22 @@ class Command:
                     print('Invalid timeformat')
                     sys.exit(1)
 
+                # We have to check if timestamp_begin is None, which
+                # it always is in older versions of babeltrace. In
+                # that case, the test is simply skipped and an invalid
+                # --end value will cause an empty analysis
+                if self._traces.timestamp_begin is not None and \
+                   self._arg_end < self._traces.timestamp_begin:
+                    print('--end timestamp before beginning of trace')
+                    sys.exit(1)
+
     def _create_automaton(self):
         self._automaton = linuxautomaton.automaton.Automaton()
         self.state = self._automaton.state
+
+    def _filter_process(self, proc):
+        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
+            return False
+        if self._arg_pid_list and proc.pid not in self._arg_pid_list:
+            return False
+        return True
