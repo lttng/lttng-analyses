@@ -298,6 +298,15 @@ class Command:
                     print('Invalid timeformat')
                     sys.exit(1)
 
+                # We have to check if timestamp_begin is None, which
+                # it always is in older versions of babeltrace. In
+                # that case, the test is simply skipped and an invalid
+                # --end value will cause an empty analysis
+                if self._traces.timestamp_begin is not None and \
+                   self._arg_end < self._traces.timestamp_begin:
+                    print('--end timestamp before beginning of trace')
+                    sys.exit(1)
+
     def _create_automaton(self):
         self._automaton = linuxautomaton.automaton.Automaton()
         self.state = self._automaton.state
