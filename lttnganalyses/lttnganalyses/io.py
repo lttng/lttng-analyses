@@ -549,7 +549,13 @@ class FileStats():
     def update_stats(self, fd_stats, proc_stats):
         self.read += fd_stats.read
         self.write += fd_stats.write
-        if proc_stats.pid not in self.fd_by_pid:
+
+        if proc_stats.pid is not None:
+            pid = proc_stats.pid
+        else:
+            pid = proc_stats.tid
+
+        if pid not in self.fd_by_pid:
             self.fd_by_pid[proc_stats.pid] = fd_stats.fd
 
     def reset(self):
