@@ -77,9 +77,8 @@ class ProcessSyscallStats():
 class SyscallStats():
     def __init__(self, name):
         self.name = name
-        # duration min/max
-        self.min = None
-        self.max = None
+        self.min_duration = None
+        self.max_duration = None
         self.total_duration = 0
         self.syscalls_list = []
 
@@ -90,9 +89,10 @@ class SyscallStats():
     def update_stats(self, syscall):
         duration = syscall.duration
 
-        if self.min is None or self.min > duration:
-            self.min = duration
-        if self.max is None or self.max < duration:
-            self.max = duration
+        if self.min_duration is None or self.min_duration > duration:
+            self.min_duration = duration
+        if self.max_duration is None or self.max_duration < duration:
+            self.max_duration = duration
+
         self.total_duration += duration
         self.syscalls_list.append(syscall)

@@ -25,14 +25,13 @@
 
 from .command import Command
 import lttnganalyses.syscalls
-from linuxautomaton import common
 import operator
 import statistics
 import errno
 
 
 class SyscallsAnalysis(Command):
-    _VERSION = '0.1.0'
+    _VERSION = '0.2.0'
     _DESC = """The syscallstats command."""
 
     def __init__(self):
@@ -42,19 +41,12 @@ class SyscallsAnalysis(Command):
         pass
 
     def run(self):
-        # parse arguments first
         self._parse_args()
-        # validate, transform and save specific arguments
         self._validate_transform_args()
-        # open the trace
         self._open_trace()
-        # create the appropriate analysis/analyses
         self._create_analysis()
-        # run the analysis
         self._run_analysis(self._reset_total, self._refresh)
-        # print results
         self._print_results(self.start_ns, self.trace_end_ts)
-        # close the trace
         self._close_trace()
 
     def _create_analysis(self):
@@ -62,69 +54,67 @@ class SyscallsAnalysis(Command):
 
     def _refresh(self, begin, end):
         self._print_results(begin, end)
-        self._reset_total(end)
 
     def _print_results(self, begin_ns, end_ns):
+        line_format = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
+
         self._print_date(begin_ns, end_ns)
-        strformat = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
         print('Per-TID syscalls statistics (usec)')
-        for tid in sorted(self._analysis.tids.values(),
-                          key=operator.attrgetter('total_syscalls'),
-                          reverse=True):
-            if not self._filter_process(tid):
-                continue
-            if tid.total_syscalls == 0:
+
+        for proc_stats in sorted(self._analysis.tids.values(),
+                                 key=operator.attrgetter('total_syscalls'),
+                                 reverse=True):
+            if not self._filter_process(proc_stats) or \
+               proc_stats.total_syscalls == 0:
                 continue
 
-            pid = tid.pid
-            if pid is None:
+            pid = proc_stats.pid
+            if proc_stats.pid is None:
                 pid = '?'
-            else:
-                pid = str(pid)
 
-            print(strformat.format(
-                '%s (%s, tid = %d)' % (tid.comm, pid, tid.tid),
+            print(line_format.format(
+                '%s (%s, tid = %d)' % (proc_stats.comm, pid, proc_stats.tid),
                 'Count', 'Min', 'Average', 'Max', 'Stdev', 'Return values'))
 
-            for syscall in sorted(tid.syscalls.values(),
+            for syscall in sorted(proc_stats.syscalls.values(),
                                   key=operator.attrgetter('count'),
                                   reverse=True):
-                sysvalues = []
-                rets = {}
-                for s in syscall.syscalls_list:
-                    sysvalues.append(s['duration'])
-                    if s['ret'] >= 0:
-                        key = 'success'
+                durations = []
+                return_count = {}
+
+                for syscall_event in syscall.syscalls_list:
+                    durations.append(syscall_event.duration)
+
+                    if syscall_event.ret >= 0:
+                        return_key = 'success'
                     else:
                         try:
-                            key = errno.errorcode[-s['ret']]
-                        except:
-                            key = str(s['ret'])
-                    if key in rets.keys():
-                        rets[key] += 1
-                    else:
-                        rets[key] = 1
-                if syscall.min is None:
-                    syscallmin = '?'
-                else:
-                    syscallmin = '%0.03f' % (syscall.min / 1000)
-                if syscall.max is None:
-                    syscallmax = '?'
-                else:
-                    syscallmax = '%0.03f' % (syscall.max / 1000)
-                syscallavg = '%0.03f' % \
-                    (syscall.total_duration/(syscall.count*1000))
-                if len(sysvalues) > 2:
-                    stdev = '%0.03f' % (statistics.stdev(sysvalues) / 1000)
+                            return_key = errno.errorcode[-syscall_event.ret]
+                        except KeyError:
+                            return_key = str(syscall_event.ret)
+
+                    if return_key not in return_count:
+                        return_count[return_key] = 1
+
+                    return_count[return_key] += 1
+
+                min_duration = round(syscall.min_duration / 1000, 3)
+                max_duration = round(syscall.max_duration / 1000, 3)
+                avg_duration = round(
+                    syscall.total_duration/ syscall.count / 1000, 3)
+
+                if len(durations) > 2:
+                    stdev = round(statistics.stdev(durations) / 1000, 3)
                 else:
                     stdev = '?'
-                name = syscall.name.replace('syscall_entry_', '')
-                name = name.replace('sys_', '')
-                print(strformat.format(' - ' + name, syscall.count,
-                                       syscallmin, syscallavg, syscallmax,
-                                       stdev, str(rets)))
-            print(strformat.format('Total:', tid.total_syscalls, '', '', '',
-                                   '', ''))
+
+                name = syscall.name
+                print(line_format.format(
+                    ' - ' + name, syscall.count, min_duration, avg_duration,
+                    max_duration, stdev, str(return_count)))
+
+            print(line_format.format('Total:', proc_stats.total_syscalls,
+                                     '', '', '', '', ''))
             print('-' * 113)
 
         print('\nTotal syscalls: %d' % (self._analysis.total_syscalls))
@@ -133,14 +123,9 @@ class SyscallsAnalysis(Command):
         pass
 
     def _add_arguments(self, ap):
-        # specific argument
         pass
 
 
-# entry point
 def run():
-    # create command
     syscallscmd = SyscallsAnalysis()
-
-    # execute command
     syscallscmd.run()
