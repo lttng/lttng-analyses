@@ -40,7 +40,7 @@ install_requires = [
 ]
 
 setup(name='linuxautomaton',
-      version='0.1.0',
+      version='0.2.0',
       description='Linux kernel FSM using LTTng events',
       author='Julien Desfossez',
       author_email='jdesfossez@efficios.com',
