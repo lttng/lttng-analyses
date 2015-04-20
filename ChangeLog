@@ -1,0 +1,156 @@
+2015-04-20 LTTng analyses 0.2.0
+	* Merge pull request #22 from abusque/refactor-syscallstats
+	* Bump version to 0.2
+	* Refactor syscallstats script to use new analysis backend
+	* Rename min/max attributes to avoid collision with built-ins
+	* Merge pull request #21 from abusque/decouple-io
+	* Implement check for --end argument before start of trace
+	* Style: fix indentation in _get_io_requests
+	* Fix: set pid correctly on FileStats init
+	* Fix typo in _fix_context_pid
+	* Fix: use TID instead of PID in file stats if PID is None
+	* Refactor io latency freq output
+	* Lint: remove unused import, fix 'dangerous' default args
+	* Refactor io top and log views
+	* Remove deprecated --extra argument
+	* Fix: correct typo and existence test in fd getter
+	* Fix: correct typo in ns_to_hour_nsec output
+	* Style: fix pylint/pep8 style issues
+	* Replace map() by list comprehension in disk latency stats
+	* Refactor IO Latency stats output methods
+	* Add generators to iterate over io requests
+	* Add method to compare equivalent io operations
+	* Fix: properly handle empty filters for IO file stats
+	* Fix FileStats reset() function
+	* Move _filter_process method to base command class
+	* Make _arg_pid_list list of ints instead of strings
+	* Refactor iotop per file analysis and output
+	* Refactor iotop output methods
+	* Add _print_ascii_graph method to simplify output of graphs
+	* Rename filter predicates to indicate visibility
+	* Remove deprecated breakcb in IO command
+	* Remove unused _compute_stats method from commands
+	* Rename IO command for consistency with other commands
+	* Track FDs chronologically in IO analysis
+	* Add timestamp to create/close FD notifications
+	* Remove dead code from IO cli
+	* Reset FD in IO Analysis
+	* Add support for pwrite* and pread* I/O syscalls
+	* Implement syscall I/O analysis
+	* Move returned_size attribute from SyscallIORequest into ReadWriteIORequest
+	* Send create process and fd notification on statedump events
+	* Send fd create and close notifications on sched events
+	* Fix: send create_fd notification for open io requests
+	* Add OP_READ_WRITE IO operation type for syscalls which both read and write
+	* Use a single method to track io request exits
+	* Refactor/rewrite IO state provider
+	* Refactor syscall analysis to use new SyscallEvent class
+	* Refactor NetStateProvider to use new SyscallEvent and io rq objects
+	* Refactor MemStateProvider to use new SyscallEvent and io rq objects
+	* Remove pending_syscalls array from State class
+	* Refactor statedump provider to track only state and not analysis related attributes
+	* Don't set deprecated parent_pid on FD object
+	* Use SyscallEvent objects in syscall state provider
+	* Remove Syscalls_stats class
+	* Remove analysis related attributes from FD class, add factory to create from open rq
+	* Add get_fd_type method to retrieve fd type from syscall name
+	* Add more IORequest classes, and io_rq attr to SyscallEvent
+	* Set SyscallEvent name using get_syscall_name method
+	* Remove analysis related attributes from Process state class
+	* Add more dup open syscalls, remove generic filenames from SyscallConsts
+	* Fix get_syscall_name string indexing
+	* Move IO syscalls handling into separate provider
+	* Strip prefixes from syscall names for brevity
+	* Merge branch 'master' into decouple-io
+	* Merge pull request #20 from abusque/linting
+	* Rename state to _state in providers for consistency
+	* Rename irq start/stop timestamps to begin/end for consistency
+	* Refactor IO Requests mechanism and (block I/O) analysis
+	* Track network usage in IO analysis
+	* Separate syscalls and io analyses
+	* Use del instead of pop when possible with fds and remove unused attributes
+	* Move date args processing to command, more linting
+	* Linting: rename p* to pattern
+	* Linting of common.py and related code
+	* Fix: make the regex strings raw strings
+	* fix for unknown pid in io.py
+	* Fix syscallstats command description method names
+	* Add IO analysis separate from syscalls
+	* Merge pull request #19 from jdesfossez/dev
+	* Fix: process the sched_switch for the swapper
+	* Fix: handle the case of missing PID
+	* Merge pull request #18 from abusque/decouple-cputop
+	* Revert accidental partial commit of syscalls.py
+	* Fix: remove deprecated last_sched attribute from Process class
+	* Fix: remove deprecated cpu_ns attribute from Process class
+	* Refactor cputop cli to work with new analysis module
+	* Implement cputop analysis module
+	* Fix: assign boolean instead of integer values for CLOEXEC
+	* Add class method to duplicate FD objects
+	* Remove non-state related attributes from process and cpu classes
+	* Refactor sched state provider to track current state only
+	* Remove deprecated perf context tracking in sched
+	* Fix: set cloexec on fd from flags on statedump
+	* remove old code (pre 0.1) that was kept as reference for the refactoring
+	* Merge pull request #17 from abusque/decouple-memtop
+	* Minor: fix pep8 style issues
+	* Decouple mem analysis from current state
+	* Rename notification callback methods to reflect public accessibility
+	* Add print date method to base command class
+	* Add reset method to Analysis classes
+	* Merge pull request #16 from abusque/decouple-modules
+	* Style: correct pep8 errors
+	* Fix: set cpu id in constructor
+	* Minor: add comment in irq state provider to clarify execptional softirq creation
+	* Style: rename method in memtop for consistency
+	* Fix tracking of softirq_raises and corresponding entries
+	* Fix: don't print raise_ts multiple times in irq log
+	* Simplify irq cli args transform
+	* Refactor IrqAnalysisCommand to work with rewritten analysis
+	* Add reset method to IrqStats
+	* Keep irq list by id and count irq raises
+	* Simplify filter_irq function in CLI
+	* Track CPU id in interrupt objects
+	* Rename irq analysis cli module to IrqAnalysisCommand to avoid ambiguity
+	* Implement filtering by duration for IrqAnalysis
+	* Update copyright info for modified files
+	* Implement initial IrqStats system for analysis
+	* fix: title
+	* new tool to filter a trace based on TID/Procname with follow-child support
+	* Style: replace double quotes by single quotes in lttnganalysescli
+	* Style: replace double quotes by single quotes in lttnganalyses
+	* Style: replace double quotes by single quotes in linuxautomaton
+	* Implement notification for communication from automaton to analyses
+	* Remove superfluous clear_screen string in irq _print_stats
+	* Refactor IRQ state provider and related classes
+	* Remove unused final argument in _print_results in cli
+	* Fix: don't count freed pages twice in memtop, reorganize printing code
+	* Fix: display unkwown for pname/pid in block read/write when we don't have the info
+	* Fix: check that current_tid is not None instead of -1
+	* Initialize self.state in Command module when creating automaton
+	* Pythonify tests for empty or uninitialized structures and arguments
+	* Use None instead of -1 or 0 for default argument values
+	* Add callback registration to analysis module
+	* Replace usage of -1 as default/invalid value by None
+	* Clean-up mem and sched state providers and related modules.
+	* Replace integer logic by boolean value
+	* fix: missing sync in i/o syscalls list
+	* handle sys_accept4
+	* Merge pull request #15 from abusque/deduplication
+	* Clean-up: dead code removal in linuxautomaton modules
+	* Remove deprecated ret_strings from syscalls.py
+	* Merge pull request #14 from abusque/email-fix
+	* Fix: correct typo in author email address
+	* Remove redundant IOCategory code
+	* Merge pull request #13 from abusque/chrono_fds
+	* Move track chrono fd code into method of Process class
+	* Track files from statedump in chrono_fds
+	* Fix: use event.timestamp instead of event[timestamp_begin]
+	* Track files opened before start of trace in chrono_fds
+	* Track chronological fd metadata
+	* fix override syscall name
+	* test override syscall name for epoll_ctl
+	* show tid value
+	* fix: handle unknown syscall return codes
+	* fix: handle unknown syscall return codes
+	* don't fail if some events are not available
