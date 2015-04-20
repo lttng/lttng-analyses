@@ -39,8 +39,10 @@ packages = [
 install_requires = [
 ]
 
+from linuxautomaton import __version__
+
 setup(name='linuxautomaton',
-      version='0.2.0',
+      version=__version__,
       description='Linux kernel FSM using LTTng events',
       author='Julien Desfossez',
       author_email='jdesfossez@efficios.com',

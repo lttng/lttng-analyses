@@ -32,7 +32,6 @@ import statistics
 
 
 class IoAnalysisCommand(Command):
-    _VERSION = '0.2.0'
     _DESC = """The I/O command."""
 
     _LATENCY_STATS_FORMAT = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'

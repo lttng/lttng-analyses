@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 import linuxautomaton.automaton
-from lttnganalysescli import progressbar
+from lttnganalysescli import progressbar, __version__
 from linuxautomaton import common
 from babeltrace import TraceCollection
 import argparse
@@ -262,7 +262,7 @@ class Command:
 
         # version of the specific command
         ap.add_argument('-V', '--version', action='version',
-                        version=self._VERSION)
+                        version='LTTng Analyses v' + __version__)
 
         # parse arguments
         args = ap.parse_args()

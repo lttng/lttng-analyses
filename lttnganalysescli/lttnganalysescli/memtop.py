@@ -31,7 +31,6 @@ import operator
 
 
 class Memtop(Command):
-    _VERSION = '0.2.0'
     _DESC = """The memtop command."""
 
     def __init__(self):

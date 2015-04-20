@@ -58,8 +58,10 @@ entry_points = {
     ],
 }
 
+from lttnganalysescli import __version__
+
 setup(name='lttnganalysescli',
-      version='0.2.0',
+      version=__version__,
       description='LTTng analyses CLI',
       author='Julien Desfossez',
       author_email='jdesfossez@efficios.com',

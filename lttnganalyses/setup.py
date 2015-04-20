@@ -40,8 +40,10 @@ install_requires = [
     'linuxautomaton',
 ]
 
+from lttnganalyses import __version__
+
 setup(name='lttnganalyses',
-      version='0.2.0',
+      version=__version__,
       description='LTTng analyses',
       author='Julien Desfossez',
       author_email='jdesfossez@efficios.com',

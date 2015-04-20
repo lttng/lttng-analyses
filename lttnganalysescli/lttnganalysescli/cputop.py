@@ -30,7 +30,6 @@ import operator
 
 
 class Cputop(Command):
-    _VERSION = '0.2.0'
     _DESC = """The cputop command."""
 
     def __init__(self):
