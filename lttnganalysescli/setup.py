@@ -32,6 +32,15 @@ if v.major < 3:
     sys.stderr.write('Sorry, lttnganalysescli needs Python 3\n')
     sys.exit(1)
 
+# TODO: find a less hackish way to do this.
+if 'install' in sys.argv:
+    try:
+        import babeltrace
+    except ImportError:
+        sys.stderr.write('lttnganalysescli needs the babeltrace package.\n \
+        See https://www.efficios.com/babeltrace for more info.\n')
+        sys.exit(1)
+
 packages = [
     'lttnganalysescli',
     'ascii_graph',
