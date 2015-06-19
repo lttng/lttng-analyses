@@ -635,7 +635,10 @@ class IoAnalysisCommand(Command):
         else:
             stdev = '%0.03f' % (statistics.stdev(rq_durations) / 1000)
 
-        avg = '%0.03f' % (total_duration / (rq_count) / 1000)
+        if rq_count > 0:
+            avg = '%0.03f' % (total_duration / (rq_count) / 1000)
+        else:
+            avg = "0.000"
         min_duration = '%0.03f' % (min_duration / 1000)
         max_duration = '%0.03f' % (max_duration / 1000)
 
@@ -646,8 +649,12 @@ class IoAnalysisCommand(Command):
         rq_durations = [io_rq.duration for io_rq in io_requests if
                         self._filter_io_request(io_rq)]
         rq_count = len(rq_durations)
-        min_duration = min(rq_durations)
-        max_duration = max(rq_durations)
+        if len(rq_durations) > 0:
+            min_duration = min(rq_durations)
+            max_duration = max(rq_durations)
+        else:
+            min_duration = 0
+            max_duration = 0
         total_duration = sum(rq_durations)
 
         self._output_latency_stats(name, rq_count, min_duration,
