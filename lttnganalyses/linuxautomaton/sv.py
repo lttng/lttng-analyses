@@ -209,6 +209,7 @@ class IORequest():
 
         return left_op == right_op
 
+
 class SyscallIORequest(IORequest):
     def __init__(self, begin_ts, size, tid, operation, syscall_name):
         super().__init__(begin_ts, None, tid, operation)

@@ -88,8 +88,8 @@ class IrqAnalysisCommand(Command):
 
     def _create_analysis(self):
         self._analysis = core_irq.IrqAnalysis(self.state,
-                                                       self._arg_min,
-                                                       self._arg_max)
+                                              self._arg_min,
+                                              self._arg_max)
 
     def _compute_duration_stdev(self, irq_stats_item):
         if irq_stats_item.count < 2:
