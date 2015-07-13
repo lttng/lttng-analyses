@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 import socket
-from linuxautomaton import common
+from . import common
 
 
 class StateVariable:

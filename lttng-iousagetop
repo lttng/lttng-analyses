@@ -22,12 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import sys
-
-sys.path += ['linuxautomaton', 'lttnganalyses', 'lttnganalysescli']
-
-import lttnganalysescli.io
+from lttnganalyses.cli import io
 
 
 if __name__ == '__main__':
-    lttnganalysescli.io.runusage()
+    io.runusage()

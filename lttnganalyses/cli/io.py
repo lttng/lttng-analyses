@@ -24,9 +24,9 @@
 # SOFTWARE.
 
 from .command import Command
-import lttnganalyses.io
-from linuxautomaton import common
-from ascii_graph import Pyasciigraph
+from ..core import io
+from ..linuxautomaton import common
+from ..ascii_graph import Pyasciigraph
 import operator
 import statistics
 
@@ -98,7 +98,7 @@ class IoAnalysisCommand(Command):
         self.run(usage=True)
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.io.IoAnalysis(self.state)
+        self._analysis = io.IoAnalysis(self.state)
 
     def _refresh(self, begin, end):
         self._print_results(begin, end)

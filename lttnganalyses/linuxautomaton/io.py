@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 import socket
-from linuxautomaton import sp, sv, common
+from . import sp, sv, common
 from babeltrace import CTFScope
 
 

@@ -22,9 +22,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import linuxautomaton.automaton
-from lttnganalysescli import progressbar, __version__
-from linuxautomaton import common
+from ..linuxautomaton import automaton
+from .. import __version__
+from . import progressbar
+from ..linuxautomaton import common
 from babeltrace import TraceCollection
 import argparse
 import sys
@@ -308,7 +309,7 @@ class Command:
                     sys.exit(1)
 
     def _create_automaton(self):
-        self._automaton = linuxautomaton.automaton.Automaton()
+        self._automaton = automaton.Automaton()
         self.state = self._automaton.state
 
     def _filter_process(self, proc):

@@ -26,7 +26,7 @@ apt-get update
 apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar
 git clone https://github.com/lttng/lttng-analyses.git
 cd lttng-analyses
-./install.sh (or run from the local directory)
+python setup.py install
 ```
 
 ### Other distros
@@ -39,7 +39,7 @@ to install ```babeltrace``` with the python bindings. Optionally install the
 ```bash
 git clone https://github.com/lttng/lttng-analyses.git
 cd lttng-analyses
-./install.sh (or run from the local directory)
+python setup.py install
 ```
 
 ## Trace creation

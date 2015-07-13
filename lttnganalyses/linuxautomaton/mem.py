@@ -23,14 +23,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from linuxautomaton import sp, sv
+from . import sp
 
 
-class SyscallsStateProvider(sp.StateProvider):
+class MemStateProvider(sp.StateProvider):
     def __init__(self, state):
         cbs = {
-            'syscall_entry': self._process_syscall_entry,
-            'syscall_exit': self._process_syscall_exit
+            'mm_page_alloc': self._process_mm_page_alloc,
+            'mm_page_free': self._process_mm_page_free
         }
 
         self._state = state
@@ -39,40 +39,44 @@ class SyscallsStateProvider(sp.StateProvider):
     def process_event(self, ev):
         self._process_event_cb(ev)
 
-    def _process_syscall_entry(self, event):
+    def _get_current_proc(self, event):
         cpu_id = event['cpu_id']
-
         if cpu_id not in self._state.cpus:
-            return
+            return None
 
         cpu = self._state.cpus[cpu_id]
         if cpu.current_tid is None:
+            return None
+
+        return self._state.tids[cpu.current_tid]
+
+    def _process_mm_page_alloc(self, event):
+        self._state.mm.page_count += 1
+
+        # Increment the number of pages allocated during the execution
+        # of all currently syscall io requests
+        for process in self._state.tids.values():
+            if process.current_syscall is None:
+                continue
+
+            if process.current_syscall.io_rq:
+                process.current_syscall.io_rq.pages_allocated += 1
+
+        current_process = self._get_current_proc(event)
+        if current_process is None:
             return
 
-        proc = self._state.tids[cpu.current_tid]
-        proc.current_syscall = sv.SyscallEvent.new_from_entry(event)
+        self._state.send_notification_cb('tid_page_alloc',
+                                         proc=current_process)
 
-    def _process_syscall_exit(self, event):
-        cpu_id = event['cpu_id']
-        if cpu_id not in self._state.cpus:
+    def _process_mm_page_free(self, event):
+        if self._state.mm.page_count == 0:
             return
 
-        cpu = self._state.cpus[cpu_id]
-        if cpu.current_tid is None:
+        self._state.mm.page_count -= 1
+
+        current_process = self._get_current_proc(event)
+        if current_process is None:
             return
 
-        proc = self._state.tids[cpu.current_tid]
-        current_syscall = proc.current_syscall
-        if current_syscall is None:
-            return
-
-        current_syscall.process_exit(event)
-
-        self._state.send_notification_cb('syscall_exit',
-                                         proc=proc,
-                                         event=event)
-
-        # If it's an IO Syscall, the IO state provider will take care of
-        # clearing the current syscall, so only clear here if it's not
-        if current_syscall.name not in sv.SyscallConsts.IO_SYSCALLS:
-            self._state.tids[cpu.current_tid].current_syscall = None
+        self._state.send_notification_cb('tid_page_free', proc=current_process)

@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 from .analysis import Analysis
-from linuxautomaton import sv
+from ..linuxautomaton import sv
 
 
 class IoAnalysis(Analysis):

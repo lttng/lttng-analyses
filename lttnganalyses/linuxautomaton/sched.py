@@ -23,7 +23,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from linuxautomaton import sp, sv
+from . import sp, sv
 
 
 class SchedStateProvider(sp.StateProvider):

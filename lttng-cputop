@@ -22,12 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import sys
-
-sys.path += ['linuxautomaton', 'lttnganalyses', 'lttnganalysescli']
-
-import lttnganalysescli.cputop
-
+from lttnganalyses.cli import cputop
 
 if __name__ == '__main__':
-    lttnganalysescli.cputop.run()
+    cputop.run()
