@@ -1,3 +1,13 @@
+2015-07-13 LTTng analyses 0.3.0
+	* Merge pull request #23 from mjeanson/master
+	* Convert README to reStructuredText
+	* Fix pep8 errors
+	* Refactor in a single package with subpackages
+	* fix: stats with 0 requests
+	* Check for babeltrace python package on installation
+	* Define version once per package only
+	* Add ChangeLog file
+
 2015-04-20 LTTng analyses 0.2.0
 	* Merge pull request #22 from abusque/refactor-syscallstats
 	* Bump version to 0.2
