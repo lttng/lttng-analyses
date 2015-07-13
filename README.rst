@@ -45,13 +45,13 @@ On **Ubuntu** (12.04 and up) using the LTTng ppa:
     apt-get install -y software-properties-common (or python-software-properties on 12.04)
     apt-add-repository -y ppa:lttng/ppa
     apt-get update
-    apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar python3-pip python3-lttnganalyses
+    apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar python3-lttnganalyses
 
 On **Debian Sid**:
 
 .. code-block:: bash
 
-    apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar python3-pip python3-lttnganalyses
+    apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar python3-lttnganalyses
 
 On other distributions:
 
