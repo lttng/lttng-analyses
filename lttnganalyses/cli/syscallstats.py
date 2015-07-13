@@ -24,7 +24,8 @@
 # SOFTWARE.
 
 from .command import Command
-import lttnganalyses.syscalls
+from ..core import syscalls
+
 import operator
 import statistics
 import errno
@@ -49,7 +50,7 @@ class SyscallsAnalysis(Command):
         self._close_trace()
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.syscalls.SyscallsAnalysis(self.state)
+        self._analysis = syscalls.SyscallsAnalysis(self.state)
 
     def _refresh(self, begin, end):
         self._print_results(begin, end)
@@ -100,7 +101,7 @@ class SyscallsAnalysis(Command):
                 min_duration = round(syscall.min_duration / 1000, 3)
                 max_duration = round(syscall.max_duration / 1000, 3)
                 avg_duration = round(
-                    syscall.total_duration/ syscall.count / 1000, 3)
+                    syscall.total_duration / syscall.count / 1000, 3)
 
                 if len(durations) > 2:
                     stdev = round(statistics.stdev(durations) / 1000, 3)

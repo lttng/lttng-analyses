@@ -24,9 +24,8 @@
 # SOFTWARE.
 
 from .command import Command
-import lttnganalyses.memtop
-from linuxautomaton import common
-from ascii_graph import Pyasciigraph
+from ..core import memtop
+from ..ascii_graph import Pyasciigraph
 import operator
 
 
@@ -56,7 +55,7 @@ class Memtop(Command):
         self._close_trace()
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.memtop.Memtop(self.state)
+        self._analysis = memtop.Memtop(self.state)
 
     def _reset_total(self, start_ts):
         self._analysis.reset()

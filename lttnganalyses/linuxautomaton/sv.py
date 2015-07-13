@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 import socket
-from linuxautomaton import common
+from . import common
 
 
 class StateVariable:
@@ -208,6 +208,7 @@ class IORequest():
             return right_op in [IORequest.OP_WRITE, IORequest.OP_READ_WRITE]
 
         return left_op == right_op
+
 
 class SyscallIORequest(IORequest):
     def __init__(self, begin_ts, size, tid, operation, syscall_name):

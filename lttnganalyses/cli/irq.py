@@ -24,9 +24,10 @@
 # SOFTWARE.
 
 from .command import Command
-import lttnganalyses.irq
-from linuxautomaton import common, sv
-from ascii_graph import Pyasciigraph
+from ..core import irq as core_irq
+from ..linuxautomaton import common, sv
+from ..ascii_graph import Pyasciigraph
+
 import math
 import statistics
 
@@ -86,9 +87,9 @@ class IrqAnalysisCommand(Command):
         self.run(freq=True)
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.irq.IrqAnalysis(self.state,
-                                                       self._arg_min,
-                                                       self._arg_max)
+        self._analysis = core_irq.IrqAnalysis(self.state,
+                                              self._arg_min,
+                                              self._arg_max)
 
     def _compute_duration_stdev(self, irq_stats_item):
         if irq_stats_item.count < 2:
@@ -217,7 +218,7 @@ class IrqAnalysisCommand(Command):
                     print(header)
                     header_printed = True
 
-                if type(irq_stats_item) is lttnganalyses.irq.HardIrqStats:
+                if type(irq_stats_item) is core_irq.HardIrqStats:
                     self._print_hard_irq_stats_item(irq_stats_item, id)
                 else:
                     self._print_soft_irq_stats_item(irq_stats_item, id)

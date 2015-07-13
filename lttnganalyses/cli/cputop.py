@@ -24,8 +24,8 @@
 # SOFTWARE.
 
 from .command import Command
-import lttnganalyses.cputop
-from ascii_graph import Pyasciigraph
+from ..core import cputop
+from ..ascii_graph import Pyasciigraph
 import operator
 
 
@@ -57,7 +57,7 @@ class Cputop(Command):
         self._close_trace()
 
     def _create_analysis(self):
-        self._analysis = lttnganalyses.cputop.Cputop(self.state)
+        self._analysis = cputop.Cputop(self.state)
 
     def _compute_stats(self):
         self._analysis.compute_stats(self.start_ns, self.end_ns)

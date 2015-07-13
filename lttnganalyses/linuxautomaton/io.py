@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 import socket
-from linuxautomaton import sp, sv, common
+from . import sp, sv, common
 from babeltrace import CTFScope
 
 
@@ -69,7 +69,7 @@ class IoStateProvider(sp.StateProvider):
         elif name in sv.SyscallConsts.CLOSE_SYSCALLS:
             self._track_close(event, name, proc)
         elif name in sv.SyscallConsts.READ_SYSCALLS or \
-             name in sv.SyscallConsts.WRITE_SYSCALLS:
+                name in sv.SyscallConsts.WRITE_SYSCALLS:
             self._track_read_write(event, name, proc)
         elif name in sv.SyscallConsts.SYNC_SYSCALLS:
             self._track_sync(event, name, proc)

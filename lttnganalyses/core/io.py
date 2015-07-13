@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 from .analysis import Analysis
-from linuxautomaton import sv
+from ..linuxautomaton import sv
 
 
 class IoAnalysis(Analysis):
@@ -120,9 +120,9 @@ class IoAnalysis(Analysis):
 
         for proc_stats in self.tids.values():
             if pid_filter_list is not None and \
-            proc_stats.pid not in pid_filter_list or \
-            comm_filter_list is not None and \
-            proc_stats.comm not in comm_filter_list:
+                    proc_stats.pid not in pid_filter_list or \
+                    comm_filter_list is not None and \
+                    proc_stats.comm not in comm_filter_list:
                 continue
 
             for fd_list in proc_stats.fds.values():
@@ -538,6 +538,7 @@ class FDStats():
         self.read = 0
         self.write = 0
         self.rq_list = []
+
 
 class FileStats():
     GENERIC_NAMES = ['pipe', 'socket', 'anon_inode', 'unknown']
