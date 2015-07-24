@@ -126,7 +126,10 @@ class IoAnalysisCommand(Command):
                     begin > self._arg_end)
 
     def _filter_io_request(self, io_rq):
-        proc = self._analysis.tids[io_rq.tid]
+        if io_rq.tid in self._analysis.tids:
+            proc = self._analysis.tids[io_rq.tid]
+        else:
+            proc = None
         return self._filter_process(proc) and \
             self._filter_size(io_rq.size) and \
             self._filter_latency(io_rq.duration) and \

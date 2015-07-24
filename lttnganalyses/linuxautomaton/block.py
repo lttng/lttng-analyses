@@ -116,7 +116,10 @@ class BlockStateProvider(sp.StateProvider):
             return
 
         req.update_from_rq_complete(event)
-        proc = self._state.tids[req.tid]
+        if req.tid in self._state.tids.keys():
+            proc = self._state.tids[req.tid]
+        else:
+            proc = None
         self._state.send_notification_cb('block_rq_complete', req=req,
                                          proc=proc)
         del disk.pending_requests[sector]

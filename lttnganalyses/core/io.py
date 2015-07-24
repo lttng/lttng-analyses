@@ -190,10 +190,11 @@ class IoAnalysis(Analysis):
 
         self.disks[req.dev].update_stats(req)
 
-        if proc.tid not in self.tids:
-            self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
+        if proc is not None:
+            if proc.tid not in self.tids:
+                self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
 
-        self.tids[proc.tid].update_block_stats(req)
+            self.tids[proc.tid].update_block_stats(req)
 
     def _process_lttng_statedump_block_device(self, event):
         dev = event['dev']

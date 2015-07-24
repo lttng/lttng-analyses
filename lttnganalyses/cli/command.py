@@ -313,6 +313,8 @@ class Command:
         self.state = self._automaton.state
 
     def _filter_process(self, proc):
+        if not proc:
+            return True
         if self._arg_proc_list and proc.comm not in self._arg_proc_list:
             return False
         if self._arg_pid_list and proc.pid not in self._arg_pid_list:
