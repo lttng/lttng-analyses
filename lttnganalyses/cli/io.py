@@ -489,7 +489,8 @@ class IoAnalysisCommand(Command):
 
     def _output_disk_latency_freq(self):
         for disk in self._analysis.disks.values():
-            rq_durations = [rq.duration for rq in disk.rq_list]
+            rq_durations = [rq.duration for rq in disk.rq_list if
+                            self._filter_io_request(rq)]
             self._print_frequency_distribution(
                 rq_durations,
                 'Frequency distribution for disk %s (usec)' % (disk.disk_name))
@@ -631,8 +632,16 @@ class IoAnalysisCommand(Command):
             'begin_ts')
 
     # I/O Stats output methods
-    def _output_latency_stats(self, name, rq_count, min_duration, max_duration,
-                              total_duration, rq_durations):
+    def _output_latency_stats(self, name, rq_durations):
+        rq_count = len(rq_durations)
+        total_duration = sum(rq_durations)
+        if len(rq_durations) > 0:
+            min_duration = min(rq_durations)
+            max_duration = max(rq_durations)
+        else:
+            min_duration = 0
+            max_duration = 0
+
         if rq_count < 2:
             stdev = '?'
         else:
@@ -642,6 +651,7 @@ class IoAnalysisCommand(Command):
             avg = '%0.03f' % (total_duration / (rq_count) / 1000)
         else:
             avg = "0.000"
+
         min_duration = '%0.03f' % (min_duration / 1000)
         max_duration = '%0.03f' % (max_duration / 1000)
 
@@ -651,18 +661,7 @@ class IoAnalysisCommand(Command):
     def _output_latency_stats_from_requests(self, io_requests, name):
         rq_durations = [io_rq.duration for io_rq in io_requests if
                         self._filter_io_request(io_rq)]
-        rq_count = len(rq_durations)
-        if len(rq_durations) > 0:
-            min_duration = min(rq_durations)
-            max_duration = max(rq_durations)
-        else:
-            min_duration = 0
-            max_duration = 0
-        total_duration = sum(rq_durations)
-
-        self._output_latency_stats(name, rq_count, min_duration,
-                                   max_duration, total_duration,
-                                   rq_durations)
+        self._output_latency_stats(name, rq_durations)
 
     def _output_syscalls_latency_stats(self):
         print('\nSyscalls latency statistics (usec):')
@@ -690,13 +689,9 @@ class IoAnalysisCommand(Command):
 
         for disk in self._analysis.disks.values():
             if disk.rq_count:
-                rq_durations = [rq.duration for rq in disk.rq_list]
-                self._output_latency_stats(disk.disk_name,
-                                           disk.rq_count,
-                                           disk.min_rq_duration,
-                                           disk.max_rq_duration,
-                                           disk.total_rq_duration,
-                                           rq_durations)
+                rq_durations = [rq.duration for rq in disk.rq_list if
+                                self._filter_io_request(rq)]
+                self._output_latency_stats(disk.disk_name, rq_durations)
 
     def iostats_output(self):
         self._output_syscalls_latency_stats()
