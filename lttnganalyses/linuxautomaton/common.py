@@ -128,19 +128,19 @@ def extract_timerange(handles, timerange, gmt):
 
 def date_to_epoch_nsec(handles, date, gmt):
     # match 2014-12-12 17:29:43.802588035 or 2014-12-12T17:29:43.802588035
-    pattern1 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
-                          r'(?P<day>[0123]\d)[\sTt]'
-                          r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
-                          r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    pattern1 = re.compile(r'^(?P<year>\d{4})-(?P<mon>[01]\d)-'
+                          r'(?P<day>[0-3]\d)[\sTt]'
+                          r'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.'
+                          r'(?P<nsec>\d{9})$')
     # match 2014-12-12 17:29:43 or 2014-12-12T17:29:43
-    pattern2 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
-                          r'(?P<day>[0123]\d)[\sTt]'
-                          r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    pattern2 = re.compile(r'^(?P<year>\d{4})-(?P<mon>[01]\d)-'
+                          r'(?P<day>[0-3]\d)[\sTt]'
+                          r'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$')
     # match 17:29:43.802588035
-    pattern3 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
-                          r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    pattern3 = re.compile(r'^(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.'
+                          r'(?P<nsec>\d{9})$')
     # match 17:29:43
-    pattern4 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    pattern4 = re.compile(r'^(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$')
 
     if pattern1.match(date):
         year = pattern1.search(date).group('year')
