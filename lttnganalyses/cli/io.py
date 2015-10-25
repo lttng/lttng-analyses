@@ -280,7 +280,7 @@ class IoAnalysisCommand(Command):
                        common.MSEC_PER_NSEC)
         avg_latency = round(avg_latency, 3)
 
-        return ('%s' % disk.disk_name, avg_latency)
+        return (disk.disk_name, avg_latency)
 
     def _get_net_recv_bytes_datum(self, iface):
         return ('%s %s' % (common.convert_size(iface.recv_bytes), iface.name),
