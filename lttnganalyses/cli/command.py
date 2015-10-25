@@ -108,6 +108,8 @@ class Command:
     def _validate_transform_common_args(self, args):
         self._analysis_conf = analysis.AnalysisConfig()
         self._analysis_conf.refresh_period = args.refresh
+        self._analysis_conf.period_begin_ev_name = args.period_begin
+        self._analysis_conf.period_end_ev_name = args.period_end
 
         # convert min/max args from µs to ns, if needed
         if hasattr(args, 'min') and args.min is not None:
@@ -153,6 +155,11 @@ class Command:
                                                 'hh:mm:ss[.nnnnnnnnn]')
         ap.add_argument('--timerange', type=str, help='time range: '
                                                       '[begin,end]')
+        ap.add_argument('--period-begin', type=str,
+                        help='Analysis period start marker event name')
+        ap.add_argument('--period-end', type=str,
+                        help='Analysis period end marker event name '
+                        '(requires --period-begin)')
         ap.add_argument('-V', '--version', action='version',
                         version='LTTng Analyses v' + __version__)
 

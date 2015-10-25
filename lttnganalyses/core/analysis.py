@@ -28,6 +28,8 @@ from ..linuxautomaton import common
 class AnalysisConfig:
     def __init__(self):
         self.refresh_period = None
+        self.period_begin_ev_name = None
+        self.period_end_ev_name = None
         self.begin_ts = None
         self.end_ts = None
         self.min_duration = None
@@ -38,6 +40,7 @@ class Analysis:
     def __init__(self, state, conf):
         self._state = state
         self._conf = conf
+        self._period_key = None
         self._period_start_ts = None
         self._last_event_ts = None
         self._notification_cbs = {}
@@ -65,7 +68,10 @@ class Analysis:
         if self.ended:
             return
 
-        if self._conf.refresh_period is not None:
+        # Prioritise period events over refresh period
+        if self._conf.period_begin_ev_name is not None:
+            self._handle_period_event(ev)
+        elif self._conf.refresh_period is not None:
             self._check_refresh(ev)
 
     def reset(self):
@@ -120,6 +126,32 @@ class Analysis:
             self._end_period()
             self._period_start_ts = ev.timestamp
 
+    def _handle_period_event(self, ev):
+        if ev.name != self._conf.period_begin_ev_name and \
+           ev.name != self._conf.period_end_ev_name:
+            return
+
+        period_key = self._get_period_event_key(ev)
+        if not period_key:
+            # There was an error caused by missing context, ignore
+            # this period event
+            return
+
+        if self._period_key:
+            if period_key == self._period_key:
+                if self._conf.period_end_ev_name:
+                    if ev.name == self._conf.period_end_ev_name:
+                        self._end_period()
+                        self._period_key = None
+                        self._period_start_ts = None
+                elif ev.name == self._conf.period_begin_ev_name:
+                    self._end_period()
+                    self._period_key = period_key
+                    self._period_start_ts = ev.timestamp
+        else:
+            self._period_key = period_key
+            self._period_start_ts = ev.timestamp
+
     def _end_period(self):
         self._end_period_cb()
         self._send_notification_cb('output_results',
@@ -129,3 +161,16 @@ class Analysis:
 
     def _end_period_cb(self):
         pass
+
+    def _get_period_event_key(self, ev):
+        # TODO: currently the key is hardcoded to the vtid of the
+        # thread which generated the event, but eventually there
+        # should be the option for a user to specify what fields
+        # (context or payload) make up the key.
+        try:
+            key = ev.vtid
+        except AttributeError:
+            # TODO warn user of missing context?
+            key = None
+
+        return key
