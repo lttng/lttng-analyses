@@ -30,66 +30,21 @@ from ..ascii_graph import Pyasciigraph
 
 import math
 import statistics
+import sys
 
 
 class IrqAnalysisCommand(Command):
     _DESC = """The irq command."""
+    _ANALYSIS_CLASS = core_irq.IrqAnalysis
 
-    def __init__(self):
-        super().__init__(self._add_arguments,
-                         enable_max_min_args=True,
-                         enable_freq_arg=True,
-                         enable_log_arg=True,
-                         enable_stats_arg=True)
+    def _validate_transform_args(self, args):
+        args.irq_filter_list = None
+        args.softirq_filter_list = None
 
-    def _validate_transform_args(self):
-        self._arg_irq_filter_list = None
-        self._arg_softirq_filter_list = None
-
-        if self._args.irq:
-            self._arg_irq_filter_list = self._args.irq.split(',')
-        if self._args.softirq:
-            self._arg_softirq_filter_list = self._args.softirq.split(',')
-
-    def _default_args(self, stats, log, freq):
-        if stats:
-            self._arg_stats = True
-        if log:
-            self._arg_log = True
-        if freq:
-            self._arg_freq = True
-
-    def run(self, stats=False, log=False, freq=False):
-        # parse arguments first
-        self._parse_args()
-        # validate, transform and save specific arguments
-        self._validate_transform_args()
-        # handle the default args for different executables
-        self._default_args(stats, log, freq)
-        # open the trace
-        self._open_trace()
-        # create the appropriate analysis/analyses
-        self._create_analysis()
-        # run the analysis
-        self._run_analysis(self._reset_total, self._refresh)
-        # print results
-        self._print_results(self.start_ns, self.trace_end_ts)
-        # close the trace
-        self._close_trace()
-
-    def run_stats(self):
-        self.run(stats=True)
-
-    def run_log(self):
-        self.run(log=True)
-
-    def run_freq(self):
-        self.run(freq=True)
-
-    def _create_analysis(self):
-        self._analysis = core_irq.IrqAnalysis(self.state,
-                                              self._arg_min,
-                                              self._arg_max)
+        if args.irq:
+            args.irq_filter_list = args.irq.split(',')
+        if args.softirq:
+            args.softirq_filter_list = args.softirq.split(',')
 
     def _compute_duration_stdev(self, irq_stats_item):
         if irq_stats_item.count < 2:
@@ -116,7 +71,7 @@ class IrqAnalysisCommand(Command):
 
     def _print_frequency_distribution(self, irq_stats_item, id):
         # The number of bins for the histogram
-        resolution = self._arg_freq_resolution
+        resolution = self._args.freq_resolution
 
         min_duration = irq_stats_item.min_duration
         max_duration = irq_stats_item.max_duration
@@ -159,14 +114,14 @@ class IrqAnalysisCommand(Command):
 
     def _filter_irq(self, irq):
         if type(irq) is sv.HardIRQ:
-            if self._arg_irq_filter_list:
-                return str(irq.id) in self._arg_irq_filter_list
-            if self._arg_softirq_filter_list:
+            if self._args.irq_filter_list:
+                return str(irq.id) in self._args.irq_filter_list
+            if self._args.softirq_filter_list:
                 return False
         else:  # SoftIRQ
-            if self._arg_softirq_filter_list:
-                return str(irq.id) in self._arg_softirq_filter_list
-            if self._arg_irq_filter_list:
+            if self._args.softirq_filter_list:
+                return str(irq.id) in self._args.softirq_filter_list
+            if self._args.irq_filter_list:
                 return False
 
         return True
@@ -190,15 +145,15 @@ class IrqAnalysisCommand(Command):
                 if irq.raise_ts is not None:
                     raise_ts = ' (raised at %s)' % \
                                (common.ns_to_hour_nsec(irq.raise_ts,
-                                                       self._arg_multi_day,
-                                                       self._arg_gmt))
+                                                       self._args.multi_day,
+                                                       self._args.gmt))
 
             print(fmt.format(common.ns_to_hour_nsec(irq.begin_ts,
-                                                    self._arg_multi_day,
-                                                    self._arg_gmt),
+                                                    self._args.multi_day,
+                                                    self._args.gmt),
                              common.ns_to_hour_nsec(irq.end_ts,
-                                                    self._arg_multi_day,
-                                                    self._arg_gmt),
+                                                    self._args.multi_day,
+                                                    self._args.gmt),
                              '%0.03f' % ((irq.end_ts - irq.begin_ts) / 1000),
                              '%d' % irq.cpu_id, irqtype, irq.id,
                              name + raise_ts))
@@ -213,8 +168,8 @@ class IrqAnalysisCommand(Command):
             if irq_stats_item.count == 0:
                 continue
 
-            if self._arg_stats:
-                if self._arg_freq or not header_printed:
+            if self._args.stats:
+                if self._args.freq or not header_printed:
                     print(header)
                     header_printed = True
 
@@ -223,7 +178,7 @@ class IrqAnalysisCommand(Command):
                 else:
                     self._print_soft_irq_stats_item(irq_stats_item, id)
 
-            if self._arg_freq:
+            if self._args.freq:
                 self._print_frequency_distribution(irq_stats_item, id)
 
         print()
@@ -294,16 +249,16 @@ class IrqAnalysisCommand(Command):
         return output_str
 
     def _print_results(self, begin_ns, end_ns):
-        if self._arg_stats or self._arg_freq:
+        if self._args.stats or self._args.freq:
             self._print_stats(begin_ns, end_ns)
-        if self._arg_log:
+        if self._args.log:
             self._print_irq_log()
 
     def _print_stats(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
 
-        if self._arg_irq_filter_list is not None or \
-           self._arg_softirq_filter_list is None:
+        if self._args.irq_filter_list is not None or \
+           self._args.softirq_filter_list is None:
             header_format = '{:<52} {:<12}\n' \
                             '{:<22} {:<14} {:<12} {:<12} {:<10} {:<12}\n'
             header = header_format.format(
@@ -312,11 +267,11 @@ class IrqAnalysisCommand(Command):
             )
             header += ('-' * 82 + '|')
             self._print_irq_stats(self._analysis.hard_irq_stats,
-                                  self._arg_irq_filter_list,
+                                  self._args.irq_filter_list,
                                   header)
 
-        if self._arg_softirq_filter_list is not None or \
-           self._arg_irq_filter_list is None:
+        if self._args.softirq_filter_list is not None or \
+           self._args.irq_filter_list is None:
             header_format = '{:<52} {:<52} {:<12}\n' \
                             '{:<22} {:<14} {:<12} {:<12} {:<10} {:<4} ' \
                             '{:<3} {:<14} {:<12} {:<12} {:<10} {:<12}\n'
@@ -328,41 +283,36 @@ class IrqAnalysisCommand(Command):
             )
             header += '-' * 82 + '|' + '-' * 60
             self._print_irq_stats(self._analysis.softirq_stats,
-                                  self._arg_softirq_filter_list,
+                                  self._args.softirq_filter_list,
                                   header)
 
-    def _reset_total(self, start_ts):
-        self._analysis.reset()
-
-    def _refresh(self, begin, end):
-        self._print_results(begin, end)
-        self._reset_total(end)
-
     def _add_arguments(self, ap):
+        Command._add_min_max_args(ap)
+        Command._add_freq_args(
+            ap, help='Output the frequency distribution of handler durations')
+        Command._add_log_args(
+            ap, help='Output the IRQs in chronological order')
+        Command._add_stats_args(ap, help='Output IRQ statistics')
         ap.add_argument('--irq', type=str, default=None,
-                        help='Show results only for the list of IRQ')
+                        help='Output results only for the list of IRQ')
         ap.add_argument('--softirq', type=str, default=None,
-                        help='Show results only for the list of '
-                             'SoftIRQ')
+                        help='Output results only for the list of SoftIRQ')
 
 
 # entry point
 def runstats():
-    # create command
+    sys.argv.insert(1, '--stats')
     irqcmd = IrqAnalysisCommand()
-    # execute command
-    irqcmd.run_stats()
+    irqcmd.run()
 
 
 def runlog():
-    # create command
+    sys.argv.insert(1, '--log')
     irqcmd = IrqAnalysisCommand()
-    # execute command
-    irqcmd.run_log()
+    irqcmd.run()
 
 
 def runfreq():
-    # create command
+    sys.argv.insert(1, '--freq')
     irqcmd = IrqAnalysisCommand()
-    # execute command
-    irqcmd.run_freq()
+    irqcmd.run()

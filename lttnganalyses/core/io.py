@@ -27,7 +27,7 @@ from ..linuxautomaton import sv
 
 
 class IoAnalysis(Analysis):
-    def __init__(self, state):
+    def __init__(self, state, conf):
         notification_cbs = {
             'net_dev_xmit': self._process_net_dev_xmit,
             'netif_receive_skb': self._process_netif_receive_skb,
@@ -43,7 +43,7 @@ class IoAnalysis(Analysis):
             self._process_lttng_statedump_block_device
         }
 
-        self._state = state
+        super().__init__(state, conf)
         self._state.register_notification_cbs(notification_cbs)
         self._register_cbs(event_cbs)
 
@@ -52,6 +52,7 @@ class IoAnalysis(Analysis):
         self.tids = {}
 
     def process_event(self, ev):
+        super().process_event(ev)
         self._process_event_cb(ev)
 
     def reset(self):

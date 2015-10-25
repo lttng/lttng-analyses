@@ -35,24 +35,24 @@ except ImportError:
 BYTES_PER_EVENT = 30
 
 
-def getFolderSize(folder):
+def get_folder_size(folder):
     total_size = os.path.getsize(folder)
     for item in os.listdir(folder):
         itempath = os.path.join(folder, item)
         if os.path.isfile(itempath):
             total_size += os.path.getsize(itempath)
         elif os.path.isdir(itempath):
-            total_size += getFolderSize(itempath)
+            total_size += get_folder_size(itempath)
     return total_size
 
 
 def progressbar_setup(obj):
-    if hasattr(obj, '_arg_no_progress') and obj._arg_no_progress:
+    if obj._args.no_progress:
         obj.pbar = None
         return
 
     if progressbar_available:
-        size = getFolderSize(obj._arg_path)
+        size = get_folder_size(obj._args.path)
         widgets = ['Processing the trace: ', Percentage(), ' ',
                    Bar(marker='#', left='[', right=']'),
                    ' ', ETA(), ' ']  # see docs for other options
@@ -62,15 +62,15 @@ def progressbar_setup(obj):
     else:
         print('Warning: progressbar module not available, '
               'using --no-progress.', file=sys.stderr)
-        obj._arg_no_progress = True
+        obj._args.no_progress = True
         obj.pbar = None
     obj.event_count = 0
 
 
 def progressbar_update(obj):
-    if hasattr(obj, '_arg_no_progress') and \
-            (obj._arg_no_progress or obj.pbar is None):
+    if obj._args.no_progress or obj.pbar is None:
         return
+
     try:
         obj.pbar.update(obj.event_count)
     except ValueError:
@@ -79,6 +79,6 @@ def progressbar_update(obj):
 
 
 def progressbar_finish(obj):
-    if hasattr(obj, '_arg_no_progress') and obj._arg_no_progress:
+    if obj._args.no_progress:
         return
     obj.pbar.finish()

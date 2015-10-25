@@ -29,101 +29,39 @@ from ..linuxautomaton import common
 from ..ascii_graph import Pyasciigraph
 import operator
 import statistics
+import sys
 
 
 class IoAnalysisCommand(Command):
     _DESC = """The I/O command."""
+    _ANALYSIS_CLASS = io.IoAnalysis
 
     _LATENCY_STATS_FORMAT = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'
     _SECTION_SEPARATOR_STRING = '-' * 89
-
-    def __init__(self):
-        super().__init__(self._add_arguments,
-                         enable_proc_filter_args=True,
-                         enable_max_min_args=True,
-                         enable_max_min_size_arg=True,
-                         enable_log_arg=True)
-
-    def _validate_transform_args(self):
-        self._arg_usage = self._args.usage
-        self._arg_stats = self._args.latencystats
-        self._arg_latencytop = self._args.latencytop
-        self._arg_freq = self._args.latencyfreq
-        self._arg_freq_resolution = self._args.freq_resolution
-
-    def _default_args(self, stats, log, freq, usage, latencytop):
-        if stats:
-            self._arg_stats = True
-        if log:
-            self._arg_log = True
-        if freq:
-            self._arg_freq = True
-        if usage:
-            self._arg_usage = True
-        if latencytop:
-            self._arg_latencytop = True
-
-    def run(self, stats=False, log=False, freq=False, usage=False,
-            latencytop=False):
-        # parse arguments first
-        self._parse_args()
-        # validate, transform and save specific arguments
-        self._validate_transform_args()
-        # handle the default args for different executables
-        self._default_args(stats, log, freq, usage, latencytop)
-        # open the trace
-        self._open_trace()
-        # create the appropriate analysis/analyses
-        self._create_analysis()
-        # run the analysis
-        self._run_analysis(self._reset_total, self._refresh)
-        # print results
-        self._print_results(self.start_ns, self.trace_end_ts)
-        # close the trace
-        self._close_trace()
-
-    def run_stats(self):
-        self.run(stats=True)
-
-    def run_latencytop(self):
-        self.run(latencytop=True)
-
-    def run_log(self):
-        self.run(log=True)
-
-    def run_freq(self):
-        self.run(freq=True)
-
-    def run_usage(self):
-        self.run(usage=True)
-
-    def _create_analysis(self):
-        self._analysis = io.IoAnalysis(self.state)
-
-    def _refresh(self, begin, end):
-        self._print_results(begin, end)
-        self._reset_total(end)
 
     # Filter predicates
     def _filter_size(self, size):
         if size is None:
             return True
-        if self._arg_maxsize is not None and size > self._arg_maxsize:
+        if self._args.maxsize is not None and size > self._args.maxsize:
             return False
-        if self._arg_minsize is not None and size < self._arg_minsize:
+        if self._args.minsize is not None and size < self._args.minsize:
             return False
         return True
 
     def _filter_latency(self, duration):
-        if self._arg_max is not None and (duration/1000) > self._arg_max:
+        if self._args.max is not None and duration > self._args.max:
             return False
-        if self._arg_min is not None and (duration/1000) < self._arg_min:
+        if self._args.min is not None and duration < self._args.min:
             return False
         return True
 
     def _filter_time_range(self, begin, end):
-        return not (self._arg_begin and self._arg_end and end and
-                    begin > self._arg_end)
+        # Note: we only want to return False only when a request has
+        # ended and is completely outside the timerange (i.e. begun
+        # after the end of the time range).
+        return not (self._args.begin and self._args.end and end and
+                    begin > self._args.end)
 
     def _filter_io_request(self, io_rq):
         if io_rq.tid in self._analysis.tids:
@@ -136,8 +74,8 @@ class IoAnalysisCommand(Command):
             self._filter_time_range(io_rq.begin_ts, io_rq.end_ts)
 
     def _is_io_rq_out_of_range(self, io_rq):
-        return self._arg_begin and io_rq.begin_ts < self._arg_begin or \
-            self._arg_end and io_rq.end_ts > self._arg_end
+        return self._args.begin and io_rq.begin_ts < self._args.begin or \
+            self._args.end and io_rq.end_ts > self._args.end
 
     def _print_ascii_graph(self, input_list, get_datum_cb, graph_label,
                            graph_args=None):
@@ -163,7 +101,7 @@ class IoAnalysisCommand(Command):
             passed to the graph() function as is.
         """
         count = 0
-        limit = self._arg_limit
+        limit = self._args.limit
         graph = Pyasciigraph()
         data = []
         if graph_args is None:
@@ -422,8 +360,8 @@ class IoAnalysisCommand(Command):
                                 label, graph_args)
 
     def _output_file_read_write(self):
-        files = self._analysis.get_files_stats(self._arg_pid_list,
-                                               self._arg_proc_list)
+        files = self._analysis.get_files_stats(self._args.pid_list,
+                                               self._args.proc_list)
         self._output_file_read(files)
         self._output_file_write(files)
 
@@ -445,7 +383,7 @@ class IoAnalysisCommand(Command):
             return
 
         # The number of bins for the histogram
-        resolution = self._arg_freq_resolution
+        resolution = self._args.freq_resolution
 
         min_duration = min(duration_list)
         max_duration = max(duration_list)
@@ -522,11 +460,11 @@ class IoAnalysisCommand(Command):
         fmt = '{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} {:<14}'
 
         begin_time = common.ns_to_hour_nsec(io_rq.begin_ts,
-                                            self._arg_multi_day,
-                                            self._arg_gmt)
+                                            self._args.multi_day,
+                                            self._args.gmt)
         end_time = common.ns_to_hour_nsec(io_rq.end_ts,
-                                          self._arg_multi_day,
-                                          self._arg_gmt)
+                                          self._args.multi_day,
+                                          self._args.gmt)
         time_range_str = '[' + begin_time + ',' + end_time + ']'
         duration_str = '%0.03f' % (io_rq.duration / 1000)
 
@@ -584,7 +522,7 @@ class IoAnalysisCommand(Command):
 
         for io_rq in sorted(rq_list, key=operator.attrgetter(sort_key),
                             reverse=is_top):
-            if is_top and count > self._arg_limit:
+            if is_top and count > self._args.limit:
                 break
 
             self._output_io_request(io_rq)
@@ -699,66 +637,63 @@ class IoAnalysisCommand(Command):
 
     def _print_results(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
-        if self._arg_usage:
+        if self._args.usage:
             self.iotop_output()
-        if self._arg_stats:
+        if self._args.stats:
             self.iostats_output()
-        if self._arg_latencytop:
+        if self._args.top:
             self.iolatency_syscalls_top_output()
-        if self._arg_freq:
+        if self._args.freq:
             self.iolatency_syscalls_output()
             self.iolatency_output()
-        if self._arg_log:
+        if self._args.log:
             self.iolatency_syscalls_log_output()
 
-    def _reset_total(self, start_ts):
-        self._analysis.reset()
-
     def _add_arguments(self, ap):
+        Command._add_proc_filter_args(ap)
+        Command._add_min_max_args(ap)
+        Command._add_log_args(
+            ap, help='Output the I/O requests in chronological order')
+        Command._add_stats_args(ap, help='Output the I/O latency statistics')
+        Command._add_freq_args(
+            ap, help='Output the I/O latency frequency distribution')
         ap.add_argument('--usage', action='store_true',
-                        help='Show the I/O usage')
-        ap.add_argument('--latencystats', action='store_true',
-                        help='Show the I/O latency statistics')
-        ap.add_argument('--latencytop', action='store_true',
-                        help='Show the I/O latency top')
-        ap.add_argument('--latencyfreq', action='store_true',
-                        help='Show the I/O latency frequency distribution')
-        ap.add_argument('--freq-resolution', type=int, default=20,
-                        help='Frequency distribution resolution '
-                             '(default 20)')
+                        help='Output the I/O usage')
+        ap.add_argument('--minsize', type=float,
+                        help='Filter out, I/O operations working with '
+                        'less that minsize bytes')
+        ap.add_argument('--maxsize', type=float,
+                        help='Filter out, I/O operations working with '
+                        'more that maxsize bytes')
+        ap.add_argument('--top', action='store_true',
+                        help='Output the top I/O latencies by category')
 
 
-# entry point
 def runstats():
-    # create command
+    sys.argv.insert(1, '--stats')
     iocmd = IoAnalysisCommand()
-    # execute command
-    iocmd.run_stats()
+    iocmd.run()
 
 
 def runlatencytop():
-    # create command
+    sys.argv.insert(1, '--top')
     iocmd = IoAnalysisCommand()
-    # execute command
-    iocmd.run_latencytop()
+    iocmd.run()
 
 
 def runlog():
-    # create command
+    sys.argv.insert(1, '--log')
     iocmd = IoAnalysisCommand()
-    # execute command
-    iocmd.run_log()
+    iocmd.run()
 
 
 def runfreq():
-    # create command
+    sys.argv.insert(1, '--freq')
     iocmd = IoAnalysisCommand()
-    # execute command
-    iocmd.run_freq()
+    iocmd.run()
 
 
 def runusage():
-    # create command
+    sys.argv.insert(1, '--usage')
     iocmd = IoAnalysisCommand()
-    # execute command
-    iocmd.run_usage()
+    iocmd.run()

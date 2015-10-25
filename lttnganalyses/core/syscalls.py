@@ -26,18 +26,16 @@ from .analysis import Analysis
 
 
 class SyscallsAnalysis(Analysis):
-    def __init__(self, state):
+    def __init__(self, state, conf):
         notification_cbs = {
             'syscall_exit': self._process_syscall_exit
         }
 
-        self._state = state
+        super().__init__(state, conf)
         self._state.register_notification_cbs(notification_cbs)
+
         self.tids = {}
         self.total_syscalls = 0
-
-    def process_event(self, ev):
-        pass
 
     def reset(self):
         pass
