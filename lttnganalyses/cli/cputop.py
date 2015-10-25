@@ -127,6 +127,9 @@ class Cputop(Command):
         cpu_count = len(self.state.cpus)
         usage_percent = 0
 
+        if not cpu_count:
+            return
+
         for cpu in sorted(self._analysis.cpus.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
