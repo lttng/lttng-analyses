@@ -31,51 +31,14 @@ import operator
 
 class Cputop(Command):
     _DESC = """The cputop command."""
-
-    def __init__(self):
-        super().__init__(self._add_arguments, enable_proc_filter_args=True)
-
-    def _validate_transform_args(self):
-        pass
-
-    def run(self):
-        # parse arguments first
-        self._parse_args()
-        # validate, transform and save specific arguments
-        self._validate_transform_args()
-        # open the trace
-        self._open_trace()
-        # create the appropriate analysis/analyses
-        self._create_analysis()
-        # run the analysis
-        self._run_analysis(self._reset_total, self._refresh)
-        # process the results
-        self._compute_stats()
-        # print results
-        self._print_results(self.start_ns, self.trace_end_ts)
-        # close the trace
-        self._close_trace()
-
-    def _create_analysis(self):
-        self._analysis = cputop.Cputop(self.state)
-
-    def _compute_stats(self):
-        self._analysis.compute_stats(self.start_ns, self.end_ns)
-
-    def _reset_total(self, start_ts):
-        self._analysis.reset(start_ts)
-
-    def _refresh(self, begin, end):
-        self._compute_stats()
-        self._print_results(begin, end)
-        self._reset_total(end)
+    _ANALYSIS_CLASS = cputop.Cputop
 
     def _filter_process(self, proc):
         # Exclude swapper
         if proc.tid == 0:
             return False
 
-        if self._arg_proc_list and proc.comm not in self._arg_proc_list:
+        if self._args.proc_list and proc.comm not in self._args.proc_list:
             return False
 
         return True
@@ -88,7 +51,7 @@ class Cputop(Command):
 
     def _print_per_tid_usage(self):
         count = 0
-        limit = self._arg_limit
+        limit = self._args.limit
         graph = Pyasciigraph()
         values = []
 
@@ -127,6 +90,9 @@ class Cputop(Command):
         cpu_count = len(self.state.cpus)
         usage_percent = 0
 
+        if not cpu_count:
+            return
+
         for cpu in sorted(self._analysis.cpus.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
@@ -137,14 +103,9 @@ class Cputop(Command):
         print('\nTotal CPU Usage: %0.02f%%\n' % usage_percent)
 
     def _add_arguments(self, ap):
-        # specific argument
-        pass
+        Command._add_proc_filter_args(ap)
 
 
-# entry point
 def run():
-    # create command
     cputopcmd = Cputop()
-
-    # execute command
     cputopcmd.run()

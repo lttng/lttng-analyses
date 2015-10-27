@@ -27,30 +27,35 @@ from .analysis import Analysis
 
 
 class Cputop(Analysis):
-    def __init__(self, state):
+    def __init__(self, state, conf):
         notification_cbs = {
             'sched_migrate_task': self._process_sched_migrate_task,
             'sched_switch_per_cpu': self._process_sched_switch_per_cpu,
             'sched_switch_per_tid': self._process_sched_switch_per_tid
         }
 
-        self._state = state
+        super().__init__(state, conf)
         self._state.register_notification_cbs(notification_cbs)
+
         self._ev_count = 0
         self.cpus = {}
         self.tids = {}
 
     def process_event(self, ev):
+        super().process_event(ev)
         self._ev_count += 1
 
-    def reset(self, timestamp):
+    def reset(self):
         for cpu_id in self.cpus:
-            self.cpus[cpu_id].reset(timestamp)
+            self.cpus[cpu_id].reset(self._last_event_ts)
 
         for tid in self.tids:
-            self.tids[tid].reset(timestamp)
+            self.tids[tid].reset(self._last_event_ts)
 
-    def compute_stats(self, start_ts, end_ts):
+    def _end_period_cb(self):
+        self._compute_stats()
+
+    def _compute_stats(self):
         """Compute usage stats relative to a certain time range
 
         For each CPU and process tracked by the analysis, we set its
@@ -61,25 +66,22 @@ class Cputop(Analysis):
         process is currently busy, we use the end timestamp to add
         the partial results of the currently running task to the usage
         stats.
-
-        Args:
-        start_ts (int): start of time range (nanoseconds from unix
-        epoch)
-        end_ts (int): end of time range (nanoseconds from unix epoch)
         """
-        duration = end_ts - start_ts
+        duration = self._last_event_ts - self._period_start_ts
 
         for cpu_id in self.cpus:
             cpu = self.cpus[cpu_id]
             if cpu.current_task_start_ts is not None:
-                cpu.total_usage_time += end_ts - cpu.current_task_start_ts
+                cpu.total_usage_time += self._last_event_ts - \
+                                        cpu.current_task_start_ts
 
             cpu.compute_stats(duration)
 
         for tid in self.tids:
             proc = self.tids[tid]
             if proc.last_sched_ts is not None:
-                proc.total_cpu_time += end_ts - proc.last_sched_ts
+                proc.total_cpu_time += self._last_event_ts - \
+                                       proc.last_sched_ts
 
             proc.compute_stats(duration)
 

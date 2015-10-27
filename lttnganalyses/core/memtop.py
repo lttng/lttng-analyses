@@ -26,18 +26,16 @@ from .analysis import Analysis
 
 
 class Memtop(Analysis):
-    def __init__(self, state):
+    def __init__(self, state, conf):
         notification_cbs = {
             'tid_page_alloc': self._process_tid_page_alloc,
             'tid_page_free': self._process_tid_page_free
         }
 
-        self._state = state
+        super().__init__(state, conf)
         self._state.register_notification_cbs(notification_cbs)
-        self.tids = {}
 
-    def process_event(self, ev):
-        pass
+        self.tids = {}
 
     def reset(self):
         for tid in self.tids:

@@ -33,27 +33,7 @@ import errno
 
 class SyscallsAnalysis(Command):
     _DESC = """The syscallstats command."""
-
-    def __init__(self):
-        super().__init__(self._add_arguments, enable_proc_filter_args=True)
-
-    def _validate_transform_args(self):
-        pass
-
-    def run(self):
-        self._parse_args()
-        self._validate_transform_args()
-        self._open_trace()
-        self._create_analysis()
-        self._run_analysis(self._reset_total, self._refresh)
-        self._print_results(self.start_ns, self.trace_end_ts)
-        self._close_trace()
-
-    def _create_analysis(self):
-        self._analysis = syscalls.SyscallsAnalysis(self.state)
-
-    def _refresh(self, begin, end):
-        self._print_results(begin, end)
+    _ANALYSIS_CLASS = syscalls.SyscallsAnalysis
 
     def _print_results(self, begin_ns, end_ns):
         line_format = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
@@ -119,11 +99,8 @@ class SyscallsAnalysis(Command):
 
         print('\nTotal syscalls: %d' % (self._analysis.total_syscalls))
 
-    def _reset_total(self, start_ts):
-        pass
-
     def _add_arguments(self, ap):
-        pass
+        Command._add_proc_filter_args(ap)
 
 
 def run():

@@ -31,38 +31,7 @@ import operator
 
 class Memtop(Command):
     _DESC = """The memtop command."""
-
-    def __init__(self):
-        super().__init__(self._add_arguments, enable_proc_filter_args=True)
-
-    def _validate_transform_args(self):
-        pass
-
-    def run(self):
-        # parse arguments first
-        self._parse_args()
-        # validate, transform and save specific arguments
-        self._validate_transform_args()
-        # open the trace
-        self._open_trace()
-        # create the appropriate analysis/analyses
-        self._create_analysis()
-        # run the analysis
-        self._run_analysis(self._reset_total, self._refresh)
-        # print results
-        self._print_results(self.start_ns, self.trace_end_ts)
-        # close the trace
-        self._close_trace()
-
-    def _create_analysis(self):
-        self._analysis = memtop.Memtop(self.state)
-
-    def _reset_total(self, start_ts):
-        self._analysis.reset()
-
-    def _refresh(self, begin, end):
-        self._print_results(begin, end)
-        self._reset_total(end)
+    _ANALYSIS_CLASS = memtop.Memtop
 
     def _print_results(self, begin_ns, end_ns):
         self._print_date(begin_ns, end_ns)
@@ -82,10 +51,10 @@ class Memtop(Command):
                 continue
 
             values.append(('%s (%d)' % (tid.comm, tid.tid),
-                          tid.allocated_pages))
+                           tid.allocated_pages))
 
             count += 1
-            if self._arg_limit > 0 and count >= self._arg_limit:
+            if self._args.limit > 0 and count >= self._args.limit:
                 break
 
         for line in graph.graph('Per-TID Memory Allocations', values,
@@ -106,7 +75,7 @@ class Memtop(Command):
             values.append(('%s (%d)' % (tid.comm, tid.tid), tid.freed_pages))
 
             count += 1
-            if self._arg_limit > 0 and count >= self._arg_limit:
+            if self._args.limit > 0 and count >= self._args.limit:
                 break
 
         for line in graph.graph('Per-TID Memory Deallocation', values,
@@ -128,14 +97,9 @@ class Memtop(Command):
               (alloc, freed))
 
     def _add_arguments(self, ap):
-        # specific argument
-        pass
+        Command._add_proc_filter_args(ap)
 
 
-# entry point
 def run():
-    # create command
     memtopcmd = Memtop()
-
-    # execute command
     memtopcmd.run()

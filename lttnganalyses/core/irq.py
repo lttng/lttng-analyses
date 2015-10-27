@@ -26,31 +26,21 @@ from .analysis import Analysis
 
 
 class IrqAnalysis(Analysis):
-    def __init__(self, state, min_duration, max_duration):
+    def __init__(self, state, conf):
         notification_cbs = {
             'irq_handler_entry': self._process_irq_handler_entry,
             'irq_handler_exit': self._process_irq_handler_exit,
             'softirq_exit': self._process_softirq_exit
         }
 
-        self._state = state
+        super().__init__(state, conf)
         self._state.register_notification_cbs(notification_cbs)
-        self._min_duration = min_duration
-        self._max_duration = max_duration
-        # µs to ns
-        if self._min_duration is not None:
-            self._min_duration *= 1000
-        if self._max_duration is not None:
-            self._max_duration *= 1000
 
         # Indexed by irq 'id' (irq or vec)
         self.hard_irq_stats = {}
         self.softirq_stats = {}
         # Log of individual interrupts
         self.irq_list = []
-
-    def process_event(self, ev):
-        pass
 
     def reset(self):
         self.irq_list = []
@@ -71,9 +61,11 @@ class IrqAnalysis(Analysis):
         irq = kwargs['hard_irq']
 
         duration = irq.end_ts - irq.begin_ts
-        if self._min_duration is not None and duration < self._min_duration:
+        if self._conf.min_duration is not None and \
+           duration < self._conf.min_duration:
             return
-        if self._max_duration is not None and duration > self._max_duration:
+        if self._conf.max_duration is not None and \
+           duration > self._conf.max_duration:
             return
 
         self.irq_list.append(irq)
@@ -86,9 +78,11 @@ class IrqAnalysis(Analysis):
         irq = kwargs['softirq']
 
         duration = irq.end_ts - irq.begin_ts
-        if self._min_duration is not None and duration < self._min_duration:
+        if self._conf.min_duration is not None and \
+           duration < self._conf.min_duration:
             return
-        if self._max_duration is not None and duration > self._max_duration:
+        if self._conf.max_duration is not None and \
+           duration > self._conf.max_duration:
             return
 
         self.irq_list.append(irq)

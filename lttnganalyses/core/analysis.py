@@ -22,13 +22,69 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from ..linuxautomaton import common
+
+
+class AnalysisConfig:
+    def __init__(self):
+        self.refresh_period = None
+        self.begin_ts = None
+        self.end_ts = None
+        self.min_duration = None
+        self.max_duration = None
+
 
 class Analysis:
+    def __init__(self, state, conf):
+        self._state = state
+        self._conf = conf
+        self._period_start_ts = None
+        self._last_event_ts = None
+        self._notification_cbs = {}
+        self._cbs = {}
+
+        if self._conf.refresh_period is not None:
+            self._conf.refresh_period *= common.NSEC_PER_SEC
+
+        self.started = False
+        self.ended = False
+
     def process_event(self, ev):
-        raise NotImplementedError()
+        self._last_event_ts = ev.timestamp
+
+        if not self.started:
+            if self._conf.begin_ts:
+                self._check_analysis_begin(ev)
+                if not self.started:
+                    return
+            else:
+                self._period_start_ts = ev.timestamp
+                self.started = True
+
+        self._check_analysis_end(ev)
+        if self.ended:
+            return
+
+        if self._conf.refresh_period is not None:
+            self._check_refresh(ev)
 
     def reset(self):
         raise NotImplementedError()
+
+    def end(self):
+        self._end_period()
+
+    def register_notification_cbs(self, cbs):
+        for name in cbs:
+            if name not in self._notification_cbs:
+                self._notification_cbs[name] = []
+
+            self._notification_cbs[name].append(cbs[name])
+
+    def _send_notification_cb(self, name, **kwargs):
+        if name in self._notification_cbs:
+            for cb in self._notification_cbs[name]:
+                cb(**kwargs)
 
     def _register_cbs(self, cbs):
         self._cbs = cbs
@@ -45,3 +101,31 @@ class Analysis:
                 (name.startswith('exit_syscall') or
                  name.startswith('syscall_exit_')):
             self._cbs['syscall_exit'](ev)
+
+    def _check_analysis_begin(self, ev):
+        if self._conf.begin_ts and ev.timestamp >= self._conf.begin:
+            self.started = True
+            self._period_start_ts = ev.ts
+            self.reset()
+
+    def _check_analysis_end(self, ev):
+        if self._conf.end_ts and ev.timestamp > self._conf.end_ts:
+            self.ended = True
+
+    def _check_refresh(self, ev):
+        if not self._period_start_ts:
+            self._period_start_ts = ev.timestamp
+        elif ev.timestamp >= (self._period_start_ts +
+                              self._conf.refresh_period):
+            self._end_period()
+            self._period_start_ts = ev.timestamp
+
+    def _end_period(self):
+        self._end_period_cb()
+        self._send_notification_cb('output_results',
+                                   begin_ns=self._period_start_ts,
+                                   end_ns=self._last_event_ts)
+        self.reset()
+
+    def _end_period_cb(self):
+        pass
