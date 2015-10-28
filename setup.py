@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #
 # Copyright (C) 2015 - Michael Jeanson <mjeanson@efficios.com>
 #
