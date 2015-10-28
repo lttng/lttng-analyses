@@ -46,9 +46,6 @@ class Analysis:
         self._notification_cbs = {}
         self._cbs = {}
 
-        if self._conf.refresh_period is not None:
-            self._conf.refresh_period *= common.NSEC_PER_SEC
-
         self.started = False
         self.ended = False
 

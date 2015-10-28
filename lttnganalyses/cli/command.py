@@ -106,8 +106,15 @@ class Command:
         print(date)
 
     def _validate_transform_common_args(self, args):
+        refresh_period_ns = None
+        if args.refresh is not None:
+            try:
+                refresh_period_ns = common.duration_str_to_ns(args.refresh)
+            except ValueError as e:
+                self._cmdline_error(str(e))
+
         self._analysis_conf = analysis.AnalysisConfig()
-        self._analysis_conf.refresh_period = args.refresh
+        self._analysis_conf.refresh_period = refresh_period_ns
         self._analysis_conf.period_begin_ev_name = args.period_begin
         self._analysis_conf.period_end_ev_name = args.period_end
 
@@ -138,8 +145,9 @@ class Command:
 
         # common arguments
         ap.add_argument('path', metavar='<path/to/trace>', help='trace path')
-        ap.add_argument('-r', '--refresh', type=int,
-                        help='Refresh period in seconds')
+        ap.add_argument('-r', '--refresh', type=str,
+                        help='Refresh period, with optional units suffix '
+                        '(default units: s)')
         ap.add_argument('--limit', type=int, default=10,
                         help='Limit to top X (default = 10)')
         ap.add_argument('--no-progress', action='store_true',
