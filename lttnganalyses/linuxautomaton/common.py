@@ -142,6 +142,9 @@ def date_to_epoch_nsec(handles, date, gmt):
     # match 17:29:43
     pattern4 = re.compile(r'^(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$')
 
+    # match 93847238974923874
+    pattern5 = re.compile(r'^\d+$')
+
     if pattern1.match(date):
         year = pattern1.search(date).group('year')
         month = pattern1.search(date).group('mon')
@@ -180,6 +183,8 @@ def date_to_epoch_nsec(handles, date, gmt):
         minute = pattern4.search(date).group('min')
         sec = pattern4.search(date).group('sec')
         nsec = 0
+    elif pattern5.match(date):
+        return int(date)
     else:
         return None
 
