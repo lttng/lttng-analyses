@@ -30,7 +30,13 @@ import socket
 import struct
 
 NSEC_PER_SEC = 1000000000
-MSEC_PER_NSEC = 1000000
+NSEC_PER_MSEC = 1000000
+NSEC_PER_USEC = 1000
+
+BYTES_PER_TIB = 1099511627776
+BYTES_PER_GIB = 1073741824
+BYTES_PER_MIB = 1048576
+BYTES_PER_KIB = 1024
 
 O_CLOEXEC = 0o2000000
 
@@ -233,29 +239,85 @@ def int_to_ipv4(ip):
     return socket.inet_ntoa(struct.pack('!I', ip))
 
 
-def str_to_bytes(value):
-    num = ''
-    unit = ''
-    for i in value:
-        if i.isdigit() or i == '.':
-            num = num + i
-        elif i.isalnum():
-            unit = unit + i
-    num = float(num)
-    if not unit:
-        return int(num)
-    if unit in ['B']:
-        return int(num)
-    if unit in ['k', 'K', 'kB', 'KB']:
-        return int(num * 1024)
-    if unit in ['m', 'M', 'mB', 'MB']:
-        return int(num * 1024 * 1024)
-    if unit in ['g', 'G', 'gB', 'GB']:
-        return int(num * 1024 * 1024 * 1024)
-    if unit in ['t', 'T', 'tB', 'TB']:
-        return int(num * 1024 * 1024 * 1024 * 1024)
-    print('Unit', unit, 'not understood')
-    return None
+def size_str_to_bytes(size_str):
+    try:
+        units_index = next(i for i, c in enumerate(size_str) if c.isalpha())
+    except StopIteration:
+        # no units found
+        units_index = None
+
+    if units_index is not None:
+        size = size_str[:units_index]
+        units = size_str[units_index:]
+    else:
+        size = size_str
+        units = None
+
+    try:
+        size = float(size)
+    except ValueError:
+        raise ValueError('invalid size: {}'.format(size))
+
+    # no units defaults to bytes
+    if units is not None:
+        if units in ['t', 'T', 'tB', 'TB']:
+            size *= BYTES_PER_TIB
+        elif units in ['g', 'G', 'gB', 'GB']:
+            size *= BYTES_PER_GIB
+        elif units in ['m', 'M', 'mB', 'MB']:
+            size *= BYTES_PER_MIB
+        elif units in ['k', 'K', 'kB', 'KB']:
+            size *= BYTES_PER_KIB
+        elif units == 'B':
+            # bytes is already the target unit
+            pass
+        else:
+            raise ValueError('unrecognised units: {}'.format(units))
+
+    size = int(size)
+
+    return size
+
+
+def duration_str_to_ns(duration_str):
+    try:
+        units_index = next(i for i, c in enumerate(duration_str)
+                           if c.isalpha())
+    except StopIteration:
+        # no units found
+        units_index = None
+
+    if units_index is not None:
+        duration = duration_str[:units_index]
+        units = duration_str[units_index:].lower()
+    else:
+        duration = duration_str
+        units = None
+
+    try:
+        duration = float(duration)
+    except ValueError:
+        raise ValueError('invalid duration: {}'.format(duration))
+
+    if units is not None:
+        if units == 's':
+            duration *= NSEC_PER_SEC
+        elif units == 'ms':
+            duration *= NSEC_PER_MSEC
+        elif units in ['us', 'µs']:
+            duration *= NSEC_PER_USEC
+        elif units == 'ns':
+            # ns is already the target unit
+            pass
+        else:
+            raise ValueError('unrecognised units: {}'.format(units))
+    else:
+        # no units defaults to seconds
+        duration *= NSEC_PER_SEC
+
+    duration = int(duration)
+
+    return duration
 
 
 def get_v4_addr_str(ip):

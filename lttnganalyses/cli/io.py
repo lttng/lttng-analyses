@@ -215,7 +215,7 @@ class IoAnalysisCommand(Command):
             return None
 
         avg_latency = ((disk.total_rq_duration / disk.rq_count) /
-                       common.MSEC_PER_NSEC)
+                       common.NSEC_PER_MSEC)
         avg_latency = round(avg_latency, 3)
 
         return (disk.disk_name, avg_latency)
