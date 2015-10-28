@@ -27,21 +27,39 @@ from ..linuxautomaton import automaton
 from .. import __version__
 from . import progressbar
 from ..linuxautomaton import common
+from .. import _version
 from babeltrace import TraceCollection
 import argparse
 import sys
 import subprocess
+import json
+import re
+from . import mi
 
 
 class Command:
-    def __init__(self):
+    _MI_BASE_TAGS = ['linux-kernel', 'lttng-analyses']
+    _MI_AUTHORS = [
+        'Julien Desfossez',
+        'Antoine Busque',
+        'Philippe Proulx',
+    ]
+    _MI_URL = 'https://github.com/lttng/lttng-analyses'
+
+    def __init__(self, mi_mode=False):
         self._analysis = None
         self._analysis_conf = None
         self._args = None
         self._handles = None
         self._traces = None
-
+        self._ticks = 0
+        self._mi_mode = mi_mode
         self._create_automaton()
+        self._mi_setup()
+
+    @property
+    def mi_mode(self):
+        return self._mi_mode
 
     def run(self):
         self._parse_args()
@@ -60,6 +78,72 @@ class Command:
     def _cmdline_error(self, msg, exit_code=1):
         self._error('Command line error: {}'.format(msg), exit_code)
 
+    def _print(self, msg):
+        if not self._mi_mode:
+            print(msg)
+
+    def _mi_create_result_table(self, table_class_name, begin, end,
+                                subtitle=None):
+        return mi.ResultTable(self._mi_table_classes[table_class_name],
+                              begin, end, subtitle)
+
+    def _mi_setup(self):
+        self._mi_table_classes = {}
+
+        for tc_tuple in self._MI_TABLE_CLASSES:
+            table_class = mi.TableClass(tc_tuple[0], tc_tuple[1], tc_tuple[2])
+            self._mi_table_classes[table_class.name] = table_class
+
+        self._mi_clear_result_tables()
+
+    def _mi_print_metadata(self):
+        tags = self._MI_BASE_TAGS + self._MI_TAGS
+        infos = mi.get_metadata(version=self._MI_VERSION, title=self._MI_TITLE,
+                                description=self._MI_DESCRIPTION,
+                                authors=self._MI_AUTHORS, url=self._MI_URL,
+                                tags=tags,
+                                table_classes=self._mi_table_classes.values())
+        print(json.dumps(infos))
+
+    def _mi_append_result_table(self, result_table):
+        if not result_table or not result_table.rows:
+            return
+
+        tc_name = result_table.table_class.name
+        self._mi_get_result_tables(tc_name).append(result_table)
+
+    def _mi_append_result_tables(self, result_tables):
+        if not result_tables:
+            return
+
+        for result_table in result_tables:
+            self._mi_append_result_table(result_table)
+
+    def _mi_clear_result_tables(self):
+        self._result_tables = {}
+
+    def _mi_get_result_tables(self, table_class_name):
+        if table_class_name not in self._result_tables:
+            self._result_tables[table_class_name] = []
+
+        return self._result_tables[table_class_name]
+
+    def _mi_print(self):
+        results = []
+
+        for result_tables in self._result_tables.values():
+            for result_table in result_tables:
+                results.append(result_table.to_native_object())
+
+        obj = {
+            'results': results,
+        }
+
+        print(json.dumps(obj))
+
+    def _create_summary_result_tables(self):
+        pass
+
     def _open_trace(self):
         traces = TraceCollection()
         handles = traces.add_traces_recursive(self._args.path, 'ctf')
@@ -76,15 +160,28 @@ class Command:
             self._traces.remove_trace(handle)
 
     def _check_lost_events(self):
-        print('Checking the trace for lost events...')
+        self._print('Checking the trace for lost events...')
         try:
             subprocess.check_output('babeltrace %s' % self._args.path,
                                     shell=True)
         except subprocess.CalledProcessError:
-            print('Error running babeltrace on the trace, cannot verify if '
-                  'events were lost during the trace recording')
+            self._gen_error('Cannot run babeltrace on the trace, cannot verify if '
+                            'events were lost during the trace recording')
+
+    def _pre_analysis(self):
+        pass
+
+    def _post_analysis(self):
+        if not self._mi_mode:
+            return
+
+        if self._ticks > 1:
+            self._create_summary_result_tables()
+
+        self._mi_print()
 
     def _run_analysis(self):
+        self._pre_analysis()
         progressbar.progressbar_setup(self)
 
         for event in self._traces.events:
@@ -96,6 +193,7 @@ class Command:
 
         progressbar.progressbar_finish(self)
         self._analysis.end()
+        self._post_analysis()
 
     def _print_date(self, begin_ns, end_ns):
         date = 'Timerange: [%s, %s]' % (
@@ -103,7 +201,7 @@ class Command:
                                    multi_day=True),
             common.ns_to_hour_nsec(end_ns, gmt=self._args.gmt,
                                    multi_day=True))
-        print(date)
+        self._print(date)
 
     def _validate_transform_common_args(self, args):
         refresh_period_ns = None
@@ -138,6 +236,22 @@ class Command:
                 args.pid_list = args.pid.split(',')
                 args.pid_list = [int(pid) for pid in args.pid_list]
 
+        if self._mi_mode:
+            # force no progress in MI mode
+            args.no_progress = True
+
+            # print MI metadata if required
+            if args.metadata:
+                self._mi_print_metadata()
+                sys.exit(0)
+
+        # validate path argument (required at this point)
+        if not args.path:
+            self._cmdline_error('Please specify a trace path')
+
+        if type(args.path) is list:
+            args.path = args.path[0]
+
     def _validate_transform_args(self, args):
         pass
 
@@ -145,25 +259,20 @@ class Command:
         ap = argparse.ArgumentParser(description=self._DESC)
 
         # common arguments
-        ap.add_argument('path', metavar='<path/to/trace>', help='trace path')
         ap.add_argument('-r', '--refresh', type=str,
                         help='Refresh period, with optional units suffix '
                         '(default units: s)')
-        ap.add_argument('--limit', type=int, default=10,
-                        help='Limit to top X (default = 10)')
-        ap.add_argument('--no-progress', action='store_true',
-                        help='Don\'t display the progress bar')
-        ap.add_argument('--skip-validation', action='store_true',
-                        help='Skip the trace validation')
         ap.add_argument('--gmt', action='store_true',
                         help='Manipulate timestamps based on GMT instead '
                              'of local time')
+        ap.add_argument('--limit', type=int, default=10,
+                        help='Limit to top X (default = 10)')
+        ap.add_argument('--skip-validation', action='store_true',
+                        help='Skip the trace validation')
         ap.add_argument('--begin', type=str, help='start time: '
                                                   'hh:mm:ss[.nnnnnnnnn]')
         ap.add_argument('--end', type=str, help='end time: '
                                                 'hh:mm:ss[.nnnnnnnnn]')
-        ap.add_argument('--timerange', type=str, help='time range: '
-                                                      '[begin,end]')
         ap.add_argument('--period-begin', type=str,
                         help='Analysis period start marker event name')
         ap.add_argument('--period-end', type=str,
@@ -172,8 +281,21 @@ class Command:
         ap.add_argument('--period-key', type=str, default='cpu_id',
                         help='Optional, list of event field names used to match '
                         'period markers (default: cpu_id)')
+        ap.add_argument('--timerange', type=str, help='time range: '
+                                                      '[begin,end]')
         ap.add_argument('-V', '--version', action='version',
                         version='LTTng Analyses v' + __version__)
+
+        # MI mode-dependent arguments
+        if self._mi_mode:
+            ap.add_argument('--metadata', action='store_true',
+                            help="Show analysis's metadata")
+            ap.add_argument('path', metavar='<path/to/trace>', help='trace path',
+                            nargs='*')
+        else:
+            ap.add_argument('--no-progress', action='store_true',
+                            help='Don\'t display the progress bar')
+            ap.add_argument('path', metavar='<path/to/trace>', help='trace path')
 
         # Used to add command-specific args
         self._add_arguments(ap)
@@ -236,13 +358,12 @@ class Command:
 
         self._args.multi_day = common.is_multi_day_trace_collection(
             self._handles)
-        if self._args.timerange:
+        if hasattr(self._args, 'timerange') and self._args.timerange:
             (self._analysis_conf.begin_ts, self._analysis_conf.end_ts) = \
                 common.extract_timerange(self._handles, self._args.timerange,
                                          self._args.gmt)
             if self._args.begin is None or self._args.end is None:
-                print('Invalid timeformat')
-                sys.exit(1)
+                self._cmdline_error('Invalid time format: "{}"'.format(self._args.timerange))
         else:
             if self._args.begin:
                 self._args.begin = date_to_epoch_nsec(
@@ -265,7 +386,7 @@ class Command:
 
     def _create_analysis(self):
         notification_cbs = {
-            'output_results': self._output_results
+            analysis.Analysis.TICK_CB: self._analysis_tick_cb
         }
 
         self._analysis = self._ANALYSIS_CLASS(self.state, self._analysis_conf)
@@ -275,15 +396,16 @@ class Command:
         self._automaton = automaton.Automaton()
         self.state = self._automaton.state
 
-    def _output_results(self, **kwargs):
+    def _analysis_tick_cb(self, **kwargs):
         begin_ns = kwargs['begin_ns']
         end_ns = kwargs['end_ns']
 
         # TODO allow output of results to some other place/in other
         # format than plain text-cli
-        self._print_results(begin_ns, end_ns)
+        self._analysis_tick(begin_ns, end_ns)
+        self._ticks += 1
 
-    def _print_results(self, begin_ns, end_ns):
+    def _analysis_tick(self, begin_ns, end_ns):
         raise NotImplementedError()
 
     def _filter_process(self, proc):
@@ -294,3 +416,14 @@ class Command:
         if self._args.pid_list and proc.pid not in self._args.pid_list:
             return False
         return True
+
+
+# create MI version
+_cmd_version = _version.get_versions()['version']
+_version_match = re.match(r'(\d+)\.(\d+)\.(\d+)(.*)', _cmd_version)
+Command._MI_VERSION = [
+    int(_version_match.group(1)),
+    int(_version_match.group(2)),
+    int(_version_match.group(3)),
+    _version_match.group(4),
+]

@@ -38,6 +38,8 @@ class AnalysisConfig:
 
 
 class Analysis:
+    TICK_CB = 'tick'
+
     def __init__(self, state, conf):
         self._state = state
         self._conf = conf
@@ -153,7 +155,7 @@ class Analysis:
 
     def _end_period(self):
         self._end_period_cb()
-        self._send_notification_cb('output_results',
+        self._send_notification_cb(Analysis.TICK_CB,
                                    begin_ns=self._period_start_ts,
                                    end_ns=self._last_event_ts)
         self.reset()
