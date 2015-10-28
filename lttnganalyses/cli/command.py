@@ -117,6 +117,7 @@ class Command:
         self._analysis_conf.refresh_period = refresh_period_ns
         self._analysis_conf.period_begin_ev_name = args.period_begin
         self._analysis_conf.period_end_ev_name = args.period_end
+        self._analysis_conf.period_key_fields = args.period_key.split(',')
 
         # convert min/max args from µs to ns, if needed
         if hasattr(args, 'min') and args.min is not None:
@@ -168,6 +169,9 @@ class Command:
         ap.add_argument('--period-end', type=str,
                         help='Analysis period end marker event name '
                         '(requires --period-begin)')
+        ap.add_argument('--period-key', type=str, default='cpu_id',
+                        help='Optional, list of event field names used to match '
+                        'period markers (default: cpu_id)')
         ap.add_argument('-V', '--version', action='version',
                         version='LTTng Analyses v' + __version__)
 

@@ -30,6 +30,7 @@ class AnalysisConfig:
         self.refresh_period = None
         self.period_begin_ev_name = None
         self.period_end_ev_name = None
+        self.period_key_fields = None
         self.begin_ts = None
         self.end_ts = None
         self.min_duration = None
@@ -75,7 +76,8 @@ class Analysis:
         raise NotImplementedError()
 
     def end(self):
-        self._end_period()
+        if self._period_start_ts:
+            self._end_period()
 
     def register_notification_cbs(self, cbs):
         for name in cbs:
@@ -130,7 +132,7 @@ class Analysis:
 
         period_key = self._get_period_event_key(ev)
         if not period_key:
-            # There was an error caused by missing context, ignore
+            # There was an error caused by a missing field, ignore
             # this period event
             return
 
@@ -145,7 +147,7 @@ class Analysis:
                     self._end_period()
                     self._period_key = period_key
                     self._period_start_ts = ev.timestamp
-        else:
+        elif ev.name == self._conf.period_begin_ev_name:
             self._period_key = period_key
             self._period_start_ts = ev.timestamp
 
@@ -160,14 +162,16 @@ class Analysis:
         pass
 
     def _get_period_event_key(self, ev):
-        # TODO: currently the key is hardcoded to the vtid of the
-        # thread which generated the event, but eventually there
-        # should be the option for a user to specify what fields
-        # (context or payload) make up the key.
-        try:
-            key = ev.vtid
-        except AttributeError:
-            # TODO warn user of missing context?
-            key = None
+        if not self._conf.period_key_fields:
+            return None
 
-        return key
+        key_values = []
+
+        for field in self._conf.period_key_fields:
+            try:
+                key_values.append(ev[field])
+            except KeyError:
+                # Error: missing field
+                return None
+
+        return tuple(key_values)
