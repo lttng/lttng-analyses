@@ -110,9 +110,9 @@ class Analysis:
             self._cbs['syscall_exit'](ev)
 
     def _check_analysis_begin(self, ev):
-        if self._conf.begin_ts and ev.timestamp >= self._conf.begin:
+        if self._conf.begin_ts and ev.timestamp >= self._conf.begin_ts:
             self.started = True
-            self._period_start_ts = ev.ts
+            self._period_start_ts = ev.timestamp
             self.reset()
 
     def _check_analysis_end(self, ev):
