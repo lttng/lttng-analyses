@@ -30,7 +30,9 @@ class MemStateProvider(sp.StateProvider):
     def __init__(self, state):
         cbs = {
             'mm_page_alloc': self._process_mm_page_alloc,
-            'mm_page_free': self._process_mm_page_free
+            'kmem_mm_page_alloc': self._process_mm_page_alloc,
+            'mm_page_free': self._process_mm_page_free,
+            'kmem_mm_page_free': self._process_mm_page_free,
         }
 
         self._state = state
