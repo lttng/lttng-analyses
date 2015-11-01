@@ -118,7 +118,7 @@ def trace_collection_date(handles):
 def extract_timerange(handles, timerange, gmt):
     pattern = re.compile(r'^\[(?P<begin>.*),(?P<end>.*)\]$')
     if not pattern.match(timerange):
-        return None
+        return None, None
     begin_str = pattern.search(timerange).group('begin').strip()
     end_str = pattern.search(timerange).group('end').strip()
     begin = date_to_epoch_nsec(handles, begin_str, gmt)
