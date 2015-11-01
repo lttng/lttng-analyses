@@ -348,7 +348,6 @@ class Command:
         pass
 
     def _process_date_args(self):
-
         def date_to_epoch_nsec(date):
             ts = common.date_to_epoch_nsec(self._handles, date, self._args.gmt)
             if ts is None:
@@ -358,31 +357,32 @@ class Command:
 
         self._args.multi_day = common.is_multi_day_trace_collection(
             self._handles)
-        if hasattr(self._args, 'timerange') and self._args.timerange:
-            (self._analysis_conf.begin_ts, self._analysis_conf.end_ts) = \
-                common.extract_timerange(self._handles, self._args.timerange,
-                                         self._args.gmt)
-            if self._args.begin is None or self._args.end is None:
+        begin_ts = None
+        end_ts = None
+
+        if self._args.timerange:
+            begin_ts, end_ts = common.extract_timerange(self._handles,
+                                                        self._args.timerange,
+                                                        self._args.gmt)
+            if None in [begin_ts, end_ts]:
                 self._cmdline_error('Invalid time format: "{}"'.format(self._args.timerange))
         else:
             if self._args.begin:
-                self._args.begin = date_to_epoch_nsec(
-                    self._args.begin)
+                begin_ts = date_to_epoch_nsec(self._args.begin)
             if self._args.end:
-                self._analysis_conf.end_ts = date_to_epoch_nsec(
-                    self._args.end)
+                end_ts = date_to_epoch_nsec(self._args.end)
 
                 # We have to check if timestamp_begin is None, which
                 # it always is in older versions of babeltrace. In
                 # that case, the test is simply skipped and an invalid
                 # --end value will cause an empty analysis
                 if self._traces.timestamp_begin is not None and \
-                   self._analysis_conf.end_ts < self._traces.timestamp_begin:
+                   end_ts < self._traces.timestamp_begin:
                     self._cmdline_error(
                         '--end timestamp before beginning of trace')
 
-        self._analysis_conf.begin_ts = self._args.begin
-        self._analysis_conf.end_ts = self._args.end
+        self._analysis_conf.begin_ts = begin_ts
+        self._analysis_conf.end_ts = end_ts
 
     def _create_analysis(self):
         notification_cbs = {
