@@ -41,6 +41,8 @@ class Process():
         self.current_syscall = None
         # the process scheduled before this one
         self.prev_tid = None
+        self.last_wakeup = None
+        self.last_waker = None
 
 
 class CPU():

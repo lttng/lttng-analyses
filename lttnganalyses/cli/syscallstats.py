@@ -48,7 +48,8 @@ class SyscallsAnalysis(Command):
                 ('min_duration', 'Minimum call duration', mi.Duration),
                 ('avg_duration', 'Average call duration', mi.Duration),
                 ('max_duration', 'Maximum call duration', mi.Duration),
-                ('stdev_duration', 'Call duration standard deviation', mi.Duration),
+                ('stdev_duration', 'Call duration standard deviation',
+                 mi.Duration),
                 ('return_values', 'Return values count', mi.String),
             ]
         ),
@@ -129,8 +130,9 @@ class SyscallsAnalysis(Command):
             subtitle = '%s (%s, TID: %d)' % (proc_stats.comm, pid,
                                              proc_stats.tid)
             result_table = \
-                self._mi_create_result_table(self._MI_TABLE_CLASS_PER_TID_STATS,
-                                             begin_ns, end_ns, subtitle)
+                self._mi_create_result_table(
+                    self._MI_TABLE_CLASS_PER_TID_STATS, begin_ns, end_ns,
+                    subtitle)
 
             for syscall in sorted(proc_stats.syscalls.values(),
                                   key=operator.attrgetter('count'),
@@ -163,7 +165,8 @@ class SyscallsAnalysis(Command):
                     syscall=mi.Syscall(syscall.name),
                     count=mi.Integer(syscall.count),
                     min_duration=mi.Duration(syscall.min_duration),
-                    avg_duration=mi.Duration(syscall.total_duration / syscall.count),
+                    avg_duration=mi.Duration(syscall.total_duration /
+                                             syscall.count),
                     max_duration=mi.Duration(syscall.max_duration),
                     stdev_duration=stdev,
                     return_values=mi.String(str(return_count)),

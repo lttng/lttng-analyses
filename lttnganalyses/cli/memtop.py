@@ -129,16 +129,15 @@ class Memtop(Command):
 
         return result_table
 
-
     def _get_per_tid_allocd_result_table(self, begin_ns, end_ns):
         return self._get_per_tid_attr_result_table(self._MI_TABLE_CLASS_ALLOCD,
-                                                  'allocated_pages',
-                                                  begin_ns, end_ns)
+                                                   'allocated_pages',
+                                                   begin_ns, end_ns)
 
     def _get_per_tid_freed_result_table(self, begin_ns, end_ns):
         return self._get_per_tid_attr_result_table(self._MI_TABLE_CLASS_FREED,
-                                                  'freed_pages',
-                                                  begin_ns, end_ns)
+                                                   'freed_pages',
+                                                   begin_ns, end_ns)
 
     def _get_total_result_table(self, begin_ns, end_ns):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_TOTAL,
@@ -168,7 +167,7 @@ class Memtop(Command):
             process_do = row.process
             pages = row.pages.value
             values.append(('%s (%d)' % (process_do.name, process_do.tid),
-                          pages))
+                           pages))
 
         for line in graph.graph(title, values, unit=' pages'):
             print(line)
@@ -177,7 +176,8 @@ class Memtop(Command):
         self._print_per_tid_result(result_table, 'Per-TID Memory Allocations')
 
     def _print_per_tid_freed(self, result_table):
-        self._print_per_tid_result(result_table, 'Per-TID Memory Deallocations')
+        self._print_per_tid_result(result_table,
+                                   'Per-TID Memory Deallocations')
 
     def _print_total(self, result_table):
         alloc = result_table.rows[0].allocd.value
@@ -187,6 +187,7 @@ class Memtop(Command):
 
     def _add_arguments(self, ap):
         Command._add_proc_filter_args(ap)
+        Command._add_top_args(ap)
 
 
 def _run(mi_mode):

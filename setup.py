@@ -95,6 +95,9 @@ setup(
             'lttng-irqstats = lttnganalyses.cli.irq:runstats',
             'lttng-memtop = lttnganalyses.cli.memtop:run',
             'lttng-syscallstats = lttnganalyses.cli.syscallstats:run',
+            'lttng-schedlog = lttnganalyses.cli.sched:runlog',
+            'lttng-schedtop = lttnganalyses.cli.sched:runtop',
+            'lttng-schedstats = lttnganalyses.cli.sched:runstats',
 
             # MI mode
             'lttng-cputop-mi = lttnganalyses.cli.cputop:run_mi',
@@ -108,6 +111,9 @@ setup(
             'lttng-iolatencytop-mi = lttnganalyses.cli.io:runlatencytop_mi',
             'lttng-iolog-mi = lttnganalyses.cli.io:runlog_mi',
             'lttng-iousagetop-mi = lttnganalyses.cli.io:runusage_mi',
+            'lttng-schedlog-mi = lttnganalyses.cli.sched:runlog_mi',
+            'lttng-schedtop-mi = lttnganalyses.cli.sched:runtop_mi',
+            'lttng-schedstats-mi = lttnganalyses.cli.sched:runstats_mi',
         ],
     },
 

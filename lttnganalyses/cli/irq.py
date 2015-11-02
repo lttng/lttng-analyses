@@ -62,7 +62,8 @@ class IrqAnalysisCommand(Command):
                 ('min_duration', 'Minimum duration', mi.Duration),
                 ('avg_duration', 'Average duration', mi.Duration),
                 ('max_duration', 'Maximum duration', mi.Duration),
-                ('stdev_duration', "Interrupt duration standard deviation", mi.Duration),
+                ('stdev_duration', 'Interrupt duration standard deviation',
+                 mi.Duration),
             ]
         ),
         (
@@ -73,12 +74,15 @@ class IrqAnalysisCommand(Command):
                 ('min_duration', 'Minimum duration', mi.Duration),
                 ('avg_duration', 'Average duration', mi.Duration),
                 ('max_duration', 'Maximum duration', mi.Duration),
-                ('stdev_duration', "Interrupt duration standard deviation", mi.Duration),
-                ('raise_count', 'Interrupt raise count', mi.Integer, 'interrupt raises'),
+                ('stdev_duration', 'Interrupt duration standard deviation',
+                 mi.Duration),
+                ('raise_count', 'Interrupt raise count', mi.Integer,
+                 'interrupt raises'),
                 ('min_latency', 'Minimum raise latency', mi.Duration),
                 ('avg_latency', 'Average raise latency', mi.Duration),
                 ('max_latency', 'Maximum raise latency', mi.Duration),
-                ('stdev_latency', "Interrupt raise latency standard deviation", mi.Duration),
+                ('stdev_latency', 'Interrupt raise latency standard deviation',
+                 mi.Duration),
             ]
         ),
         (
@@ -137,7 +141,7 @@ class IrqAnalysisCommand(Command):
             self._mi_get_result_tables(self._MI_TABLE_CLASS_HARD_STATS)
         soft_stats_tables = \
             self._mi_get_result_tables(self._MI_TABLE_CLASS_SOFT_STATS)
-        assert(len(hard_stats_table) == len(soft_stats_tables))
+        assert len(hard_stats_tables) == len(soft_stats_tables)
         begin = hard_stats_tables[0].timerange.begin
         end = hard_stats_tables[-1].timerange.end
         summary_table = \
@@ -145,7 +149,7 @@ class IrqAnalysisCommand(Command):
                                          begin, end)
 
         for hs_table, ss_table in zip(hard_stats_tables, soft_stats_tables):
-            assert(hs_table.timerange == ss_table.timerange)
+            assert hs_table.timerange == ss_table.timerange
 
             for row in itertools.chain(hs_table.rows, ss_table.rows):
                 summary_table.append_row(
@@ -278,7 +282,8 @@ class IrqAnalysisCommand(Command):
 
         for irq in irq_stats.irq_list:
             duration_us = (irq.end_ts - irq.begin_ts) / 1000
-            index = min(int((duration_us - min_duration_us) / step), resolution - 1)
+            index = min(int((duration_us - min_duration_us) / step),
+                        resolution - 1)
             counts[index] += 1
 
         graph_data = []
@@ -456,7 +461,7 @@ class IrqAnalysisCommand(Command):
             if self._args.softirq_filter_list:
                 return str(irq.id) in self._args.softirq_filter_list
             if self._args.irq_filter_list:
-                return FORalse
+                return False
 
         return True
 

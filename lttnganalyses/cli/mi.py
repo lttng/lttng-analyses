@@ -27,6 +27,7 @@ class Tags:
     CPU = 'cpu'
     MEMORY = 'memory'
     INTERRUPT = 'interrupt'
+    SCHED = 'sched'
     SYSCALL = 'syscall'
     IO = 'io'
     TOP = 'top'

@@ -530,8 +530,7 @@ class IoAnalysisCommand(Command):
                                       result_table)
 
     def _fill_file_usage_result_tables(self, read_table, write_table):
-        files = self._analysis.get_files_stats(self._args.pid_list,
-                                               self._args.proc_list)
+        files = self._analysis.get_files_stats()
         self._fill_file_read_usage_result_table(files, read_table)
         self._fill_file_write_usage_result_table(files, write_table)
 
@@ -1156,6 +1155,8 @@ class IoAnalysisCommand(Command):
         Command._add_min_max_args(ap)
         Command._add_log_args(
             ap, help='Output the I/O requests in chronological order')
+        Command._add_top_args(
+            ap, help='Output the top I/O latencies by category')
         Command._add_stats_args(ap, help='Output the I/O latency statistics')
         Command._add_freq_args(
             ap, help='Output the I/O latency frequency distribution')
@@ -1167,8 +1168,6 @@ class IoAnalysisCommand(Command):
         ap.add_argument('--maxsize', type=float,
                         help='Filter out, I/O operations working with '
                         'more that maxsize bytes')
-        ap.add_argument('--top', action='store_true',
-                        help='Output the top I/O latencies by category')
 
 
 def _run(mi_mode):

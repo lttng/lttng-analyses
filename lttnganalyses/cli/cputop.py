@@ -211,6 +211,7 @@ class Cputop(Command):
 
     def _add_arguments(self, ap):
         Command._add_proc_filter_args(ap)
+        Command._add_top_args(ap)
 
 
 def _run(mi_mode):

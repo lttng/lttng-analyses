@@ -33,6 +33,7 @@ class SchedStateProvider(sp.StateProvider):
             'sched_migrate_task': self._process_sched_migrate_task,
             'sched_wakeup': self._process_sched_wakeup,
             'sched_wakeup_new': self._process_sched_wakeup,
+            'sched_waking': self._process_sched_wakeup,
             'sched_process_fork': self._process_sched_process_fork,
             'sched_process_exec': self._process_sched_process_exec,
         }
@@ -82,9 +83,15 @@ class SchedStateProvider(sp.StateProvider):
         next_tid = event['next_tid']
         next_comm = event['next_comm']
         prev_tid = event['prev_tid']
+        next_prio = event['next_prio']
 
         self._sched_switch_per_cpu(cpu_id, next_tid)
         self._sched_switch_per_tid(next_tid, next_comm, prev_tid)
+
+        wakee_proc = self._state.tids[next_tid]
+        waker_proc = None
+        if wakee_proc.last_waker is not None:
+            waker_proc = self._state.tids[wakee_proc.last_waker]
 
         self._state.send_notification_cb('sched_switch_per_cpu',
                                          timestamp=timestamp,
@@ -94,7 +101,14 @@ class SchedStateProvider(sp.StateProvider):
                                          timestamp=timestamp,
                                          prev_tid=prev_tid,
                                          next_tid=next_tid,
-                                         next_comm=next_comm)
+                                         next_comm=next_comm,
+                                         wakee_proc=wakee_proc,
+                                         wakeup_ts=wakee_proc.last_wakeup,
+                                         waker_proc=waker_proc,
+                                         next_prio=next_prio)
+
+        wakee_proc.last_wakeup = None
+        wakee_proc.last_waker = None
 
     def _process_sched_migrate_task(self, event):
         tid = event['tid']
@@ -111,14 +125,31 @@ class SchedStateProvider(sp.StateProvider):
     def _process_sched_wakeup(self, event):
         target_cpu = event['target_cpu']
         tid = event['tid']
+        current_cpu = event['cpu_id']
 
         if target_cpu not in self._state.cpus:
             self._state.cpus[target_cpu] = sv.CPU(target_cpu)
+
+        if current_cpu not in self._state.cpus:
+            self._state.cpus[current_cpu] = sv.CPU(current_cpu)
+
+        # If the TID is already executing on a CPU, ignore this wakeup
+        for cpu_id in self._state.cpus:
+            cpu = self._state.cpus[cpu_id]
+            if cpu.current_tid == tid:
+                return
 
         if tid not in self._state.tids:
             proc = sv.Process()
             proc.tid = tid
             self._state.tids[tid] = proc
+        # a process can be woken up multiple times, only record
+        # the first one
+        if self._state.tids[tid].last_wakeup is None:
+            self._state.tids[tid].last_wakeup = event.timestamp
+            if self._state.cpus[current_cpu].current_tid is not None:
+                self._state.tids[tid].last_waker = \
+                    self._state.cpus[current_cpu].current_tid
 
     def _process_sched_process_fork(self, event):
         child_tid = event['child_tid']
@@ -142,7 +173,8 @@ class SchedStateProvider(sp.StateProvider):
             self._state.send_notification_cb('create_fd',
                                              fd=fd,
                                              parent_proc=child_proc,
-                                             timestamp=event.timestamp)
+                                             timestamp=event.timestamp,
+                                             cpu_id=event['cpu_id'])
 
         self._state.tids[child_tid] = child_proc
 
@@ -168,5 +200,6 @@ class SchedStateProvider(sp.StateProvider):
             self._state.send_notification_cb('close_fd',
                                              fd=fd,
                                              parent_proc=proc,
-                                             timestamp=event.timestamp)
+                                             timestamp=event.timestamp,
+                                             cpu_id=event['cpu_id'])
             del proc.fds[fd]
