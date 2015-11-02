@@ -146,7 +146,10 @@ class CpuUsageStats():
         self.usage_percent = None
 
     def compute_stats(self, duration):
-        self.usage_percent = self.total_usage_time * 100 / duration
+        if duration != 0:
+            self.usage_percent = self.total_usage_time * 100 / duration
+        else:
+            self.usage_percent = 0
 
     def reset(self, timestamp):
         self.total_usage_time = 0
@@ -170,7 +173,10 @@ class ProcessCpuStats():
         return cls(proc.tid, proc.comm)
 
     def compute_stats(self, duration):
-        self.usage_percent = self.total_cpu_time * 100 / duration
+        if duration != 0:
+            self.usage_percent = self.total_cpu_time * 100 / duration
+        else:
+            self.usage_percent = 0
 
     def reset(self, timestamp):
         self.total_cpu_time = 0

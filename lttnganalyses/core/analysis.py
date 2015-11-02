@@ -28,6 +28,9 @@ from ..linuxautomaton import common
 class AnalysisConfig:
     def __init__(self):
         self.refresh_period = None
+        self.period_begin_ev_name = None
+        self.period_end_ev_name = None
+        self.period_key_fields = None
         self.begin_ts = None
         self.end_ts = None
         self.min_duration = None
@@ -38,13 +41,11 @@ class Analysis:
     def __init__(self, state, conf):
         self._state = state
         self._conf = conf
+        self._period_key = None
         self._period_start_ts = None
         self._last_event_ts = None
         self._notification_cbs = {}
         self._cbs = {}
-
-        if self._conf.refresh_period is not None:
-            self._conf.refresh_period *= common.NSEC_PER_SEC
 
         self.started = False
         self.ended = False
@@ -65,14 +66,18 @@ class Analysis:
         if self.ended:
             return
 
-        if self._conf.refresh_period is not None:
+        # Prioritise period events over refresh period
+        if self._conf.period_begin_ev_name is not None:
+            self._handle_period_event(ev)
+        elif self._conf.refresh_period is not None:
             self._check_refresh(ev)
 
     def reset(self):
         raise NotImplementedError()
 
     def end(self):
-        self._end_period()
+        if self._period_start_ts:
+            self._end_period()
 
     def register_notification_cbs(self, cbs):
         for name in cbs:
@@ -120,6 +125,32 @@ class Analysis:
             self._end_period()
             self._period_start_ts = ev.timestamp
 
+    def _handle_period_event(self, ev):
+        if ev.name != self._conf.period_begin_ev_name and \
+           ev.name != self._conf.period_end_ev_name:
+            return
+
+        period_key = self._get_period_event_key(ev)
+        if not period_key:
+            # There was an error caused by a missing field, ignore
+            # this period event
+            return
+
+        if self._period_key:
+            if period_key == self._period_key:
+                if self._conf.period_end_ev_name:
+                    if ev.name == self._conf.period_end_ev_name:
+                        self._end_period()
+                        self._period_key = None
+                        self._period_start_ts = None
+                elif ev.name == self._conf.period_begin_ev_name:
+                    self._end_period()
+                    self._period_key = period_key
+                    self._period_start_ts = ev.timestamp
+        elif ev.name == self._conf.period_begin_ev_name:
+            self._period_key = period_key
+            self._period_start_ts = ev.timestamp
+
     def _end_period(self):
         self._end_period_cb()
         self._send_notification_cb('output_results',
@@ -129,3 +160,18 @@ class Analysis:
 
     def _end_period_cb(self):
         pass
+
+    def _get_period_event_key(self, ev):
+        if not self._conf.period_key_fields:
+            return None
+
+        key_values = []
+
+        for field in self._conf.period_key_fields:
+            try:
+                key_values.append(ev[field])
+            except KeyError:
+                # Error: missing field
+                return None
+
+        return tuple(key_values)
