@@ -68,6 +68,13 @@ class Command:
         self._close_trace()
 
     def _error(self, msg, exit_code=1):
+        try:
+            import termcolor
+
+            msg = termcolor.colored(msg, 'red', attrs=['bold'])
+        except:
+            pass
+
         print(msg, file=sys.stderr)
         sys.exit(exit_code)
 
