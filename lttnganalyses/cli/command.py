@@ -168,7 +168,7 @@ class Command:
     def _check_lost_events(self):
         self._print('Checking the trace for lost events...')
         try:
-            subprocess.check_output('babeltrace %s' % self._args.path,
+            subprocess.check_output('babeltrace "%s"' % self._args.path,
                                     shell=True)
         except subprocess.CalledProcessError:
             self._gen_error('Cannot run babeltrace on the trace, cannot verify if '
