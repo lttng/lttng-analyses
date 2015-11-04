@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Antoine Busque <abusque@efficios.com>
