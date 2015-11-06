@@ -111,6 +111,7 @@ class Cputop(Analysis):
         prev_tid = kwargs['prev_tid']
         next_tid = kwargs['next_tid']
         next_comm = kwargs['next_comm']
+        next_prio = kwargs['next_prio']
 
         if not self._filter_cpu(cpu_id):
             return
@@ -131,6 +132,7 @@ class Cputop(Analysis):
 
         next_proc = self.tids[next_tid]
         next_proc.last_sched_ts = timestamp
+        next_proc.prio  = next_prio
 
     def _process_sched_migrate_task(self, **kwargs):
         cpu_id = kwargs['cpu_id']
@@ -184,6 +186,8 @@ class ProcessCpuStats():
     def __init__(self, tid, comm):
         self.tid = tid
         self.comm = comm
+        # Currently only the latest prio is tracked
+        self.prio = None
         # CPU Time and timestamp in nanoseconds (ns)
         self.total_cpu_time = 0
         self.last_sched_ts = None

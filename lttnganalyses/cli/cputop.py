@@ -45,6 +45,7 @@ class Cputop(Command):
             'Per-TID top CPU usage', [
                 ('process', 'Process', mi.Process),
                 ('migrations', 'Migration count', mi.Integer, 'migrations'),
+                ('priority', 'Priority', mi.Integer),
                 ('usage', 'CPU usage', mi.Ratio),
             ]
         ),
@@ -116,6 +117,7 @@ class Cputop(Command):
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),
                 migrations=mi.Integer(tid.migrate_count),
+                priority=mi.Integer(tid.prio),
                 usage=mi.Ratio.from_percentage(tid.usage_percent)
             )
             count += 1
@@ -171,7 +173,12 @@ class Cputop(Command):
         for row in result_table.rows:
             process_do = row.process
             migration_count = row.migrations.value
-            output_str = '%s (%d)' % (process_do.name, process_do.tid)
+            if row.priority.value is not None:
+                prio_str = 'prio: %d' % row.priority.value
+            else:
+                prio_str = 'prio: ?'
+            output_str = '%s (%d) (%s)' % (process_do.name, process_do.tid,
+                                            prio_str)
 
             if migration_count > 0:
                 output_str += ', %d migrations' % (migration_count)
