@@ -448,6 +448,7 @@ class SchedAnalysisCommand(Command):
 
     def _add_arguments(self, ap):
         Command._add_min_max_args(ap)
+        Command._add_proc_filter_args(ap)
         Command._add_freq_args(
             ap, help='Output the frequency distribution of sched switch '
             'latencies')

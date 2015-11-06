@@ -116,16 +116,10 @@ class IoAnalysis(Analysis):
                                                         io_rq.operation):
                     yield io_rq
 
-    def get_files_stats(self, pid_filter_list, comm_filter_list):
+    def get_files_stats(self):
         files_stats = {}
 
         for proc_stats in self.tids.values():
-            if pid_filter_list is not None and \
-                    proc_stats.pid not in pid_filter_list or \
-                    comm_filter_list is not None and \
-                    proc_stats.comm not in comm_filter_list:
-                continue
-
             for fd_list in proc_stats.fds.values():
                 for fd_stats in fd_list:
                     filename = fd_stats.filename
@@ -186,6 +180,9 @@ class IoAnalysis(Analysis):
         req = kwargs['req']
         proc = kwargs['proc']
 
+        if not self._filter_process(proc):
+            return
+
         if req.dev not in self.disks:
             self.disks[req.dev] = DiskStats(req.dev)
 
@@ -210,6 +207,9 @@ class IoAnalysis(Analysis):
         proc = kwargs['proc']
         parent_proc = kwargs['parent_proc']
         io_rq = kwargs['io_rq']
+
+        if not self._filter_process(parent_proc):
+            return
 
         if proc.tid not in self.tids:
             self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
@@ -237,6 +237,9 @@ class IoAnalysis(Analysis):
         proc = kwargs['proc']
         parent_proc = kwargs['parent_proc']
 
+        if not self._filter_process(parent_proc):
+            return
+
         if proc.tid not in self.tids:
             self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
 
@@ -256,6 +259,9 @@ class IoAnalysis(Analysis):
         tid = parent_proc.tid
         fd = kwargs['fd']
 
+        if not self._filter_process(parent_proc):
+            return
+
         if tid not in self.tids:
             self.tids[tid] = ProcessIOStats.new_from_process(parent_proc)
 
@@ -270,6 +276,9 @@ class IoAnalysis(Analysis):
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
         fd = kwargs['fd']
+
+        if not self._filter_process(parent_proc):
+            return
 
         parent_stats = self.tids[tid]
         last_fd = parent_stats.get_fd(fd)

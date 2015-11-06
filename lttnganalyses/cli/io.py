@@ -274,8 +274,7 @@ class IoAnalysisCommand(Command):
             proc = self._analysis.tids[io_rq.tid]
         else:
             proc = None
-        return self._filter_process(proc) and \
-            self._filter_size(io_rq.size) and \
+        return self._filter_size(io_rq.size) and \
             self._filter_latency(io_rq.duration) and \
             self._filter_time_range(io_rq.begin_ts, io_rq.end_ts)
 
@@ -284,9 +283,6 @@ class IoAnalysisCommand(Command):
             self._args.end and io_rq.end_ts > self._args.end
 
     def _append_per_proc_read_usage_row(self, proc_stats, result_table):
-        if not self._filter_process(proc_stats):
-            return False
-
         result_table.append_row(
             process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                tid=proc_stats.tid),
@@ -299,9 +295,6 @@ class IoAnalysisCommand(Command):
         return True
 
     def _append_per_proc_write_usage_row(self, proc_stats, result_table):
-        if not self._filter_process(proc_stats):
-            return False
-
         result_table.append_row(
             process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                tid=proc_stats.tid),
@@ -314,7 +307,7 @@ class IoAnalysisCommand(Command):
         return True
 
     def _append_per_proc_block_read_usage_row(self, proc_stats, result_table):
-        if not self._filter_process(proc_stats) or proc_stats.block_read == 0:
+        if proc_stats.block_read == 0:
             return False
 
         if proc_stats.comm:
@@ -331,7 +324,7 @@ class IoAnalysisCommand(Command):
         return True
 
     def _append_per_proc_block_write_usage_row(self, proc_stats, result_table):
-        if not self._filter_process(proc_stats) or proc_stats.block_write == 0:
+        if proc_stats.block_write == 0:
             return False
 
         if proc_stats.comm:

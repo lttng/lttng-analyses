@@ -118,8 +118,7 @@ class SyscallsAnalysis(Command):
         for proc_stats in sorted(self._analysis.tids.values(),
                                  key=operator.attrgetter('total_syscalls'),
                                  reverse=True):
-            if not self._filter_process(proc_stats) or \
-               proc_stats.total_syscalls == 0:
+            if proc_stats.total_syscalls == 0:
                 continue
 
             pid = proc_stats.pid

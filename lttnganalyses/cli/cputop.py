@@ -69,16 +69,6 @@ class Cputop(Command):
         ),
     ]
 
-    def _filter_process(self, proc):
-        # Exclude swapper
-        if proc.tid == 0:
-            return False
-
-        if self._args.proc_list and proc.comm not in self._args.proc_list:
-            return False
-
-        return True
-
     def _analysis_tick(self, begin_ns, end_ns):
         per_tid_table = self._get_per_tid_usage_result_table(begin_ns, end_ns)
         per_cpu_table = self._get_per_cpu_usage_result_table(begin_ns, end_ns)
@@ -123,9 +113,6 @@ class Cputop(Command):
         for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
-            if not self._filter_process(tid):
-                continue
-
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),
                 migrations=mi.Integer(tid.migrate_count),

@@ -132,6 +132,13 @@ class Cputop(Analysis):
 
         self.tids[tid].migrate_count += 1
 
+    def _filter_process(self, proc):
+        # Exclude swapper
+        if proc.tid == 0:
+            return False
+
+        return super()._filter_process(proc)
+
     @property
     def event_count(self):
         return self._ev_count

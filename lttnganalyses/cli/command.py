@@ -232,15 +232,14 @@ class Command:
             self._analysis_conf.max_duration = args.max
 
         if hasattr(args, 'procname'):
-            args.proc_list = None
             if args.procname:
-                args.proc_list = args.procname.split(',')
+                self._analysis_conf.proc_list = args.procname.split(',')
 
-        if hasattr(args, 'pid'):
-            args.pid_list = None
-            if args.pid:
-                args.pid_list = args.pid.split(',')
-                args.pid_list = [int(pid) for pid in args.pid_list]
+        if hasattr(args, 'tid'):
+            if args.tid:
+                self._analysis_conf.tid_list = args.tid.split(',')
+                self._analysis_conf.tid_list = [int(tid) for tid in
+                                                self._analysis_conf.tid_list]
 
         if self._mi_mode:
             # force no progress in MI mode
@@ -315,8 +314,8 @@ class Command:
         ap.add_argument('--procname', type=str,
                         help='Filter the results only for this list of '
                         'process names')
-        ap.add_argument('--pid', type=str,
-                        help='Filter the results only for this list of PIDs')
+        ap.add_argument('--tid', type=str,
+                        help='Filter the results only for this list of TIDs')
 
     @staticmethod
     def _add_min_max_args(ap):
@@ -420,15 +419,6 @@ class Command:
 
     def _analysis_tick(self, begin_ns, end_ns):
         raise NotImplementedError()
-
-    def _filter_process(self, proc):
-        if not proc:
-            return True
-        if self._args.proc_list and proc.comm not in self._args.proc_list:
-            return False
-        if self._args.pid_list and proc.pid not in self._args.pid_list:
-            return False
-        return True
 
 
 # create MI version

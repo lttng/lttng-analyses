@@ -133,6 +133,10 @@ class ResultTable:
     def subtitle(self):
         return self._subtitle
 
+    @property
+    def title(self):
+        return self._table_class.title
+
     def append_row(self, **kwargs):
         row = self._column_named_tuple(**kwargs)
         self._rows.append(row)

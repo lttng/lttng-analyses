@@ -115,9 +115,6 @@ class Memtop(Command):
         for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter(attr),
                           reverse=True):
-            if not self._filter_process(tid):
-                continue
-
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),
                 pages=mi.Integer(getattr(tid, attr)),
@@ -146,9 +143,6 @@ class Memtop(Command):
         freed = 0
 
         for tid in self._analysis.tids.values():
-            if not self._filter_process(tid):
-                continue
-
             alloc += tid.allocated_pages
             freed += tid.freed_pages
 
