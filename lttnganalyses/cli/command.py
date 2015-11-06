@@ -222,6 +222,10 @@ class Command:
         self._analysis_conf.period_begin_ev_name = args.period_begin
         self._analysis_conf.period_end_ev_name = args.period_end
         self._analysis_conf.period_key_fields = args.period_key.split(',')
+        if args.cpu:
+            self._analysis_conf.cpu_list = args.cpu.split(',')
+            self._analysis_conf.cpu_list = [int(cpu) for cpu in
+                                            self._analysis_conf.cpu_list]
 
         # convert min/max args from µs to ns, if needed
         if hasattr(args, 'min') and args.min is not None:
@@ -284,6 +288,9 @@ class Command:
         ap.add_argument('--period-key', type=str, default='cpu_id',
                         help='Optional, list of event field names used to '
                         'match period markers (default: cpu_id)')
+        ap.add_argument('--cpu', type=str,
+                        help='Filter the results only for this list of '
+                        'CPU IDs')
         ap.add_argument('--timerange', type=str, help='time range: '
                                                       '[begin,end]')
         ap.add_argument('-V', '--version', action='version',

@@ -190,7 +190,8 @@ class IoStateProvider(sp.StateProvider):
             oldfd = event['oldfd']
             newfd = event['newfd']
             if newfd in fds:
-                self._close_fd(parent_proc, newfd, event.timestamp)
+                self._close_fd(parent_proc, newfd, event.timestamp,
+                               event['cpu_id'])
         elif name == 'fcntl':
             # Only handle if cmd == F_DUPFD (0)
             if event['cmd'] != 0:
@@ -254,6 +255,7 @@ class IoStateProvider(sp.StateProvider):
 
     def _track_io_rq_exit(self, event, proc):
         ret = event['ret']
+        cpu_id = event['cpu_id']
         io_rq = proc.current_syscall.io_rq
         # io_rq can be None in the case of fcntl when cmd is not
         # F_DUPFD, in which case we disregard the syscall as it did
@@ -264,18 +266,19 @@ class IoStateProvider(sp.StateProvider):
         io_rq.update_from_exit(event)
 
         if ret >= 0:
-            self._create_fd(proc, io_rq)
+            self._create_fd(proc, io_rq, cpu_id)
 
         parent_proc = self._get_parent_proc(proc)
         self._state.send_notification_cb('io_rq_exit',
                                          io_rq=io_rq,
                                          proc=proc,
-                                         parent_proc=parent_proc)
+                                         parent_proc=parent_proc,
+                                         cpu_id=cpu_id)
 
         if isinstance(io_rq, sv.CloseIORequest) and ret == 0:
-            self._close_fd(proc, io_rq.fd, io_rq.end_ts)
+            self._close_fd(proc, io_rq.fd, io_rq.end_ts, cpu_id)
 
-    def _create_fd(self, proc, io_rq):
+    def _create_fd(self, proc, io_rq, cpu_id):
         parent_proc = self._get_parent_proc(proc)
 
         if io_rq.fd is not None and io_rq.fd not in parent_proc.fds:
@@ -287,14 +290,16 @@ class IoStateProvider(sp.StateProvider):
             self._state.send_notification_cb('create_fd',
                                              fd=io_rq.fd,
                                              parent_proc=parent_proc,
-                                             timestamp=io_rq.end_ts)
+                                             timestamp=io_rq.end_ts,
+                                             cpu_id=cpu_id)
         elif isinstance(io_rq, sv.ReadWriteIORequest):
             if io_rq.fd_in is not None and io_rq.fd_in not in parent_proc.fds:
                 parent_proc.fds[io_rq.fd_in] = sv.FD(io_rq.fd_in)
                 self._state.send_notification_cb('create_fd',
                                                  fd=io_rq.fd_in,
                                                  parent_proc=parent_proc,
-                                                 timestamp=io_rq.end_ts)
+                                                 timestamp=io_rq.end_ts,
+                                                 cpu_id=cpu_id)
 
             if io_rq.fd_out is not None and \
                io_rq.fd_out not in parent_proc.fds:
@@ -302,14 +307,16 @@ class IoStateProvider(sp.StateProvider):
                 self._state.send_notification_cb('create_fd',
                                                  fd=io_rq.fd_out,
                                                  parent_proc=parent_proc,
-                                                 timestamp=io_rq.end_ts)
+                                                 timestamp=io_rq.end_ts,
+                                                 cpu_id=cpu_id)
 
-    def _close_fd(self, proc, fd, timestamp):
+    def _close_fd(self, proc, fd, timestamp, cpu_id):
         parent_proc = self._get_parent_proc(proc)
         self._state.send_notification_cb('close_fd',
                                          fd=fd,
                                          parent_proc=parent_proc,
-                                         timestamp=timestamp)
+                                         timestamp=timestamp,
+                                         cpu_id=cpu_id)
         del parent_proc.fds[fd]
 
     def _get_parent_proc(self, proc):

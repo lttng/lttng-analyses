@@ -119,5 +119,5 @@ class BlockStateProvider(sp.StateProvider):
         else:
             proc = None
         self._state.send_notification_cb('block_rq_complete', req=req,
-                                         proc=proc)
+                                         proc=proc, cpu_id=event['cpu_id'])
         del disk.pending_requests[sector]

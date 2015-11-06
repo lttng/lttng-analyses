@@ -39,10 +39,16 @@ class SyscallsAnalysis(Analysis):
         pass
 
     def _process_syscall_exit(self, **kwargs):
+        cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
         tid = proc.tid
         current_syscall = proc.current_syscall
         name = current_syscall.name
+
+        if not self._filter_process(proc):
+            return
+        if not self._filter_cpu(cpu_id):
+            return
 
         if tid not in self.tids:
             self.tids[tid] = ProcessSyscallStats.new_from_process(proc)

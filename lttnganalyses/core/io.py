@@ -157,6 +157,10 @@ class IoAnalysis(Analysis):
     def _process_net_dev_xmit(self, **kwargs):
         name = kwargs['iface_name']
         sent_bytes = kwargs['sent_bytes']
+        cpu = kwargs['cpu_id']
+
+        if not self._filter_cpu(cpu):
+            return
 
         if name not in self.ifaces:
             self.ifaces[name] = IfaceStats(name)
@@ -167,6 +171,10 @@ class IoAnalysis(Analysis):
     def _process_netif_receive_skb(self, **kwargs):
         name = kwargs['iface_name']
         recv_bytes = kwargs['recv_bytes']
+        cpu = kwargs['cpu_id']
+
+        if not self._filter_cpu(cpu):
+            return
 
         if name not in self.ifaces:
             self.ifaces[name] = IfaceStats(name)
@@ -177,8 +185,11 @@ class IoAnalysis(Analysis):
     def _process_block_rq_complete(self, **kwargs):
         req = kwargs['req']
         proc = kwargs['proc']
+        cpu = kwargs['cpu_id']
 
         if not self._filter_process(proc):
+            return
+        if not self._filter_cpu(cpu):
             return
 
         if req.dev not in self.disks:
@@ -205,8 +216,11 @@ class IoAnalysis(Analysis):
         proc = kwargs['proc']
         parent_proc = kwargs['parent_proc']
         io_rq = kwargs['io_rq']
+        cpu = kwargs['cpu_id']
 
         if not self._filter_process(parent_proc):
+            return
+        if not self._filter_cpu(cpu):
             return
 
         if proc.tid not in self.tids:
@@ -255,9 +269,12 @@ class IoAnalysis(Analysis):
         timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
+        cpu = kwargs['cpu_id']
         fd = kwargs['fd']
 
         if not self._filter_process(parent_proc):
+            return
+        if not self._filter_cpu(cpu):
             return
 
         if tid not in self.tids:
@@ -273,9 +290,12 @@ class IoAnalysis(Analysis):
         timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
+        cpu = kwargs['cpu_id']
         fd = kwargs['fd']
 
         if not self._filter_process(parent_proc):
+            return
+        if not self._filter_cpu(cpu):
             return
 
         parent_stats = self.tids[tid]

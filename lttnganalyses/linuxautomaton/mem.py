@@ -67,7 +67,8 @@ class MemStateProvider(sp.StateProvider):
             return
 
         self._state.send_notification_cb('tid_page_alloc',
-                                         proc=current_process)
+                                         proc=current_process,
+                                         cpu_id=event['cpu_id'])
 
     def _process_mm_page_free(self, event):
         if self._state.mm.page_count == 0:
@@ -79,4 +80,6 @@ class MemStateProvider(sp.StateProvider):
         if current_process is None:
             return
 
-        self._state.send_notification_cb('tid_page_free', proc=current_process)
+        self._state.send_notification_cb('tid_page_free',
+                                         proc=current_process,
+                                         cpu_id=event['cpu_id'])

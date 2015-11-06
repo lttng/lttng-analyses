@@ -33,6 +33,7 @@ class AnalysisConfig:
         self.max_duration = None
         self.proc_list = None
         self.tid_list = None
+        self.cpu_list = None
 
 
 class Analysis:
@@ -184,3 +185,6 @@ class Analysis:
         if self._conf.tid_list and proc.tid not in self._conf.tid_list:
             return False
         return True
+
+    def _filter_cpu(self, cpu):
+        return not (self._conf.cpu_list and cpu not in self._conf.cpu_list)

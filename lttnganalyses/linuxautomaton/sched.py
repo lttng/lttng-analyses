@@ -94,9 +94,11 @@ class SchedStateProvider(sp.StateProvider):
         self._state.send_notification_cb('sched_switch_per_cpu',
                                          timestamp=timestamp,
                                          cpu_id=cpu_id,
-                                         next_tid=next_tid)
+                                         next_tid=next_tid,
+                                         wakee_proc=wakee_proc)
         self._state.send_notification_cb('sched_switch_per_tid',
                                          timestamp=timestamp,
+                                         cpu_id=cpu_id,
                                          prev_tid=prev_tid,
                                          next_tid=next_tid,
                                          next_comm=next_comm,
@@ -118,7 +120,8 @@ class SchedStateProvider(sp.StateProvider):
         else:
             proc = self._state.tids[tid]
 
-        self._state.send_notification_cb('sched_migrate_task', proc=proc)
+        self._state.send_notification_cb('sched_migrate_task', proc=proc,
+                                         cpu_id=event['cpu_id'])
 
     def _process_sched_wakeup(self, event):
         target_cpu = event['target_cpu']

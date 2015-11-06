@@ -86,7 +86,11 @@ class Cputop(Analysis):
     def _process_sched_switch_per_cpu(self, **kwargs):
         timestamp = kwargs['timestamp']
         cpu_id = kwargs['cpu_id']
+        wakee_proc = kwargs['wakee_proc']
         next_tid = kwargs['next_tid']
+
+        if not self._filter_cpu(cpu_id):
+            return
 
         if cpu_id not in self.cpus:
             self.cpus[cpu_id] = CpuUsageStats(cpu_id)
@@ -95,16 +99,21 @@ class Cputop(Analysis):
         if cpu.current_task_start_ts is not None:
             cpu.total_usage_time += timestamp - cpu.current_task_start_ts
 
-        if next_tid == 0:
+        if not self._filter_process(wakee_proc):
             cpu.current_task_start_ts = None
         else:
             cpu.current_task_start_ts = timestamp
 
     def _process_sched_switch_per_tid(self, **kwargs):
+        cpu_id = kwargs['cpu_id']
+        wakee_proc = kwargs['wakee_proc']
         timestamp = kwargs['timestamp']
         prev_tid = kwargs['prev_tid']
         next_tid = kwargs['next_tid']
         next_comm = kwargs['next_comm']
+
+        if not self._filter_cpu(cpu_id):
+            return
 
         if prev_tid in self.tids:
             prev_proc = self.tids[prev_tid]
@@ -112,8 +121,9 @@ class Cputop(Analysis):
                 prev_proc.total_cpu_time += timestamp - prev_proc.last_sched_ts
                 prev_proc.last_sched_ts = None
 
-        # Don't account for swapper process
-        if next_tid == 0:
+        # Only filter on wakee_proc after finalizing the prev_proc
+        # accounting
+        if not self._filter_process(wakee_proc):
             return
 
         if next_tid not in self.tids:
@@ -123,8 +133,15 @@ class Cputop(Analysis):
         next_proc.last_sched_ts = timestamp
 
     def _process_sched_migrate_task(self, **kwargs):
+        cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
         tid = proc.tid
+
+        if not self._filter_process(proc):
+            return
+        if not self._filter_cpu(cpu_id):
+            return
+
         if tid not in self.tids:
             self.tids[tid] = ProcessCpuStats.new_from_process(proc)
 

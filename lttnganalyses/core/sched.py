@@ -55,12 +55,18 @@ class SchedAnalysis(Analysis):
             self.tids[tid].reset()
 
     def _process_sched_switch(self, **kwargs):
+        cpu_id = kwargs['cpu_id']
         switch_ts = kwargs['timestamp']
         wakeup_ts = kwargs['wakeup_ts']
         wakee_proc = kwargs['wakee_proc']
         waker_proc = kwargs['waker_proc']
         next_tid = kwargs['next_tid']
         next_prio = kwargs['next_prio']
+
+        if not self._filter_process(wakee_proc):
+            return
+        if not self._filter_cpu(cpu_id):
+            return
 
         if wakeup_ts is None:
             return

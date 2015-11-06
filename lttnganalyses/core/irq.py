@@ -58,6 +58,9 @@ class IrqAnalysis(Analysis):
     def _process_irq_handler_exit(self, **kwargs):
         irq = kwargs['hard_irq']
 
+        if not self._filter_cpu(irq.cpu_id):
+            return
+
         duration = irq.end_ts - irq.begin_ts
         if self._conf.min_duration is not None and \
            duration < self._conf.min_duration:
@@ -74,6 +77,9 @@ class IrqAnalysis(Analysis):
 
     def _process_softirq_exit(self, **kwargs):
         irq = kwargs['softirq']
+
+        if not self._filter_cpu(irq.cpu_id):
+            return
 
         duration = irq.end_ts - irq.begin_ts
         if self._conf.min_duration is not None and \

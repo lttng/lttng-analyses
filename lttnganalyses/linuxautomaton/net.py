@@ -40,7 +40,8 @@ class NetStateProvider(sp.StateProvider):
     def _process_net_dev_xmit(self, event):
         self._state.send_notification_cb('net_dev_xmit',
                                          iface_name=event['name'],
-                                         sent_bytes=event['len'])
+                                         sent_bytes=event['len'],
+                                         cpu_id=event['cpu_id'])
 
         cpu_id = event['cpu_id']
         if cpu_id not in self._state.cpus:
@@ -68,4 +69,5 @@ class NetStateProvider(sp.StateProvider):
     def _process_netif_receive_skb(self, event):
         self._state.send_notification_cb('netif_receive_skb',
                                          iface_name=event['name'],
-                                         recv_bytes=event['len'])
+                                         recv_bytes=event['len'],
+                                         cpu_id=event['cpu_id'])

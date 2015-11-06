@@ -68,7 +68,8 @@ class SyscallsStateProvider(sp.StateProvider):
 
         self._state.send_notification_cb('syscall_exit',
                                          proc=proc,
-                                         event=event)
+                                         event=event,
+                                         cpu_id=cpu_id)
 
         # If it's an IO Syscall, the IO state provider will take care of
         # clearing the current syscall, so only clear here if it's not
