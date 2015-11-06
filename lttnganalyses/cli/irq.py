@@ -257,18 +257,55 @@ class IrqAnalysisCommand(Command):
             stdev_latency=stdev_latency,
         )
 
+    def _get_uniform_freq_values(self):
+        if self._args.uniform_step is not None:
+            return (self._args.uniform_min, self._args.uniform_max,
+                    self._args.uniform_step)
+
+        durations = [irq.duration for irq in self._analysis.irq_list]
+
+        if self._args.min is not None:
+            self._args.uniform_min = self._args.min
+        else:
+            self._args.uniform_min = min(durations)
+        if self._args.max is not None:
+            self._args.uniform_max = self._args.max
+        else:
+            self._args.uniform_max = max(durations)
+
+        # ns to µs
+        self._args.uniform_min /= 1000
+        self._args.uniform_max /= 1000
+        self._args.uniform_step = (
+            (self._args.uniform_max - self._args.uniform_min) /
+            self._args.freq_resolution
+        )
+
+        return (self._args.uniform_min, self._args.uniform_max,
+                self._args.uniform_step)
+
     def _fill_freq_result_table(self, irq_stats, freq_table):
         # The number of bins for the histogram
         resolution = self._args.freq_resolution
-        min_duration_us = irq_stats.min_duration
-        max_duration_us = irq_stats.max_duration
+        if self._args.min is not None:
+            min_duration = self._args.min
+        else:
+            min_duration = irq_stats.min_duration
+        if self._args.max is not None:
+            max_duration = self._args.max
+        else:
+            max_duration = irq_stats.max_duration
 
         # ns to µs
-        min_duration_us /= 1000
-        max_duration_us /= 1000
+        min_duration /= 1000
+        max_duration /= 1000
 
         # histogram's step
-        step = (max_duration_us - min_duration_us) / resolution
+        if self._args.freq_uniform:
+            (min_duration, max_duration, step) = \
+                self._get_uniform_freq_values()
+        else:
+            step = (max_duration - min_duration) / resolution
 
         if step == 0:
             return
@@ -281,19 +318,21 @@ class IrqAnalysisCommand(Command):
             counts.append(0)
 
         for irq in irq_stats.irq_list:
-            duration_us = (irq.end_ts - irq.begin_ts) / 1000
-            index = min(int((duration_us - min_duration_us) / step),
-                        resolution - 1)
+            duration = irq.duration / 1000
+            index = int((duration - min_duration) / step)
+            if index >= resolution:
+                continue
+
             counts[index] += 1
 
         graph_data = []
 
         for index, count in enumerate(counts):
-            lower_bound_us = index * step + min_duration_us
-            upper_bound_us = (index + 1) * step + min_duration_us
+            lower_bound = index * step + min_duration
+            upper_bound = (index + 1) * step + min_duration
             freq_table.append_row(
-                duration_lower=mi.Duration.from_us(lower_bound_us),
-                duration_upper=mi.Duration.from_us(upper_bound_us),
+                duration_lower=mi.Duration.from_us(lower_bound),
+                duration_upper=mi.Duration.from_us(upper_bound),
                 count=mi.Integer(count),
             )
 

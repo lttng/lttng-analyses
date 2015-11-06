@@ -245,6 +245,11 @@ class Command:
                 self._analysis_conf.tid_list = [int(tid) for tid in
                                                 self._analysis_conf.tid_list]
 
+        if hasattr(args, 'freq'):
+            args.uniform_min = None
+            args.uniform_max = None
+            args.uniform_step = None
+
         if self._mi_mode:
             # force no progress in MI mode
             args.no_progress = True
@@ -340,6 +345,8 @@ class Command:
         ap.add_argument('--freq-resolution', type=int, default=20,
                         help='Frequency distribution resolution '
                         '(default 20)')
+        ap.add_argument('--freq-uniform', action='store_true',
+                        help='Use a uniform resolution across distributions')
 
     @staticmethod
     def _add_log_args(ap, help=None):
