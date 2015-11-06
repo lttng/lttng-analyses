@@ -134,6 +134,13 @@ class IRQ():
         self.begin_ts = begin_ts
         self.end_ts = None
 
+    @property
+    def duration(self):
+        if not self.end_ts or not self.begin_ts:
+            return None
+
+        return self.end_ts - self.begin_ts
+
 
 class HardIRQ(IRQ):
     def __init__(self, id, cpu_id, begin_ts):
