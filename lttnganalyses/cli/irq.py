@@ -119,6 +119,10 @@ class IrqAnalysisCommand(Command):
             self._mi_append_result_table(log_table)
             self._mi_append_result_table(hard_stats_table)
             self._mi_append_result_table(soft_stats_table)
+
+            if self._args.freq_series:
+                freq_tables = [self._get_freq_series_table(freq_tables)]
+
             self._mi_append_result_tables(freq_tables)
         else:
             self._print_date(begin_ns, end_ns)
@@ -373,6 +377,43 @@ class IrqAnalysisCommand(Command):
                 # indexes
                 freq_tables.append(freq_table)
 
+    def _get_freq_series_table(self, freq_tables):
+        if not freq_tables:
+            return
+
+        column_infos = [
+            ('duration_lower', 'Duration (lower bound)', mi.Duration),
+            ('duration_upper', 'Duration (upper bound)', mi.Duration),
+        ]
+
+        for index, freq_table in enumerate(freq_tables):
+            column_infos.append((
+                'irq{}'.format(index),
+                freq_table.subtitle,
+                mi.Integer,
+                'interrupts'
+            ))
+
+        title = 'Interrupt handlers duration frequency distributions'
+        table_class = mi.TableClass(None, title, column_infos)
+        begin = freq_tables[0].timerange.begin
+        end = freq_tables[0].timerange.end
+        result_table = mi.ResultTable(table_class, begin, end)
+
+        for row_index, freq0_row in enumerate(freq_tables[0].rows):
+            row_tuple = [
+                freq0_row.duration_lower,
+                freq0_row.duration_upper,
+            ]
+
+            for freq_table in freq_tables:
+                freq_row = freq_table.rows[row_index]
+                row_tuple.append(freq_row.count)
+
+            result_table.append_row_tuple(tuple(row_tuple))
+
+        return result_table
+
     def _get_stats_freq_result_tables(self, begin_ns, end_ns):
         def fill_stats_freq_result_tables(is_hard, stats, filter_list):
             self._fill_stats_freq_result_tables(begin_ns, end_ns, is_hard,
@@ -442,6 +483,10 @@ class IrqAnalysisCommand(Command):
             args.irq_filter_list = args.irq.split(',')
         if args.softirq:
             args.softirq_filter_list = args.softirq.split(',')
+
+        if args.freq_series:
+            # implies uniform buckets
+            args.freq_uniform = True
 
     def _compute_duration_stdev(self, irq_stats_item):
         if irq_stats_item.count < 2:

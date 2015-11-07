@@ -347,6 +347,8 @@ class Command:
                         '(default 20)')
         ap.add_argument('--freq-uniform', action='store_true',
                         help='Use a uniform resolution across distributions')
+        ap.add_argument('--freq-series', action='store_true',
+                        help='Consolidate frequency distribution histogram as a single one')
 
     @staticmethod
     def _add_log_args(ap, help=None):
