@@ -29,7 +29,18 @@ from . import mi
 import math
 import operator
 import statistics
+import collections
 import sys
+
+
+_SchedStats = collections.namedtuple('_SchedStats', [
+    'count',
+    'min',
+    'max',
+    'stdev',
+    'total',
+])
+
 
 
 class SchedAnalysisCommand(Command):
@@ -45,12 +56,12 @@ class SchedAnalysisCommand(Command):
     _MI_TABLE_CLASS_TOTAL_STATS = 'total_stats'
     _MI_TABLE_CLASS_PER_TID_STATS = 'per_tid_stats'
     _MI_TABLE_CLASS_PER_PRIO_STATS = 'per_prio_stats'
-    # _MI_TABLE_CLASS_FREQ = 'freq'
+    _MI_TABLE_CLASS_FREQ = 'freq'
     # _MI_TABLE_CLASS_SUMMARY = 'summary'
     _MI_TABLE_CLASSES = [
         (
             _MI_TABLE_CLASS_LOG,
-            'Sched switch log', [
+            'Scheduling log', [
                 ('wakeup_ts', 'Wakeup timestamp', mi.Timestamp),
                 ('switch_ts', 'Switch timestamp', mi.Timestamp),
                 ('latency', 'Scheduling latency', mi.Duration),
@@ -61,7 +72,7 @@ class SchedAnalysisCommand(Command):
         ),
         (
             _MI_TABLE_CLASS_TOP,
-            'Sched switch top', [
+            'Scheduling top', [
                 ('wakeup_ts', 'Wakeup timestamp', mi.Timestamp),
                 ('switch_ts', 'Switch timestamp', mi.Timestamp),
                 ('latency', 'Scheduling latency', mi.Duration),
@@ -72,8 +83,8 @@ class SchedAnalysisCommand(Command):
         ),
         (
             _MI_TABLE_CLASS_TOTAL_STATS,
-            'Sched switch latency stats (total)', [
-                ('count', 'Sched switch count', mi.Integer, 'sched switches'),
+            'Scheduling latency stats (total)', [
+                ('count', 'Scheduling count', mi.Integer, 'schedulings'),
                 ('min_latency', 'Minimum latency', mi.Duration),
                 ('avg_latency', 'Average latency', mi.Duration),
                 ('max_latency', 'Maximum latency', mi.Duration),
@@ -83,9 +94,9 @@ class SchedAnalysisCommand(Command):
         ),
         (
             _MI_TABLE_CLASS_PER_TID_STATS,
-            'Sched switch latency stats (per-TID)', [
+            'Scheduling latency stats (per-TID)', [
                 ('process', 'Wakee process', mi.Process),
-                ('count', 'Sched switch count', mi.Integer, 'sched switches'),
+                ('count', 'Scheduling count', mi.Integer, 'schedulings'),
                 ('min_latency', 'Minimum latency', mi.Duration),
                 ('avg_latency', 'Average latency', mi.Duration),
                 ('max_latency', 'Maximum latency', mi.Duration),
@@ -95,9 +106,9 @@ class SchedAnalysisCommand(Command):
         ),
         (
             _MI_TABLE_CLASS_PER_PRIO_STATS,
-            'Sched switch latency stats (per-prio)', [
+            'Scheduling latency stats (per-prio)', [
                 ('prio', 'Priority', mi.Integer),
-                ('count', 'Sched switch count', mi.Integer, 'sched switches'),
+                ('count', 'Scheduling count', mi.Integer, 'schedulings'),
                 ('min_latency', 'Minimum latency', mi.Duration),
                 ('avg_latency', 'Average latency', mi.Duration),
                 ('max_latency', 'Maximum latency', mi.Duration),
@@ -105,11 +116,20 @@ class SchedAnalysisCommand(Command):
                  mi.Duration),
             ]
         ),
+        (
+            _MI_TABLE_CLASS_FREQ,
+            'Scheduling latency frequency distribution', [
+                ('duration_lower', 'Duration (lower bound)', mi.Duration),
+                ('duration_upper', 'Duration (upper bound)', mi.Duration),
+                ('count', 'Scheduling count', mi.Integer, 'schedulings'),
+            ]
+        ),
     ]
 
     def _analysis_tick(self, begin_ns, end_ns):
         log_table = None
         top_table = None
+        per_prio_freq_tables = None
         total_stats_table = None
         per_tid_stats_table = None
         per_prio_stats_table = None
@@ -133,6 +153,11 @@ class SchedAnalysisCommand(Command):
                 per_prio_stats_table = self._get_per_prio_stats_result_table(
                     begin_ns, end_ns)
 
+        if self._args.freq:
+            if self._args.per_prio:
+                per_prio_freq_tables = \
+                    self._get_per_prio_freq_result_tables(begin_ns, end_ns)
+
         if self._mi_mode:
             if log_table:
                 self._mi_append_result_table(log_table)
@@ -148,6 +173,13 @@ class SchedAnalysisCommand(Command):
 
             if per_prio_stats_table and per_prio_stats_table.rows:
                 self._mi_append_result_table(per_prio_stats_table)
+
+            if self._args.freq_series:
+                per_prio_freq_tables = [
+                    self._get_per_prio_freq_series_table(per_prio_freq_tables)
+                ]
+
+            self._mi_append_result_tables(per_prio_freq_tables)
         else:
             self._print_date(begin_ns, end_ns)
 
@@ -276,34 +308,59 @@ class SchedAnalysisCommand(Command):
 
         return stats_table
 
-    def _get_per_prio_stats_result_table(self, begin_ns, end_ns):
-        stats_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PRIO_STATS,
-                                         begin_ns, end_ns)
-
+    def _get_prio_sched_lists_stats(self):
         prio_sched_lists = {}
+        prio_stats = {}
+
         for sched_event in self._analysis.sched_list:
             if sched_event.prio not in prio_sched_lists:
                 prio_sched_lists[sched_event.prio] = []
 
             prio_sched_lists[sched_event.prio].append(sched_event)
 
-        for prio in sorted(prio_sched_lists):
+        for prio in prio_sched_lists:
             sched_list = prio_sched_lists[prio]
+
             if not sched_list:
                 continue
 
             stdev = self._compute_sched_latency_stdev(sched_list)
-            if math.isnan(stdev):
-                stdev = mi.Unknown()
-            else:
-                stdev = mi.Duration(stdev)
-
             latencies = [sched.latency for sched in sched_list]
             count = len(latencies)
             min_latency = min(latencies)
             max_latency = max(latencies)
             total_latency = sum(latencies)
+
+            prio_stats[prio] = _SchedStats(
+                count=count,
+                min=min_latency,
+                max=max_latency,
+                stdev=stdev,
+                total=total_latency,
+            )
+
+        return prio_sched_lists, prio_stats
+
+    def _get_per_prio_stats_result_table(self, begin_ns, end_ns):
+        stats_table = \
+            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PRIO_STATS,
+                                         begin_ns, end_ns)
+
+        prio_sched_lists, prio_stats = self._get_prio_sched_lists_stats()
+
+        for prio in sorted(prio_stats):
+            stats = prio_stats[prio]
+            stdev = stats.stdev
+
+            if math.isnan(stdev):
+                stdev = mi.Unknown()
+            else:
+                stdev = mi.Duration(stdev)
+
+            count = stats.count
+            min_latency = stats.min
+            max_latency = stats.max
+            total_latency = stats.total
 
             stats_table.append_row(
                 prio=mi.Integer(prio),
@@ -315,6 +372,127 @@ class SchedAnalysisCommand(Command):
             )
 
         return stats_table
+
+    def _get_per_prio_freq_series_table(self, freq_tables):
+        if not freq_tables:
+            return
+
+        column_infos = [
+            ('duration_lower', 'Duration (lower bound)', mi.Duration),
+            ('duration_upper', 'Duration (upper bound)', mi.Duration),
+        ]
+
+        for index, freq_table in enumerate(freq_tables):
+            column_infos.append((
+                'prio{}'.format(index),
+                freq_table.subtitle,
+                mi.Integer,
+                'schedulings'
+            ))
+
+        title = 'Scheduling latencies frequency distributions'
+        table_class = mi.TableClass(None, title, column_infos)
+        begin = freq_tables[0].timerange.begin
+        end = freq_tables[0].timerange.end
+        result_table = mi.ResultTable(table_class, begin, end)
+
+        for row_index, freq0_row in enumerate(freq_tables[0].rows):
+            row_tuple = [
+                freq0_row.duration_lower,
+                freq0_row.duration_upper,
+            ]
+
+            for freq_table in freq_tables:
+                freq_row = freq_table.rows[row_index]
+                row_tuple.append(freq_row.count)
+
+            result_table.append_row_tuple(tuple(row_tuple))
+
+        return result_table
+
+    def _fill_freq_result_table(self, sched_list, stats, min_duration,
+                                max_duration, step, freq_table):
+        # The number of bins for the histogram
+        resolution = self._args.freq_resolution
+
+        if not self._args.freq_uniform:
+            if self._args.min is not None:
+                min_duration = self._args.min
+            else:
+                min_duration = stats.min
+
+            if self._args.max is not None:
+                max_duration = self._args.max
+            else:
+                max_duration = stats.max
+
+            # ns to µs
+            min_duration /= 1000
+            max_duration /= 1000
+
+            step = (max_duration - min_duration) / resolution
+
+        if step == 0:
+            return
+
+        buckets = []
+        counts = []
+
+        for i in range(resolution):
+            buckets.append(i * step)
+            counts.append(0)
+
+        for sched in sched_list:
+            duration = sched.latency / 1000
+            index = int((duration - min_duration) / step)
+
+            if index >= resolution:
+                # special case for max value: put in last bucket (includes
+                # its upper bound)
+                if duration == max_duration:
+                    counts[index - 1] += 1
+
+                continue
+
+            counts[index] += 1
+
+        for index, count in enumerate(counts):
+            lower_bound = index * step + min_duration
+            upper_bound = (index + 1) * step + min_duration
+            freq_table.append_row(
+                duration_lower=mi.Duration.from_us(lower_bound),
+                duration_upper=mi.Duration.from_us(upper_bound),
+                count=mi.Integer(count),
+            )
+
+    def _get_per_prio_freq_result_tables(self, begin_ns, end_ns):
+        freq_tables = []
+        prio_sched_lists, prio_stats = self._get_prio_sched_lists_stats()
+        min_duration = None
+        max_duration = None
+        step = None
+
+        if self._args.freq_uniform:
+            latencies = []
+
+            for sched_list in prio_sched_lists.values():
+                latencies += [sched.latency for sched in sched_list]
+
+            min_duration, max_duration, step = \
+                self._get_uniform_freq_values(latencies)
+
+        for prio in sorted(prio_sched_lists):
+            sched_list = prio_sched_lists[prio]
+            stats = prio_stats[prio]
+            subtitle = 'Priority: {}'.format(prio)
+            freq_table = \
+                self._mi_create_result_table(self._MI_TABLE_CLASS_FREQ,
+                                             begin_ns, end_ns, subtitle)
+            self._fill_freq_result_table(sched_list, stats, min_duration,
+                                         max_duration, step, freq_table)
+            freq_tables.append(freq_table)
+
+        return freq_tables
 
     def _compute_sched_latency_stdev(self, sched_events):
         if len(sched_events) < 2:

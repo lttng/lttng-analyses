@@ -261,33 +261,6 @@ class IrqAnalysisCommand(Command):
             stdev_latency=stdev_latency,
         )
 
-    def _get_uniform_freq_values(self):
-        if self._args.uniform_step is not None:
-            return (self._args.uniform_min, self._args.uniform_max,
-                    self._args.uniform_step)
-
-        durations = [irq.duration for irq in self._analysis.irq_list]
-
-        if self._args.min is not None:
-            self._args.uniform_min = self._args.min
-        else:
-            self._args.uniform_min = min(durations)
-        if self._args.max is not None:
-            self._args.uniform_max = self._args.max
-        else:
-            self._args.uniform_max = max(durations)
-
-        # ns to µs
-        self._args.uniform_min /= 1000
-        self._args.uniform_max /= 1000
-        self._args.uniform_step = (
-            (self._args.uniform_max - self._args.uniform_min) /
-            self._args.freq_resolution
-        )
-
-        return (self._args.uniform_min, self._args.uniform_max,
-                self._args.uniform_step)
-
     def _fill_freq_result_table(self, irq_stats, freq_table):
         # The number of bins for the histogram
         resolution = self._args.freq_resolution
@@ -306,8 +279,10 @@ class IrqAnalysisCommand(Command):
 
         # histogram's step
         if self._args.freq_uniform:
-            (min_duration, max_duration, step) = \
-                self._get_uniform_freq_values()
+            # TODO: perform only one time
+            durations = [irq.duration for irq in self._analysis.irq_list]
+            min_duration, max_duration, step = \
+                self._get_uniform_freq_values(durations)
         else:
             step = (max_duration - min_duration) / resolution
 
@@ -324,7 +299,13 @@ class IrqAnalysisCommand(Command):
         for irq in irq_stats.irq_list:
             duration = irq.duration / 1000
             index = int((duration - min_duration) / step)
+
             if index >= resolution:
+                # special case for max value: put in last bucket (includes
+                # its upper bound)
+                if duration == max_duration:
+                    counts[index - 1] += 1
+
                 continue
 
             counts[index] += 1
@@ -483,10 +464,6 @@ class IrqAnalysisCommand(Command):
             args.irq_filter_list = args.irq.split(',')
         if args.softirq:
             args.softirq_filter_list = args.softirq.split(',')
-
-        if args.freq_series:
-            # implies uniform buckets
-            args.freq_uniform = True
 
     def _compute_duration_stdev(self, irq_stats_item):
         if irq_stats_item.count < 2:
