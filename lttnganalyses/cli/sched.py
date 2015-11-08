@@ -42,7 +42,6 @@ _SchedStats = collections.namedtuple('_SchedStats', [
 ])
 
 
-
 class SchedAnalysisCommand(Command):
     _DESC = """The sched command."""
     _ANALYSIS_CLASS = sched.SchedAnalysis
@@ -228,8 +227,8 @@ class SchedAnalysisCommand(Command):
         return result_table
 
     def _get_top_result_table(self, begin_ns, end_ns):
-        result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_TOP    ,
-                                                    begin_ns, end_ns)
+        result_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_TOP, begin_ns, end_ns)
 
         top_events = sorted(self._analysis.sched_list,
                             key=operator.attrgetter('latency'),

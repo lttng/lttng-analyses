@@ -84,7 +84,8 @@ class IoAnalysisCommand(Command):
                 ('min_latency', 'Minimum call latency', mi.Duration),
                 ('avg_latency', 'Average call latency', mi.Duration),
                 ('max_latency', 'Maximum call latency', mi.Duration),
-                ('stdev_latency', 'System call latency standard deviation', mi.Duration),
+                ('stdev_latency', 'System call latency standard deviation',
+                 mi.Duration),
             ]
         ),
         (
@@ -95,7 +96,8 @@ class IoAnalysisCommand(Command):
                 ('min_latency', 'Minimum access latency', mi.Duration),
                 ('avg_latency', 'Average access latency', mi.Duration),
                 ('max_latency', 'Maximum access latency', mi.Duration),
-                ('stdev_latency', 'System access latency standard deviation', mi.Duration),
+                ('stdev_latency', 'System access latency standard deviation',
+                 mi.Duration),
             ]
         ),
         (
@@ -425,7 +427,8 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _fill_usage_result_table(self, input_list, append_row_cb, result_table):
+    def _fill_usage_result_table(self, input_list, append_row_cb,
+                                 result_table):
         count = 0
         limit = self._args.limit
 
@@ -456,17 +459,17 @@ class IoAnalysisCommand(Command):
         input_list = sorted(self._analysis.tids.values(),
                             key=operator.attrgetter('block_read'),
                             reverse=True)
-        self._fill_usage_result_table(input_list,
-                                      self._append_per_proc_block_read_usage_row,
-                                      result_table)
+        self._fill_usage_result_table(
+            input_list, self._append_per_proc_block_read_usage_row,
+            result_table)
 
     def _fill_per_process_block_write_usage_result_table(self, result_table):
         input_list = sorted(self._analysis.tids.values(),
                             key=operator.attrgetter('block_write'),
                             reverse=True)
-        self._fill_usage_result_table(input_list,
-                                      self._append_per_proc_block_write_usage_row,
-                                      result_table)
+        self._fill_usage_result_table(
+            input_list, self._append_per_proc_block_write_usage_row,
+            result_table)
 
     def _fill_disk_sector_usage_result_table(self, result_table):
         input_list = sorted(self._analysis.disks.values(),
@@ -529,47 +532,38 @@ class IoAnalysisCommand(Command):
 
     def _get_usage_result_tables(self, begin, end):
         # create result tables
-        per_proc_read_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PROCESS_TOP,
-                                         begin, end, 'read')
-        per_proc_write_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PROCESS_TOP,
-                                         begin, end, 'written')
-        per_file_read_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_FILE_TOP,
-                                         begin, end, 'read')
-        per_file_write_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_FILE_TOP,
-                                         begin, end, 'written')
-        per_proc_block_read_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PROCESS_TOP_BLOCK,
-                                         begin, end, 'read')
-        per_proc_block_write_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PROCESS_TOP_BLOCK,
-                                         begin, end, 'written')
-        per_disk_sector_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_DISK_TOP_SECTOR,
-                                         begin, end)
-        per_disk_request_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_DISK_TOP_REQUEST,
-                                         begin, end)
-        per_disk_rtps_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_DISK_TOP_RTPS,
-                                         begin, end)
-        per_netif_recv_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_NETIF_TOP,
-                                         begin, end, 'received')
-        per_netif_send_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PER_NETIF_TOP,
-                                         begin, end, 'sent')
+        per_proc_read_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_PROCESS_TOP, begin, end, 'read')
+        per_proc_write_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_PROCESS_TOP, begin, end, 'written')
+        per_file_read_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_FILE_TOP, begin, end, 'read')
+        per_file_write_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_FILE_TOP, begin, end, 'written')
+        per_proc_block_read_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_PROCESS_TOP_BLOCK, begin, end, 'read')
+        per_proc_block_write_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_PROCESS_TOP_BLOCK, begin, end, 'written')
+        per_disk_sector_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_DISK_TOP_SECTOR, begin, end)
+        per_disk_request_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_DISK_TOP_REQUEST, begin, end)
+        per_disk_rtps_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_DISK_TOP_RTPS, begin, end)
+        per_netif_recv_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_NETIF_TOP, begin, end, 'received')
+        per_netif_send_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PER_NETIF_TOP, begin, end, 'sent')
 
         # fill result tables
         self._fill_per_process_read_usage_result_table(per_proc_read_table)
         self._fill_per_process_write_usage_result_table(per_proc_write_table)
         self._fill_file_usage_result_tables(per_file_read_table,
                                             per_file_write_table)
-        self._fill_per_process_block_read_usage_result_table(per_proc_block_read_table)
-        self._fill_per_process_block_read_usage_result_table(per_proc_block_write_table)
+        self._fill_per_process_block_read_usage_result_table(
+            per_proc_block_read_table)
+        self._fill_per_process_block_read_usage_result_table(
+            per_proc_block_write_table)
         self._fill_disk_sector_usage_result_table(per_disk_sector_table)
         self._fill_disk_request_usage_result_table(per_disk_request_table)
         self._fill_disk_rtps_usage_result_table(per_disk_rtps_table)
@@ -634,7 +628,8 @@ class IoAnalysisCommand(Command):
         return (row.disk.name, avg_latency)
 
     def _get_per_netif_recv_send_usage_datum(self, row):
-        return ('%s %s' % (common.convert_size(row.size.value), row.netif.name),
+        return ('%s %s' %
+                (common.convert_size(row.size.value), row.netif.name),
                 row.size.value)
 
     def _get_per_file_read_write_usage_datum(self, row):
@@ -663,30 +658,30 @@ class IoAnalysisCommand(Command):
     def _print_per_process_read(self, result_table):
         label = 'Per-process I/O Read'
         graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_process_read_write_usage_datum,
-                                      label, graph_args)
+        self._print_usage_ascii_graph(
+            result_table, self._get_per_process_read_write_usage_datum,
+            label, graph_args)
 
     def _print_per_process_write(self, result_table):
         label = 'Per-process I/O Write'
         graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_process_read_write_usage_datum,
-                                      label, graph_args)
+        self._print_usage_ascii_graph(
+            result_table, self._get_per_process_read_write_usage_datum,
+            label, graph_args)
 
     def _print_per_process_block_read(self, result_table):
         label = 'Block I/O Read'
         graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_process_block_read_write_usage_datum,
-                                      label, graph_args)
+        self._print_usage_ascii_graph(
+            result_table, self._get_per_process_block_read_write_usage_datum,
+            label, graph_args)
 
     def _print_per_process_block_write(self, result_table):
         label = 'Block I/O Write'
         graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_process_block_read_write_usage_datum,
-                                      label, graph_args)
+        self._print_usage_ascii_graph(
+            result_table, self._get_per_process_block_read_write_usage_datum,
+            label, graph_args)
 
     def _print_per_disk_sector(self, result_table):
         label = 'Disk requests sector count'
@@ -712,30 +707,30 @@ class IoAnalysisCommand(Command):
     def _print_per_netif_recv(self, result_table):
         label = 'Network received bytes'
         graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_netif_recv_send_usage_datum,
-                                      label, graph_args)
+        self._print_usage_ascii_graph(
+            result_table, self._get_per_netif_recv_send_usage_datum,
+            label, graph_args)
 
     def _print_per_netif_send(self, result_table):
         label = 'Network sent bytes'
         graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_netif_recv_send_usage_datum,
-                                      label, graph_args)
+        self._print_usage_ascii_graph(
+            result_table, self._get_per_netif_recv_send_usage_datum,
+            label, graph_args)
 
     def _print_per_file_read(self, result_table):
         label = 'Files read'
         graph_args = {'with_value': False, 'sort': 2}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_file_read_write_usage_datum,
-                                      label, graph_args)
+        self._print_usage_ascii_graph(
+            result_table, self._get_per_file_read_write_usage_datum,
+            label, graph_args)
 
     def _print_per_file_write(self, result_table):
         label = 'Files write'
         graph_args = {'with_value': False, 'sort': 2}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_file_read_write_usage_datum,
-                                      label, graph_args)
+        self._print_usage_ascii_graph(
+            result_table, self._get_per_file_read_write_usage_datum,
+            label, graph_args)
 
     def _print_usage(self, usage_tables):
         self._print_per_process_read(usage_tables.per_proc_read)
@@ -783,7 +778,8 @@ class IoAnalysisCommand(Command):
         for index, value in enumerate(values):
             result_table.append_row(
                 latency_lower=mi.Duration.from_us(index * step + min_duration),
-                latency_upper=mi.Duration.from_us((index + 1) * step + min_duration),
+                latency_upper=mi.Duration.from_us((index + 1) * step +
+                                                  min_duration),
                 count=mi.Integer(value),
             )
 
@@ -818,19 +814,19 @@ class IoAnalysisCommand(Command):
         self._fill_freq_result_table([io_rq.duration for io_rq in
                                       self._analysis.open_io_requests if
                                       self._filter_io_request(io_rq)],
-                                      open_table)
+                                     open_table)
         self._fill_freq_result_table([io_rq.duration for io_rq in
                                       self._analysis.read_io_requests if
                                       self._filter_io_request(io_rq)],
-                                      read_table)
+                                     read_table)
         self._fill_freq_result_table([io_rq.duration for io_rq in
                                       self._analysis.write_io_requests if
                                       self._filter_io_request(io_rq)],
-                                      write_table)
+                                     write_table)
         self._fill_freq_result_table([io_rq.duration for io_rq in
                                       self._analysis.sync_io_requests if
                                       self._filter_io_request(io_rq)],
-                                      sync_table)
+                                     sync_table)
 
         return [open_table, read_table, write_table, sync_table]
 
@@ -852,7 +848,8 @@ class IoAnalysisCommand(Command):
             graph_data.append(('%0.03f' % row.latency_lower.to_us(),
                                row.count.value))
 
-        title = '{} {} (usec)'.format(result_table.title, result_table.subtitle)
+        title = '{} {} (usec)'.format(result_table.title,
+                                      result_table.subtitle)
         graph_lines = graph.graph(
             title,
             graph_data,
@@ -926,7 +923,8 @@ class IoAnalysisCommand(Command):
                                                 is_top, result_table):
         io_requests = [io_rq for io_rq in io_requests if
                        self._filter_io_request(io_rq)]
-        self._fill_log_result_table(io_requests, sort_key, is_top, result_table)
+        self._fill_log_result_table(io_requests, sort_key, is_top,
+                                    result_table)
 
     def _get_top_result_tables(self, begin, end):
         open_table = \
@@ -1064,9 +1062,8 @@ class IoAnalysisCommand(Command):
         self._append_latency_stats_row(obj, rq_durations, result_table)
 
     def _get_syscall_latency_stats_result_table(self, begin, end):
-        result_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_SYSCALL_LATENCY_STATS,
-                                         begin, end)
+        result_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_SYSCALL_LATENCY_STATS, begin, end)
         append_fn = self._append_latency_stats_row_from_requests
         append_fn(mi.String('Open'), self._analysis.open_io_requests,
                   result_table)
@@ -1083,9 +1080,8 @@ class IoAnalysisCommand(Command):
         if not self._analysis.disks:
             return
 
-        result_table = \
-            self._mi_create_result_table(self._MI_TABLE_CLASS_PART_LATENCY_STATS,
-                                         begin, end)
+        result_table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_PART_LATENCY_STATS, begin, end)
         append_fn = self._append_latency_stats_row_from_requests
 
         for disk in self._analysis.disks.values():
@@ -1093,7 +1089,8 @@ class IoAnalysisCommand(Command):
                 rq_durations = [rq.duration for rq in disk.rq_list if
                                 self._filter_io_request(rq)]
                 disk = mi.Disk(disk.disk_name)
-                self._append_latency_stats_row(disk, rq_durations, result_table)
+                self._append_latency_stats_row(disk, rq_durations,
+                                               result_table)
 
         return result_table
 

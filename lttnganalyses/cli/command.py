@@ -232,7 +232,7 @@ class Command:
         )
 
         return self._args.uniform_min, self._args.uniform_max, \
-               self._args.uniform_step
+            self._args.uniform_step
 
     def _validate_transform_common_args(self, args):
         refresh_period_ns = None
@@ -377,7 +377,8 @@ class Command:
         ap.add_argument('--freq-uniform', action='store_true',
                         help='Use a uniform resolution across distributions')
         ap.add_argument('--freq-series', action='store_true',
-                        help='Consolidate frequency distribution histogram as a single one')
+                        help='Consolidate frequency distribution histogram '
+                        'as a single one')
 
     @staticmethod
     def _add_log_args(ap, help=None):

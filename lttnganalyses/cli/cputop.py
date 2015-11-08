@@ -178,7 +178,7 @@ class Cputop(Command):
             else:
                 prio_str = 'prio: ?'
             output_str = '%s (%d) (%s)' % (process_do.name, process_do.tid,
-                                            prio_str)
+                                           prio_str)
 
             if migration_count > 0:
                 output_str += ', %d migrations' % (migration_count)
