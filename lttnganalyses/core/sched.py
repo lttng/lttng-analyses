@@ -87,7 +87,7 @@ class SchedAnalysis(Analysis):
             self.tids[next_tid] = SchedStats.new_from_process(wakee_proc)
 
         sched_event = SchedEvent(wakeup_ts, switch_ts, wakee_proc, waker_proc,
-                                 next_prio)
+                                 next_prio, cpu_id)
         self.tids[next_tid].update_stats(sched_event)
         self._update_stats(sched_event)
 
@@ -137,10 +137,12 @@ class SchedStats():
 
 
 class SchedEvent():
-    def __init__(self, wakeup_ts, switch_ts, wakee_proc, waker_proc, prio):
+    def __init__(self, wakeup_ts, switch_ts, wakee_proc, waker_proc, prio,
+                 target_cpu):
         self.wakeup_ts = wakeup_ts
         self.switch_ts = switch_ts
         self.wakee_proc = wakee_proc
         self.waker_proc = waker_proc
         self.prio = prio
+        self.target_cpu = target_cpu
         self.latency = switch_ts - wakeup_ts

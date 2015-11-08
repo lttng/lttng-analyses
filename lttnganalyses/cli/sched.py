@@ -66,6 +66,7 @@ class SchedAnalysisCommand(Command):
                 ('switch_ts', 'Switch timestamp', mi.Timestamp),
                 ('latency', 'Scheduling latency', mi.Duration),
                 ('prio', 'Priority', mi.Integer),
+                ('target_cpu', 'Target CPU', mi.Integer),
                 ('wakee_proc', 'Wakee process', mi.Process),
                 ('waker_proc', 'Waker process', mi.Process),
             ]
@@ -77,6 +78,7 @@ class SchedAnalysisCommand(Command):
                 ('switch_ts', 'Switch timestamp', mi.Timestamp),
                 ('latency', 'Scheduling latency', mi.Duration),
                 ('prio', 'Priority', mi.Integer),
+                ('target_cpu', 'Target CPU', mi.Integer),
                 ('wakee_proc', 'Wakee process', mi.Process),
                 ('waker_proc', 'Waker process', mi.Process),
             ]
@@ -218,6 +220,7 @@ class SchedAnalysisCommand(Command):
                 switch_ts=mi.Timestamp(sched_event.switch_ts),
                 latency=mi.Duration(sched_event.latency),
                 prio=mi.Integer(sched_event.prio),
+                target_cpu=mi.Integer(sched_event.target_cpu),
                 wakee_proc=wakee_proc,
                 waker_proc=waker_proc,
             )
@@ -250,6 +253,7 @@ class SchedAnalysisCommand(Command):
                 switch_ts=mi.Timestamp(sched_event.switch_ts),
                 latency=mi.Duration(sched_event.latency),
                 prio=mi.Integer(sched_event.prio),
+                target_cpu=mi.Integer(sched_event.target_cpu),
                 wakee_proc=wakee_proc,
                 waker_proc=waker_proc,
             )
@@ -508,17 +512,18 @@ class SchedAnalysisCommand(Command):
         return common.ns_to_hour_nsec(ts, self._args.multi_day, self._args.gmt)
 
     def _print_sched_events(self, result_table):
-        fmt = '[{:<18}, {:<18}] {:>15} {:>10} {:<25}  {:<25}'
-        title_fmt = '{:<20} {:<19} {:>15} {:>10} {:<25}  {:<25}'
+        fmt = '[{:<18}, {:<18}] {:>15} {:>10} {:>3} {:<25}  {:<25}'
+        title_fmt = '{:<20} {:<19} {:>15} {:>10} {:>3} {:<25}  {:<25}'
         print()
         print(result_table.title)
         print(title_fmt.format('Wakeup', 'Switch', 'Latency (us)', 'Priority',
-                               'Wakee', 'Waker'))
+                               'CPU', 'Wakee', 'Waker'))
         for row in result_table.rows:
             wakeup_ts = row.wakeup_ts.value
             switch_ts = row.switch_ts.value
             latency = row.latency.value
             prio = row.prio.value
+            target_cpu = row.target_cpu.value
             wakee_proc = row.wakee_proc
             waker_proc = row.waker_proc
 
@@ -531,7 +536,7 @@ class SchedAnalysisCommand(Command):
             print(fmt.format(self._ns_to_hour_nsec(wakeup_ts),
                              self._ns_to_hour_nsec(switch_ts),
                              '%0.03f' % (latency / 1000), prio,
-                             wakee_str, waker_str))
+                             target_cpu, wakee_str, waker_str))
 
     def _print_total_stats(self, stats_table):
         row_format = '{:<12} {:<12} {:<12} {:<12} {:<12}'
