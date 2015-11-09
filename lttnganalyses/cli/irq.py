@@ -310,8 +310,6 @@ class IrqAnalysisCommand(Command):
 
             counts[index] += 1
 
-        graph_data = []
-
         for index, count in enumerate(counts):
             lower_bound = index * step + min_duration
             upper_bound = (index + 1) * step + min_duration

@@ -60,8 +60,11 @@ class ColumnDescription:
 
 
 class TableClass:
-    def __init__(self, name, title, column_descriptions_tuples=[],
+    def __init__(self, name, title, column_descriptions_tuples=None,
                  inherit=None):
+        if column_descriptions_tuples is None:
+            column_descriptions_tuples = []
+
         self._inherit = inherit
         self._name = name
         self._title = title
@@ -132,10 +135,6 @@ class ResultTable:
     @property
     def subtitle(self):
         return self._subtitle
-
-    @property
-    def title(self):
-        return self._table_class.title
 
     def append_row(self, **kwargs):
         row = self._column_named_tuple(**kwargs)

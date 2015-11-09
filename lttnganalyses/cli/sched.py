@@ -24,7 +24,6 @@
 from .command import Command
 from ..core import sched
 from ..linuxautomaton import common
-from ..ascii_graph import Pyasciigraph
 from . import mi
 import math
 import operator
@@ -349,7 +348,7 @@ class SchedAnalysisCommand(Command):
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PRIO_STATS,
                                          begin_ns, end_ns)
 
-        prio_sched_lists, prio_stats = self._get_prio_sched_lists_stats()
+        _, prio_stats = self._get_prio_sched_lists_stats()
 
         for prio in sorted(prio_stats):
             stats = prio_stats[prio]
@@ -445,8 +444,8 @@ class SchedAnalysisCommand(Command):
             buckets.append(i * step)
             counts.append(0)
 
-        for sched in sched_list:
-            duration = sched.latency / 1000
+        for sched_event in sched_list:
+            duration = sched_event.latency / 1000
             index = int((duration - min_duration) / step)
 
             if index >= resolution:

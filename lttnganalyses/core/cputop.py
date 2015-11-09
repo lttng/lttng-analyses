@@ -87,7 +87,6 @@ class Cputop(Analysis):
         timestamp = kwargs['timestamp']
         cpu_id = kwargs['cpu_id']
         wakee_proc = kwargs['wakee_proc']
-        next_tid = kwargs['next_tid']
 
         if not self._filter_cpu(cpu_id):
             return

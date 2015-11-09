@@ -840,7 +840,6 @@ class IoAnalysisCommand(Command):
         if not result_table.rows:
             return
 
-        values = []
         graph = Pyasciigraph()
         graph_data = []
 
@@ -1082,7 +1081,6 @@ class IoAnalysisCommand(Command):
 
         result_table = self._mi_create_result_table(
             self._MI_TABLE_CLASS_PART_LATENCY_STATS, begin, end)
-        append_fn = self._append_latency_stats_row_from_requests
 
         for disk in self._analysis.disks.values():
             if disk.rq_count:
