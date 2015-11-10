@@ -61,11 +61,14 @@ class Command:
         return self._mi_mode
 
     def run(self):
-        self._parse_args()
-        self._open_trace()
-        self._create_analysis()
-        self._run_analysis()
-        self._close_trace()
+        try:
+            self._parse_args()
+            self._open_trace()
+            self._create_analysis()
+            self._run_analysis()
+            self._close_trace()
+        except KeyboardInterrupt:
+            sys.exit(0)
 
     def _error(self, msg, exit_code=1):
         try:
