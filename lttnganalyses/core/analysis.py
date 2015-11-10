@@ -146,18 +146,20 @@ class Analysis:
                         self._period_start_ts = None
                 elif ev.name == self._conf.period_begin_ev_name:
                     self._end_period()
-                    self._period_key = period_key
-                    self._period_start_ts = ev.timestamp
+                    self._begin_period(period_key, ev.timestamp)
         elif ev.name == self._conf.period_begin_ev_name:
-            self._period_key = period_key
-            self._period_start_ts = ev.timestamp
+            self._begin_period(period_key, ev.timestamp)
+
+    def _begin_period(self, period_key, timestamp):
+        self._period_key = period_key
+        self._period_start_ts = timestamp
+        self.reset()
 
     def _end_period(self):
         self._end_period_cb()
         self._send_notification_cb(Analysis.TICK_CB,
                                    begin_ns=self._period_start_ts,
                                    end_ns=self._last_event_ts)
-        self.reset()
 
     def _end_period_cb(self):
         pass
