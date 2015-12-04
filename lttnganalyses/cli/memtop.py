@@ -22,11 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import operator
 from .command import Command
 from ..core import memtop
 from ..ascii_graph import Pyasciigraph
 from . import mi
-import operator
 
 
 class Memtop(Command):

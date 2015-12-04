@@ -22,10 +22,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import operator
 from .command import Command
 from ..core import cputop
 from ..ascii_graph import Pyasciigraph
-import operator
 from . import mi
 
 

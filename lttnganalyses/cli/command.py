@@ -2,6 +2,7 @@
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
 #               2015 - Philippe Proulx <pproulx@efficios.com>
+#               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,19 +22,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from ..core import analysis
-from ..linuxautomaton import automaton
-from .. import __version__
-from . import progressbar
-from ..linuxautomaton import common
-from .. import _version
-from babeltrace import TraceCollection
 import argparse
-import sys
-import subprocess
 import json
 import re
+import sys
+import subprocess
+from babeltrace import TraceCollection
 from . import mi
+from .. import _version
+from . import progressbar
+from .. import __version__
+from ..core import analysis
+from ..linuxautomaton import common
+from ..linuxautomaton import automaton
 
 
 class Command:

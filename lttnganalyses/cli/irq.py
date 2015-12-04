@@ -22,15 +22,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .command import Command
-from ..core import irq as core_irq
-from ..linuxautomaton import common, sv
-from ..ascii_graph import Pyasciigraph
-from . import mi
-import math
 import itertools
+import math
 import statistics
 import sys
+from . import mi
+from .command import Command
+from ..core import irq as core_irq
+from ..ascii_graph import Pyasciigraph
+from ..linuxautomaton import common, sv
 
 
 class IrqAnalysisCommand(Command):

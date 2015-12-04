@@ -22,11 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .command import Command
-from ..core import cputop
-from ..ascii_graph import Pyasciigraph
 import operator
 from . import mi
+from ..core import cputop
+from .command import Command
+from ..ascii_graph import Pyasciigraph
 
 
 class Cputop(Command):

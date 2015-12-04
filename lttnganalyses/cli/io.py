@@ -22,15 +22,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .command import Command
-from ..core import io
-from ..linuxautomaton import common
-from ..ascii_graph import Pyasciigraph
-from . import mi
+import collections
 import operator
 import statistics
-import collections
 import sys
+from . import mi
+from ..core import io
+from .command import Command
+from ..linuxautomaton import common
+from ..ascii_graph import Pyasciigraph
 
 
 _UsageTables = collections.namedtuple('_UsageTables', [

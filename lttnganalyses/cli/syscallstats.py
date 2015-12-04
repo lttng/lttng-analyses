@@ -22,12 +22,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .command import Command
-from ..core import syscalls
-from . import mi
+import errno
 import operator
 import statistics
-import errno
+from . import mi
+from ..core import syscalls
+from .command import Command
 
 
 class SyscallsAnalysis(Command):
