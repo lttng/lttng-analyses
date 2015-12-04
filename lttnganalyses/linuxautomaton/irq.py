@@ -34,11 +34,7 @@ class IrqStateProvider(sp.StateProvider):
             'softirq_exit': self._process_softirq_exit
         }
 
-        self._state = state
-        self._register_cbs(cbs)
-
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _get_cpu(self, cpu_id):
         if cpu_id not in self._state.cpus:

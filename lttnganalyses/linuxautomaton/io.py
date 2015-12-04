@@ -22,8 +22,8 @@
 # SOFTWARE.
 
 import socket
-from . import sp, sv, common
 from babeltrace import CTFScope
+from . import sp, sv, common
 
 
 class IoStateProvider(sp.StateProvider):
@@ -37,11 +37,7 @@ class IoStateProvider(sp.StateProvider):
             'mm_page_free': self._process_mm_page_free
         }
 
-        self._state = state
-        self._register_cbs(cbs)
-
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _process_syscall_entry(self, event):
         # Only handle IO Syscalls

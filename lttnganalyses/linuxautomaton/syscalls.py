@@ -31,11 +31,7 @@ class SyscallsStateProvider(sp.StateProvider):
             'syscall_exit': self._process_syscall_exit
         }
 
-        self._state = state
-        self._register_cbs(cbs)
-
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _process_syscall_entry(self, event):
         cpu_id = event['cpu_id']

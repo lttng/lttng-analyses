@@ -31,11 +31,7 @@ class NetStateProvider(sp.StateProvider):
             'netif_receive_skb': self._process_netif_receive_skb,
         }
 
-        self._state = state
-        self._register_cbs(cbs)
-
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _process_net_dev_xmit(self, event):
         self._state.send_notification_cb('net_dev_xmit',

@@ -33,12 +33,8 @@ class BlockStateProvider(sp.StateProvider):
             'block_bio_backmerge': self._process_block_bio_backmerge,
         }
 
-        self._state = state
+        super().__init__(state, cbs)
         self._remap_requests = []
-        self._register_cbs(cbs)
-
-    def process_event(self, ev):
-        self._process_event_cb(ev)
 
     def _process_block_bio_remap(self, event):
         dev = event['dev']

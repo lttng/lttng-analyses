@@ -36,11 +36,7 @@ class SchedStateProvider(sp.StateProvider):
             'sched_process_exec': self._process_sched_process_exec,
         }
 
-        self._state = state
-        self._register_cbs(cbs)
-
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _fix_process(self, tid, pid, comm):
         """Fix a process' pid and comm if it exists, create it otherwise"""

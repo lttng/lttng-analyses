@@ -22,13 +22,11 @@
 
 
 class StateProvider:
-    def process_event(self, ev):
-        raise NotImplementedError()
-
-    def _register_cbs(self, cbs):
+    def __init__(self, state, cbs):
+        self._state = state
         self._cbs = cbs
 
-    def _process_event_cb(self, ev):
+    def process_event(self, ev):
         name = ev.name
 
         if name in self._cbs:

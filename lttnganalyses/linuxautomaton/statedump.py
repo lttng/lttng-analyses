@@ -26,17 +26,14 @@ from . import sp, sv, common
 
 class StatedumpStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self._state = state
         cbs = {
             'lttng_statedump_process_state':
             self._process_lttng_statedump_process_state,
             'lttng_statedump_file_descriptor':
             self._process_lttng_statedump_file_descriptor
         }
-        self._register_cbs(cbs)
 
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _process_lttng_statedump_process_state(self, event):
         tid = event['tid']
