@@ -26,7 +26,9 @@ class AnalysisConfig:
         self.refresh_period = None
         self.period_begin_ev_name = None
         self.period_end_ev_name = None
-        self.period_key_fields = None
+        self.period_begin_key_fields = None
+        self.period_end_key_fields = None
+        self.period_key_value = None
         self.begin_ts = None
         self.end_ts = None
         self.min_duration = None
@@ -131,13 +133,15 @@ class Analysis:
            ev.name != self._conf.period_end_ev_name:
             return
 
-        period_key = self._get_period_event_key(ev)
-        if not period_key:
-            # There was an error caused by a missing field, ignore
-            # this period event
-            return
-
         if self._period_key:
+            period_key = Analysis._get_period_event_key(
+                ev, self._conf.period_end_key_fields)
+
+            if not period_key:
+                # There was an error caused by a missing field, ignore
+                # this period event
+                return
+
             if period_key == self._period_key:
                 if self._conf.period_end_ev_name:
                     if ev.name == self._conf.period_end_ev_name:
@@ -148,6 +152,18 @@ class Analysis:
                     self._end_period()
                     self._begin_period(period_key, ev.timestamp)
         elif ev.name == self._conf.period_begin_ev_name:
+            period_key = Analysis._get_period_event_key(
+                ev, self._conf.period_begin_key_fields)
+
+            if not period_key:
+                return
+
+            if self._conf.period_key_value:
+                # Must convert the period key to string for comparison
+                str_period_key = tuple(map(str, period_key))
+                if self._conf.period_key_value != str_period_key:
+                    return
+
             self._begin_period(period_key, ev.timestamp)
 
     def _begin_period(self, period_key, timestamp):
@@ -164,13 +180,14 @@ class Analysis:
     def _end_period_cb(self):
         pass
 
-    def _get_period_event_key(self, ev):
-        if not self._conf.period_key_fields:
+    @staticmethod
+    def _get_period_event_key(ev, key_fields):
+        if not key_fields:
             return None
 
         key_values = []
 
-        for field in self._conf.period_key_fields:
+        for field in key_fields:
             try:
                 key_values.append(ev[field])
             except KeyError:

@@ -76,7 +76,7 @@ class Command:
             import termcolor
 
             msg = termcolor.colored(msg, 'red', attrs=['bold'])
-        except:
+        except ImportError:
             pass
 
         print(msg, file=sys.stderr)
@@ -250,7 +250,20 @@ class Command:
         self._analysis_conf.refresh_period = refresh_period_ns
         self._analysis_conf.period_begin_ev_name = args.period_begin
         self._analysis_conf.period_end_ev_name = args.period_end
-        self._analysis_conf.period_key_fields = args.period_key.split(',')
+        self._analysis_conf.period_begin_key_fields = \
+                                            args.period_begin_key.split(',')
+
+        if args.period_end_key:
+            self._analysis_conf.period_end_key_fields = \
+                                            args.period_end_key.split(',')
+        else:
+            self._analysis_conf.period_end_key_fields = \
+                                    self._analysis_conf.period_begin_key_fields
+
+        if args.period_key_value:
+            self._analysis_conf.period_key_value = \
+                                        tuple(args.period_key_value.split(','))
+
         if args.cpu:
             self._analysis_conf.cpu_list = args.cpu.split(',')
             self._analysis_conf.cpu_list = [int(cpu) for cpu in
@@ -323,9 +336,16 @@ class Command:
         ap.add_argument('--period-end', type=str,
                         help='Analysis period end marker event name '
                         '(requires --period-begin)')
-        ap.add_argument('--period-key', type=str, default='cpu_id',
+        ap.add_argument('--period-begin-key', type=str, default='cpu_id',
                         help='Optional, list of event field names used to '
                         'match period markers (default: cpu_id)')
+        ap.add_argument('--period-end-key', type=str,
+                        help='Optional, list of event field names used to '
+                        'match period marker. If none specified, use the same '
+                        ' --period-begin-key')
+        ap.add_argument('--period-key-value', type=str,
+                        help='Optional, define a fixed key value to which a'
+                        ' period must correspond to be considered.')
         ap.add_argument('--cpu', type=str,
                         help='Filter the results only for this list of '
                         'CPU IDs')
