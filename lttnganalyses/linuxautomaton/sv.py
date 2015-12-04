@@ -30,10 +30,11 @@ class StateVariable:
 
 
 class Process():
-    def __init__(self, tid=None, pid=None, comm=''):
+    def __init__(self, tid=None, pid=None, comm='', prio=None):
         self.tid = tid
         self.pid = pid
         self.comm = comm
+        self.prio = prio
         # indexed by fd
         self.fds = {}
         self.current_syscall = None

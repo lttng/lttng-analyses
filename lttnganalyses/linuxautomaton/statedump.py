@@ -39,27 +39,30 @@ class StatedumpStateProvider(sp.StateProvider):
         tid = event['tid']
         pid = event['pid']
         name = event['name']
+        # prio is not in the payload for LTTng-modules < 2.8. Using
+        # get() will set it to None if the key is not found
+        prio = event.get('prio')
+
         if tid not in self._state.tids:
-            proc = sv.Process()
-            proc.tid = tid
-            self._state.tids[tid] = proc
-        else:
-            proc = self._state.tids[tid]
+            self._state.tids[tid] = sv.Process(tid=tid)
+
+        proc = self._state.tids[tid]
         # Even if the process got created earlier, some info might be
         # missing, add it now.
         proc.pid = pid
         proc.comm = name
+        proc.prio = prio
 
         if pid != tid:
             # create the parent
             if pid not in self._state.tids:
-                parent = sv.Process()
-                parent.tid = pid
-                parent.pid = pid
-                parent.comm = name
-                self._state.tids[pid] = parent
-            else:
-                parent = self._state.tids[pid]
+                # FIXME: why is the parent's name set to that of the
+                # child? does that make sense?
+
+                # tid == pid for the parent process
+                self._state.tids[pid] = sv.Process(tid=pid, pid=pid, comm=name)
+
+            parent = self._state.tids[pid]
             # If the thread had opened FDs, they need to be assigned
             # to the parent.
             StatedumpStateProvider._assign_fds_to_parent(proc, parent)
@@ -74,12 +77,9 @@ class StatedumpStateProvider(sp.StateProvider):
         cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
 
         if pid not in self._state.tids:
-            proc = sv.Process()
-            proc.pid = pid
-            proc.tid = pid
-            self._state.tids[pid] = proc
-        else:
-            proc = self._state.tids[pid]
+            self._state.tids[pid] = sv.Process(tid=pid, pid=pid)
+
+        proc = self._state.tids[pid]
 
         if fd not in proc.fds:
             proc.fds[fd] = sv.FD(fd, filename, sv.FDType.unknown, cloexec)

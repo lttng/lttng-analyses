@@ -339,5 +339,6 @@ class IoStateProvider(sp.StateProvider):
                 proc.pid = event['pid']
                 if event['pid'] != proc.tid:
                     proc.pid = event['pid']
-                    parent_proc = sv.Process(proc.pid, proc.pid, proc.comm)
+                    parent_proc = sv.Process(proc.pid, proc.pid, proc.comm,
+                                             proc.prio)
                     self._state.tids[parent_proc.pid] = parent_proc

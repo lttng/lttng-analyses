@@ -110,7 +110,6 @@ class Cputop(Analysis):
         prev_tid = kwargs['prev_tid']
         next_tid = kwargs['next_tid']
         next_comm = kwargs['next_comm']
-        next_prio = kwargs['next_prio']
 
         if not self._filter_cpu(cpu_id):
             return
@@ -131,7 +130,7 @@ class Cputop(Analysis):
 
         next_proc = self.tids[next_tid]
         next_proc.last_sched_ts = timestamp
-        next_proc.prio = next_prio
+        next_proc.prio = wakee_proc.prio
 
     def _process_sched_migrate_task(self, **kwargs):
         cpu_id = kwargs['cpu_id']

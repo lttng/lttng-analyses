@@ -21,13 +21,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from collections import namedtuple
 from .analysis import Analysis
+
+
+PrioEvent = namedtuple('PrioEvent', ['timestamp', 'prio'])
 
 
 class SchedAnalysis(Analysis):
     def __init__(self, state, conf):
         notification_cbs = {
             'sched_switch_per_tid': self._process_sched_switch,
+            'prio_changed': self._process_prio_changed,
         }
 
         super().__init__(state, conf)
@@ -57,11 +62,10 @@ class SchedAnalysis(Analysis):
     def _process_sched_switch(self, **kwargs):
         cpu_id = kwargs['cpu_id']
         switch_ts = kwargs['timestamp']
-        wakeup_ts = kwargs['wakeup_ts']
         wakee_proc = kwargs['wakee_proc']
         waker_proc = kwargs['waker_proc']
         next_tid = kwargs['next_tid']
-        next_prio = kwargs['next_prio']
+        wakeup_ts = wakee_proc.last_wakeup
 
         if not self._filter_process(wakee_proc):
             return
@@ -86,10 +90,20 @@ class SchedAnalysis(Analysis):
         if next_tid not in self.tids:
             self.tids[next_tid] = SchedStats.new_from_process(wakee_proc)
 
-        sched_event = SchedEvent(wakeup_ts, switch_ts, wakee_proc, waker_proc,
-                                 next_prio, cpu_id)
+        sched_event = SchedEvent(
+            wakeup_ts, switch_ts, wakee_proc, waker_proc, cpu_id)
         self.tids[next_tid].update_stats(sched_event)
         self._update_stats(sched_event)
+
+    def _process_prio_changed(self, **kwargs):
+        timestamp = kwargs['timestamp']
+        prio = kwargs['prio']
+        tid = kwargs['tid']
+
+        if tid not in self.tids:
+            return
+
+        self.tids[tid].prio_list.append(PrioEvent(timestamp, prio))
 
     def _update_stats(self, sched_event):
         if self.min_latency is None or sched_event.latency < self.min_latency:
@@ -110,6 +124,7 @@ class SchedStats():
         self.max_latency = None
         self.total_latency = 0
         self.sched_list = []
+        self.prio_list = []
 
     @classmethod
     def new_from_process(cls, proc):
@@ -134,15 +149,16 @@ class SchedStats():
         self.max_latency = None
         self.total_latency = 0
         self.sched_list = []
+        self.prio_list = []
 
 
 class SchedEvent():
-    def __init__(self, wakeup_ts, switch_ts, wakee_proc, waker_proc, prio,
+    def __init__(self, wakeup_ts, switch_ts, wakee_proc, waker_proc,
                  target_cpu):
         self.wakeup_ts = wakeup_ts
         self.switch_ts = switch_ts
         self.wakee_proc = wakee_proc
         self.waker_proc = waker_proc
-        self.prio = prio
+        self.prio = wakee_proc.prio
         self.target_cpu = target_cpu
         self.latency = switch_ts - wakeup_ts
