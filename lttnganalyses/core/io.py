@@ -33,6 +33,7 @@ class IoAnalysis(Analysis):
             'io_rq_exit': self._process_io_rq_exit,
             'create_fd': self._process_create_fd,
             'close_fd': self._process_close_fd,
+            'update_fd': self._process_update_fd,
             'create_parent_proc': self._process_create_parent_proc
         }
 
@@ -301,6 +302,15 @@ class IoAnalysis(Analysis):
         parent_stats = self.tids[tid]
         last_fd = parent_stats.get_fd(fd)
         last_fd.close_ts = timestamp
+
+    def _process_update_fd(self, **kwargs):
+        parent_proc = kwargs['parent_proc']
+        tid = parent_proc.tid
+        fd = kwargs['fd']
+
+        new_filename = parent_proc.fds[fd].filename
+        fd_list = self.tids[tid].fds[fd]
+        fd_list[-1].filename = new_filename
 
 
 class DiskStats():

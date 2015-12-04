@@ -91,6 +91,11 @@ class StatedumpStateProvider(sp.StateProvider):
         else:
             # just fix the filename
             proc.fds[fd].filename = filename
+            self._state.send_notification_cb('update_fd',
+                                             fd=fd,
+                                             parent_proc=proc,
+                                             timestamp=event.timestamp,
+                                             cpu_id=event['cpu_id'])
 
     @staticmethod
     def _assign_fds_to_parent(proc, parent):
