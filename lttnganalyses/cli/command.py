@@ -24,6 +24,7 @@
 
 import argparse
 import json
+import os
 import re
 import sys
 import subprocess
@@ -172,9 +173,18 @@ class Command:
             self._traces.remove_trace(handle)
 
     def _read_tracer_version(self):
+        kernel_path = None
+        for root, _, _ in os.walk(self._args.path):
+            if root.endswith('kernel'):
+                kernel_path = root
+                break
+
+        if kernel_path is None:
+            self._gen_error('Could not find kernel trace directory')
+
         try:
             metadata = subprocess.getoutput(
-                'babeltrace -o ctf-metadata "%s"' % self._args.path)
+                'babeltrace -o ctf-metadata "%s"' % kernel_path)
         except subprocess.CalledProcessError:
             self._gen_error('Cannot run babeltrace on the trace, cannot read'
                             ' tracer version')
