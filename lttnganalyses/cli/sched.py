@@ -103,6 +103,7 @@ class SchedAnalysisCommand(Command):
                 ('max_latency', 'Maximum latency', mi.Duration),
                 ('stdev_latency', 'Scheduling latency standard deviation',
                  mi.Duration),
+                ('prio_list', 'Chronological priorities', mi.String),
             ]
         ),
         (
@@ -410,6 +411,9 @@ class SchedAnalysisCommand(Command):
             else:
                 stdev = mi.Duration(stdev)
 
+            prio_list = str([prio_evt.prio for
+                             prio_evt in tid_stats.prio_list])
+
             stats_table.append_row(
                 process=mi.Process(tid=tid_stats.tid, name=tid_stats.comm),
                 count=mi.Integer(tid_stats.count),
@@ -418,6 +422,7 @@ class SchedAnalysisCommand(Command):
                                         tid_stats.count),
                 max_latency=mi.Duration(tid_stats.max_latency),
                 stdev_latency=stdev,
+                prio_list=mi.String(prio_list),
             )
 
         return stats_table
@@ -734,9 +739,9 @@ class SchedAnalysisCommand(Command):
                 print(row_str)
 
     def _print_per_tid_stats(self, stats_table):
-        row_format = '{:<25} {:>8}  {:>12}  {:>12}  {:>12}  {:>12}'
+        row_format = '{:<25} {:>8}  {:>12}  {:>12}  {:>12}  {:>12} {}'
         header = row_format.format(
-            'Process', 'Count', 'Min', 'Avg', 'Max', 'Stdev'
+            'Process', 'Count', 'Min', 'Avg', 'Max', 'Stdev', 'Priorities'
         )
 
         if stats_table.rows:
@@ -759,6 +764,7 @@ class SchedAnalysisCommand(Command):
                     '%0.03f' % row.avg_latency.to_us(),
                     '%0.03f' % row.max_latency.to_us(),
                     '%s' % stdev_str,
+                    '%s' % row.prio_list.value,
                 )
 
                 print(row_str)
