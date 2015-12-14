@@ -149,7 +149,9 @@ class SchedStats():
         self.max_latency = None
         self.total_latency = 0
         self.sched_list = []
-        self.prio_list = []
+        if self.prio_list:
+            # Keep the last prio as the first for the next period
+            self.prio_list = self.prio_list[-1:]
 
 
 class SchedEvent():
