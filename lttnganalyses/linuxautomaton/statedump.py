@@ -51,7 +51,10 @@ class StatedumpStateProvider(sp.StateProvider):
         # missing, add it now.
         proc.pid = pid
         proc.comm = name
-        proc.prio = prio
+        # However don't override the prio value if we already got the
+        # information from sched_* events.
+        if proc.prio is None:
+            proc.prio = prio
 
         if pid != tid:
             # create the parent
