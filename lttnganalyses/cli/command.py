@@ -32,6 +32,7 @@ from . import mi
 from .. import _version
 from . import progressbar
 from .. import __version__
+from ..common import version_utils
 from ..core import analysis
 from ..linuxautomaton import common
 from ..linuxautomaton import automaton
@@ -494,9 +495,9 @@ class Command:
 # create MI version
 _cmd_version = _version.get_versions()['version']
 _version_match = re.match(r'(\d+)\.(\d+)\.(\d+)(.*)', _cmd_version)
-Command._MI_VERSION = [
+Command._MI_VERSION = version_utils.Version(
     int(_version_match.group(1)),
     int(_version_match.group(2)),
     int(_version_match.group(3)),
     _version_match.group(4),
-]
+)
