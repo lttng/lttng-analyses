@@ -86,9 +86,11 @@ class SchedAnalysis(Analysis):
         if waker_proc is not None and waker_proc.tid not in self.tids:
             self.tids[waker_proc.tid] = \
                 SchedStats.new_from_process(waker_proc)
+            self.tids[waker_proc.tid].update_prio(switch_ts, waker_proc.prio)
 
         if next_tid not in self.tids:
             self.tids[next_tid] = SchedStats.new_from_process(wakee_proc)
+            self.tids[next_tid].update_prio(switch_ts, wakee_proc.prio)
 
         sched_event = SchedEvent(
             wakeup_ts, switch_ts, wakee_proc, waker_proc, cpu_id)
@@ -103,7 +105,7 @@ class SchedAnalysis(Analysis):
         if tid not in self.tids:
             return
 
-        self.tids[tid].prio_list.append(PrioEvent(timestamp, prio))
+        self.tids[tid].update_prio(timestamp, prio)
 
     def _update_stats(self, sched_event):
         if self.min_latency is None or sched_event.latency < self.min_latency:
@@ -143,6 +145,9 @@ class SchedStats():
 
         self.total_latency += sched_event.latency
         self.sched_list.append(sched_event)
+
+    def update_prio(self, timestamp, prio):
+        self.prio_list.append(PrioEvent(timestamp, prio))
 
     def reset(self):
         self.min_latency = None
