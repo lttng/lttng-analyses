@@ -163,12 +163,34 @@ class Command:
         self._handles = handles
         self._traces = traces
         self._process_date_args()
+        self._read_tracer_version()
         if not self._args.skip_validation:
             self._check_lost_events()
 
     def _close_trace(self):
         for handle in self._handles.values():
             self._traces.remove_trace(handle)
+
+    def _read_tracer_version(self):
+        try:
+            metadata = subprocess.getoutput(
+                'babeltrace -o ctf-metadata "%s"' % self._args.path)
+        except subprocess.CalledProcessError:
+            self._gen_error('Cannot run babeltrace on the trace, cannot read'
+                            ' tracer version')
+
+        major_match = re.search(r'tracer_major = (\d+)', metadata)
+        minor_match = re.search(r'tracer_minor = (\d+)', metadata)
+        patch_match = re.search(r'tracer_patchlevel = (\d+)', metadata)
+
+        if not major_match or not minor_match or not patch_match:
+            self._gen_error('Malformed metadata, cannot read tracer version')
+
+        self.state.tracer_version = version_utils.Version(
+            int(major_match.group(1)),
+            int(minor_match.group(1)),
+            int(patch_match.group(1)),
+        )
 
     def _check_lost_events(self):
         self._print('Checking the trace for lost events...')
