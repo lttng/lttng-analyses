@@ -398,7 +398,7 @@ class SchedAnalysisCommand(Command):
                                          begin_ns, end_ns)
 
         tid_stats_list = sorted(list(self._analysis.tids.values()),
-                                key=operator.attrgetter('comm'))
+                                key=lambda proc: proc.comm.lower())
 
         for tid_stats in tid_stats_list:
             if not tid_stats.sched_list:
