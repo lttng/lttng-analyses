@@ -289,9 +289,9 @@ class IoAnalysisCommand(Command):
             process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                tid=proc_stats.tid),
             size=mi.Size(proc_stats.total_read),
-            disk_size=mi.Size(proc_stats.disk_read),
-            net_size=mi.Size(proc_stats.net_read),
-            unknown_size=mi.Size(proc_stats.unk_read),
+            disk_size=mi.Size(proc_stats.disk_io.read),
+            net_size=mi.Size(proc_stats.net_io.read),
+            unknown_size=mi.Size(proc_stats.unk_io.read),
         )
 
         return True
@@ -301,15 +301,15 @@ class IoAnalysisCommand(Command):
             process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                tid=proc_stats.tid),
             size=mi.Size(proc_stats.total_write),
-            disk_size=mi.Size(proc_stats.disk_write),
-            net_size=mi.Size(proc_stats.net_write),
-            unknown_size=mi.Size(proc_stats.unk_write),
+            disk_size=mi.Size(proc_stats.disk_io.write),
+            net_size=mi.Size(proc_stats.net_io.write),
+            unknown_size=mi.Size(proc_stats.unk_io.write),
         )
 
         return True
 
     def _append_per_proc_block_read_usage_row(self, proc_stats, result_table):
-        if proc_stats.block_read == 0:
+        if proc_stats.block_io.read == 0:
             return False
 
         if proc_stats.comm:
@@ -320,13 +320,13 @@ class IoAnalysisCommand(Command):
         result_table.append_row(
             process=mi.Process(proc_name, pid=proc_stats.pid,
                                tid=proc_stats.tid),
-            size=mi.Size(proc_stats.block_read),
+            size=mi.Size(proc_stats.block_io.read),
         )
 
         return True
 
     def _append_per_proc_block_write_usage_row(self, proc_stats, result_table):
-        if proc_stats.block_write == 0:
+        if proc_stats.block_io.write == 0:
             return False
 
         if proc_stats.comm:
@@ -337,7 +337,7 @@ class IoAnalysisCommand(Command):
         result_table.append_row(
             process=mi.Process(proc_name, pid=proc_stats.pid,
                                tid=proc_stats.tid),
-            size=mi.Size(proc_stats.block_write),
+            size=mi.Size(proc_stats.block_io.write),
         )
 
         return True
@@ -402,26 +402,26 @@ class IoAnalysisCommand(Command):
         return fd_by_pid_str
 
     def _append_file_read_usage_row(self, file_stats, result_table):
-        if file_stats.read == 0:
+        if file_stats.io.read == 0:
             return False
 
         fd_owners = self._get_file_stats_fd_owners_str(file_stats)
         result_table.append_row(
             path=mi.Path(file_stats.filename),
-            size=mi.Size(file_stats.read),
+            size=mi.Size(file_stats.io.read),
             fd_owners=mi.String(fd_owners),
         )
 
         return True
 
     def _append_file_write_usage_row(self, file_stats, result_table):
-        if file_stats.write == 0:
+        if file_stats.io.write == 0:
             return False
 
         fd_owners = self._get_file_stats_fd_owners_str(file_stats)
         result_table.append_row(
             path=mi.Path(file_stats.filename),
-            size=mi.Size(file_stats.write),
+            size=mi.Size(file_stats.io.write),
             fd_owners=mi.String(fd_owners),
         )
 
@@ -457,7 +457,7 @@ class IoAnalysisCommand(Command):
 
     def _fill_per_process_block_read_usage_result_table(self, result_table):
         input_list = sorted(self._analysis.tids.values(),
-                            key=operator.attrgetter('block_read'),
+                            key=operator.attrgetter('block_io.read'),
                             reverse=True)
         self._fill_usage_result_table(
             input_list, self._append_per_proc_block_read_usage_row,
@@ -465,7 +465,7 @@ class IoAnalysisCommand(Command):
 
     def _fill_per_process_block_write_usage_result_table(self, result_table):
         input_list = sorted(self._analysis.tids.values(),
-                            key=operator.attrgetter('block_write'),
+                            key=operator.attrgetter('block_io.write'),
                             reverse=True)
         self._fill_usage_result_table(
             input_list, self._append_per_proc_block_write_usage_row,
@@ -511,7 +511,7 @@ class IoAnalysisCommand(Command):
 
     def _fill_file_read_usage_result_table(self, files, result_table):
         input_list = sorted(files.values(),
-                            key=lambda file_stats: file_stats.read,
+                            key=lambda file_stats: file_stats.io.read,
                             reverse=True)
         self._fill_usage_result_table(input_list,
                                       self._append_file_read_usage_row,
@@ -519,7 +519,7 @@ class IoAnalysisCommand(Command):
 
     def _fill_file_write_usage_result_table(self, files, result_table):
         input_list = sorted(files.values(),
-                            key=lambda file_stats: file_stats.write,
+                            key=lambda file_stats: file_stats.io.write,
                             reverse=True)
         self._fill_usage_result_table(input_list,
                                       self._append_file_write_usage_row,
