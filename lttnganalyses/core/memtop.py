@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from . import stats
 from .analysis import Analysis
 
 
@@ -70,17 +71,12 @@ class Memtop(Analysis):
         self.tids[tid].freed_pages += 1
 
 
-class ProcessMemStats():
+class ProcessMemStats(stats.Process):
     def __init__(self, pid, tid, comm):
-        self.pid = pid
-        self.tid = tid
-        self.comm = comm
+        super().__init__(pid, tid, comm)
+
         self.allocated_pages = 0
         self.freed_pages = 0
-
-    @classmethod
-    def new_from_process(cls, proc):
-        return cls(proc.pid, proc.tid, proc.comm)
 
     def reset(self):
         self.allocated_pages = 0

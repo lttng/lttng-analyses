@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from . import stats
 from .analysis import Analysis
 
 
@@ -36,6 +37,7 @@ class SyscallsAnalysis(Analysis):
         self.total_syscalls = 0
 
     def reset(self):
+        # FIXME why no reset?
         pass
 
     def _process_syscall_exit(self, **kwargs):
@@ -62,18 +64,16 @@ class SyscallsAnalysis(Analysis):
         self.total_syscalls += 1
 
 
-class ProcessSyscallStats():
+class ProcessSyscallStats(stats.Process):
     def __init__(self, pid, tid, comm):
-        self.pid = pid
-        self.tid = tid
-        self.comm = comm
+        super().__init__(pid, tid, comm)
+
         # indexed by syscall name
         self.syscalls = {}
         self.total_syscalls = 0
 
-    @classmethod
-    def new_from_process(cls, proc):
-        return cls(proc.pid, proc.tid, proc.comm)
+    def reset(self):
+        pass
 
 
 class SyscallStats():
