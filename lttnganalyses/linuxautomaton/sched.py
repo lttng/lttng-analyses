@@ -131,9 +131,9 @@ class SchedStateProvider(sp.StateProvider):
         else:
             proc = self._state.tids[tid]
 
-        self._check_prio_changed(event.timestamp, tid, prio)
         self._state.send_notification_cb(
             'sched_migrate_task', proc=proc, cpu_id=event['cpu_id'])
+        self._check_prio_changed(event.timestamp, tid, prio)
 
     def _process_sched_wakeup(self, event):
         target_cpu = event['target_cpu']

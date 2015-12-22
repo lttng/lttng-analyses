@@ -20,6 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from collections import namedtuple
+
+
+PrioEvent = namedtuple('PrioEvent', ['timestamp', 'prio'])
+
+
 class Stats():
     def reset(self):
         raise NotImplementedError()
@@ -30,10 +36,19 @@ class Process(Stats):
         self.pid = pid
         self.tid = tid
         self.comm = comm
+        self.prio_list = []
 
     @classmethod
     def new_from_process(cls, proc):
         return cls(proc.pid, proc.tid, proc.comm)
+
+    def update_prio(self, timestamp, prio):
+        self.prio_list.append(PrioEvent(timestamp, prio))
+
+    def reset(self):
+        if self.prio_list:
+            # Keep the last prio as the first for the next period
+            self.prio_list = self.prio_list[-1:]
 
 
 class IO(Stats):

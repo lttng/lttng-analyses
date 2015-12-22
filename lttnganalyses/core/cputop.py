@@ -21,6 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from . import stats
 from .analysis import Analysis
 
 
@@ -29,7 +30,8 @@ class Cputop(Analysis):
         notification_cbs = {
             'sched_migrate_task': self._process_sched_migrate_task,
             'sched_switch_per_cpu': self._process_sched_switch_per_cpu,
-            'sched_switch_per_tid': self._process_sched_switch_per_tid
+            'sched_switch_per_tid': self._process_sched_switch_per_tid,
+            'prio_changed': self._process_prio_changed,
         }
 
         super().__init__(state, conf)
@@ -44,11 +46,15 @@ class Cputop(Analysis):
         self._ev_count += 1
 
     def reset(self):
-        for cpu_id in self.cpus:
-            self.cpus[cpu_id].reset(self._last_event_ts)
+        for cpu_stats in self.cpus.values():
+            cpu_stats.reset()
+            if cpu_stats.last_sched_ts is not None:
+                cpu_stats.current_task_start_ts = self._last_event_ts
 
-        for tid in self.tids:
-            self.tids[tid].reset(self._last_event_ts)
+        for proc_stats in self.tids.values():
+            proc_stats.reset()
+            if proc_stats.last_sched_ts is not None:
+                proc_stats.last_sched_ts = self._last_event_ts
 
     def _end_period_cb(self):
         self._compute_stats()
@@ -126,11 +132,12 @@ class Cputop(Analysis):
             return
 
         if next_tid not in self.tids:
-            self.tids[next_tid] = ProcessCpuStats(next_tid, next_comm)
+            self.tids[next_tid] = ProcessCpuStats(None, next_tid, next_comm)
+            self.tids[next_tid].update_prio(timestamp, wakee_proc.prio)
 
         next_proc = self.tids[next_tid]
         next_proc.last_sched_ts = timestamp
-        next_proc.prio = wakee_proc.prio
+
 
     def _process_sched_migrate_task(self, **kwargs):
         cpu_id = kwargs['cpu_id']
@@ -146,6 +153,16 @@ class Cputop(Analysis):
             self.tids[tid] = ProcessCpuStats.new_from_process(proc)
 
         self.tids[tid].migrate_count += 1
+
+    def _process_prio_changed(self, **kwargs):
+        timestamp = kwargs['timestamp']
+        prio = kwargs['prio']
+        tid = kwargs['tid']
+
+        if tid not in self.tids:
+            return
+
+        self.tids[tid].update_prio(timestamp, prio)
 
     def _filter_process(self, proc):
         # Exclude swapper
@@ -173,28 +190,20 @@ class CpuUsageStats():
         else:
             self.usage_percent = 0
 
-    def reset(self, timestamp):
+    def reset(self):
         self.total_usage_time = 0
         self.usage_percent = None
-        if self.current_task_start_ts is not None:
-            self.current_task_start_ts = timestamp
 
 
-class ProcessCpuStats():
-    def __init__(self, tid, comm):
-        self.tid = tid
-        self.comm = comm
-        # Currently only the latest prio is tracked
-        self.prio = None
+class ProcessCpuStats(stats.Process):
+    def __init__(self, pid, tid, comm):
+        super().__init__(pid, tid, comm)
+
         # CPU Time and timestamp in nanoseconds (ns)
         self.total_cpu_time = 0
         self.last_sched_ts = None
         self.migrate_count = 0
         self.usage_percent = None
-
-    @classmethod
-    def new_from_process(cls, proc):
-        return cls(proc.tid, proc.comm)
 
     def compute_stats(self, duration):
         if duration != 0:
@@ -202,9 +211,8 @@ class ProcessCpuStats():
         else:
             self.usage_percent = 0
 
-    def reset(self, timestamp):
+    def reset(self):
+        super().reset()
         self.total_cpu_time = 0
         self.migrate_count = 0
         self.usage_percent = None
-        if self.last_sched_ts is not None:
-            self.last_sched_ts = timestamp

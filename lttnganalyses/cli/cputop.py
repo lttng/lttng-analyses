@@ -45,7 +45,7 @@ class Cputop(Command):
             'Per-TID top CPU usage', [
                 ('process', 'Process', mi.Process),
                 ('migrations', 'Migration count', mi.Integer, 'migrations'),
-                ('priority', 'Priority', mi.Integer),
+                ('prio_list', 'Chronological priorities', mi.String),
                 ('usage', 'CPU usage', mi.Ratio),
             ]
         ),
@@ -114,10 +114,13 @@ class Cputop(Command):
         for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
+            prio_list = str([prio_evt.prio for
+                             prio_evt in tid.prio_list])
+
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),
                 migrations=mi.Integer(tid.migrate_count),
-                priority=mi.Integer(tid.prio),
+                prio_list=mi.String(prio_list),
                 usage=mi.Ratio.from_percentage(tid.usage_percent)
             )
             count += 1
