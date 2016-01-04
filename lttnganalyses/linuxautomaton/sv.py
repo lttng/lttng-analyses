@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
@@ -32,15 +30,18 @@ class StateVariable:
 
 
 class Process():
-    def __init__(self, tid=None, pid=None, comm=''):
+    def __init__(self, tid=None, pid=None, comm='', prio=None):
         self.tid = tid
         self.pid = pid
         self.comm = comm
+        self.prio = prio
         # indexed by fd
         self.fds = {}
         self.current_syscall = None
         # the process scheduled before this one
         self.prev_tid = None
+        self.last_wakeup = None
+        self.last_waker = None
 
 
 class CPU():
@@ -133,6 +134,13 @@ class IRQ():
         self.cpu_id = cpu_id
         self.begin_ts = begin_ts
         self.end_ts = None
+
+    @property
+    def duration(self):
+        if not self.end_ts or not self.begin_ts:
+            return None
+
+        return self.end_ts - self.begin_ts
 
 
 class HardIRQ(IRQ):

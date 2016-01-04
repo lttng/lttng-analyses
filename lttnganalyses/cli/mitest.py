@@ -23,10 +23,10 @@
 # SOFTWARE.
 
 import operator
-from .command import Command
-from ..core import cputop
-from ..ascii_graph import Pyasciigraph
 from . import mi
+from ..core import cputop
+from .command import Command
+from ..ascii_graph import Pyasciigraph
 
 
 class Cputop(Command):
@@ -45,7 +45,6 @@ class Cputop(Command):
             'Per-TID top CPU usage', [
                 ('process', 'Process', mi.Process),
                 ('migrations', 'Migration count', mi.Integer, 'migrations'),
-                ('priority', 'Priority', mi.Integer),
                 ('usage', 'CPU usage', mi.Ratio),
             ]
         ),
@@ -69,6 +68,16 @@ class Cputop(Command):
             ]
         ),
     ]
+
+    def _filter_process(self, proc):
+        # Exclude swapper
+        if proc.tid == 0:
+            return False
+
+        if self._args.proc_list and proc.comm not in self._args.proc_list:
+            return False
+
+        return True
 
     def _analysis_tick(self, begin_ns, end_ns):
         per_tid_table = self._get_per_tid_usage_result_table(begin_ns, end_ns)
@@ -114,10 +123,12 @@ class Cputop(Command):
         for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
+            if not self._filter_process(tid):
+                continue
+
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),
                 migrations=mi.Integer(tid.migrate_count),
-                priority=mi.Integer(tid.prio),
                 usage=mi.Ratio.from_percentage(tid.usage_percent)
             )
             count += 1
@@ -133,7 +144,8 @@ class Cputop(Command):
                                          begin_ns, end_ns)
 
         for cpu in sorted(self._analysis.cpus.values(),
-                          key=operator.attrgetter('cpu_id')):
+                          key=operator.attrgetter('usage_percent'),
+                          reverse=True):
             result_table.append_row(
                 cpu=mi.Cpu(cpu.cpu_id),
                 usage=mi.Ratio.from_percentage(cpu.usage_percent)
@@ -172,12 +184,7 @@ class Cputop(Command):
         for row in result_table.rows:
             process_do = row.process
             migration_count = row.migrations.value
-            if row.priority.value is not None:
-                prio_str = 'prio: %d' % row.priority.value
-            else:
-                prio_str = 'prio: ?'
-            output_str = '%s (%d) (%s)' % (process_do.name, process_do.tid,
-                                           prio_str)
+            output_str = '%s (%d)' % (process_do.name, process_do.tid)
 
             if migration_count > 0:
                 output_str += ', %d migrations' % (migration_count)
@@ -204,7 +211,6 @@ class Cputop(Command):
 
     def _add_arguments(self, ap):
         Command._add_proc_filter_args(ap)
-        Command._add_top_args(ap)
 
 
 def _run(mi_mode):

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #
 # Copyright (C) 2015 - Michael Jeanson <mjeanson@efficios.com>
 #
@@ -74,6 +75,7 @@ setup(
 
     packages=[
         'lttnganalyses',
+        'lttnganalyses.common',
         'lttnganalyses.core',
         'lttnganalyses.cli',
         'lttnganalyses.linuxautomaton',
@@ -82,6 +84,7 @@ setup(
 
     entry_points={
         'console_scripts': [
+            # human-readable output
             'lttng-cputop = lttnganalyses.cli.cputop:run',
             'lttng-iolatencyfreq = lttnganalyses.cli.io:runfreq',
             'lttng-iolatencystats = lttnganalyses.cli.io:runstats',
@@ -93,6 +96,27 @@ setup(
             'lttng-irqstats = lttnganalyses.cli.irq:runstats',
             'lttng-memtop = lttnganalyses.cli.memtop:run',
             'lttng-syscallstats = lttnganalyses.cli.syscallstats:run',
+            'lttng-schedlog = lttnganalyses.cli.sched:runlog',
+            'lttng-schedtop = lttnganalyses.cli.sched:runtop',
+            'lttng-schedstats = lttnganalyses.cli.sched:runstats',
+            'lttng-schedfreq = lttnganalyses.cli.sched:runfreq',
+
+            # MI mode
+            'lttng-cputop-mi = lttnganalyses.cli.cputop:run_mi',
+            'lttng-memtop-mi = lttnganalyses.cli.memtop:run_mi',
+            'lttng-syscallstats-mi = lttnganalyses.cli.syscallstats:run_mi',
+            'lttng-irqfreq-mi = lttnganalyses.cli.irq:runfreq_mi',
+            'lttng-irqlog-mi = lttnganalyses.cli.irq:runlog_mi',
+            'lttng-irqstats-mi = lttnganalyses.cli.irq:runstats_mi',
+            'lttng-iolatencyfreq-mi = lttnganalyses.cli.io:runfreq_mi',
+            'lttng-iolatencystats-mi = lttnganalyses.cli.io:runstats_mi',
+            'lttng-iolatencytop-mi = lttnganalyses.cli.io:runlatencytop_mi',
+            'lttng-iolog-mi = lttnganalyses.cli.io:runlog_mi',
+            'lttng-iousagetop-mi = lttnganalyses.cli.io:runusage_mi',
+            'lttng-schedlog-mi = lttnganalyses.cli.sched:runlog_mi',
+            'lttng-schedtop-mi = lttnganalyses.cli.sched:runtop_mi',
+            'lttng-schedstats-mi = lttnganalyses.cli.sched:runstats_mi',
+            'lttng-schedfreq-mi = lttnganalyses.cli.sched:runfreq_mi',
         ],
     },
 

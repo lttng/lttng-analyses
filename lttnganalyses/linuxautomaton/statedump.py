@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
@@ -28,43 +26,46 @@ from . import sp, sv, common
 
 class StatedumpStateProvider(sp.StateProvider):
     def __init__(self, state):
-        self._state = state
         cbs = {
             'lttng_statedump_process_state':
             self._process_lttng_statedump_process_state,
             'lttng_statedump_file_descriptor':
             self._process_lttng_statedump_file_descriptor
         }
-        self._register_cbs(cbs)
 
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _process_lttng_statedump_process_state(self, event):
         tid = event['tid']
         pid = event['pid']
         name = event['name']
+        # prio is not in the payload for LTTng-modules < 2.8. Using
+        # get() will set it to None if the key is not found
+        prio = event.get('prio')
+
         if tid not in self._state.tids:
-            proc = sv.Process()
-            proc.tid = tid
-            self._state.tids[tid] = proc
-        else:
-            proc = self._state.tids[tid]
+            self._state.tids[tid] = sv.Process(tid=tid)
+
+        proc = self._state.tids[tid]
         # Even if the process got created earlier, some info might be
         # missing, add it now.
         proc.pid = pid
         proc.comm = name
+        # However don't override the prio value if we already got the
+        # information from sched_* events.
+        if proc.prio is None:
+            proc.prio = prio
 
         if pid != tid:
             # create the parent
             if pid not in self._state.tids:
-                parent = sv.Process()
-                parent.tid = pid
-                parent.pid = pid
-                parent.comm = name
-                self._state.tids[pid] = parent
-            else:
-                parent = self._state.tids[pid]
+                # FIXME: why is the parent's name set to that of the
+                # child? does that make sense?
+
+                # tid == pid for the parent process
+                self._state.tids[pid] = sv.Process(tid=pid, pid=pid, comm=name)
+
+            parent = self._state.tids[pid]
             # If the thread had opened FDs, they need to be assigned
             # to the parent.
             StatedumpStateProvider._assign_fds_to_parent(proc, parent)
@@ -79,22 +80,25 @@ class StatedumpStateProvider(sp.StateProvider):
         cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
 
         if pid not in self._state.tids:
-            proc = sv.Process()
-            proc.pid = pid
-            proc.tid = pid
-            self._state.tids[pid] = proc
-        else:
-            proc = self._state.tids[pid]
+            self._state.tids[pid] = sv.Process(tid=pid, pid=pid)
+
+        proc = self._state.tids[pid]
 
         if fd not in proc.fds:
             proc.fds[fd] = sv.FD(fd, filename, sv.FDType.unknown, cloexec)
             self._state.send_notification_cb('create_fd',
                                              fd=fd,
                                              parent_proc=proc,
-                                             timestamp=event.timestamp)
+                                             timestamp=event.timestamp,
+                                             cpu_id=event['cpu_id'])
         else:
             # just fix the filename
             proc.fds[fd].filename = filename
+            self._state.send_notification_cb('update_fd',
+                                             fd=fd,
+                                             parent_proc=proc,
+                                             timestamp=event.timestamp,
+                                             cpu_id=event['cpu_id'])
 
     @staticmethod
     def _assign_fds_to_parent(proc, parent):

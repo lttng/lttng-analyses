@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Antoine Busque <abusque@efficios.com>
@@ -42,7 +40,14 @@ class Memtop(Analysis):
             self.tids[tid].reset()
 
     def _process_tid_page_alloc(self, **kwargs):
+        cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
+
+        if not self._filter_process(proc):
+            return
+        if not self._filter_cpu(cpu_id):
+            return
+
         tid = proc.tid
         if tid not in self.tids:
             self.tids[tid] = ProcessMemStats.new_from_process(proc)
@@ -50,7 +55,14 @@ class Memtop(Analysis):
         self.tids[tid].allocated_pages += 1
 
     def _process_tid_page_free(self, **kwargs):
+        cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
+
+        if not self._filter_process(proc):
+            return
+        if not self._filter_cpu(cpu_id):
+            return
+
         tid = proc.tid
         if tid not in self.tids:
             self.tids[tid] = ProcessMemStats.new_from_process(proc)

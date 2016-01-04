@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Antoine Busque <abusque@efficios.com>
@@ -35,6 +33,7 @@ class IoAnalysis(Analysis):
             'io_rq_exit': self._process_io_rq_exit,
             'create_fd': self._process_create_fd,
             'close_fd': self._process_close_fd,
+            'update_fd': self._process_update_fd,
             'create_parent_proc': self._process_create_parent_proc
         }
 
@@ -116,16 +115,10 @@ class IoAnalysis(Analysis):
                                                         io_rq.operation):
                     yield io_rq
 
-    def get_files_stats(self, pid_filter_list, comm_filter_list):
+    def get_files_stats(self):
         files_stats = {}
 
         for proc_stats in self.tids.values():
-            if pid_filter_list is not None and \
-                    proc_stats.pid not in pid_filter_list or \
-                    comm_filter_list is not None and \
-                    proc_stats.comm not in comm_filter_list:
-                continue
-
             for fd_list in proc_stats.fds.values():
                 for fd_stats in fd_list:
                     filename = fd_stats.filename
@@ -165,6 +158,10 @@ class IoAnalysis(Analysis):
     def _process_net_dev_xmit(self, **kwargs):
         name = kwargs['iface_name']
         sent_bytes = kwargs['sent_bytes']
+        cpu = kwargs['cpu_id']
+
+        if not self._filter_cpu(cpu):
+            return
 
         if name not in self.ifaces:
             self.ifaces[name] = IfaceStats(name)
@@ -175,6 +172,10 @@ class IoAnalysis(Analysis):
     def _process_netif_receive_skb(self, **kwargs):
         name = kwargs['iface_name']
         recv_bytes = kwargs['recv_bytes']
+        cpu = kwargs['cpu_id']
+
+        if not self._filter_cpu(cpu):
+            return
 
         if name not in self.ifaces:
             self.ifaces[name] = IfaceStats(name)
@@ -185,6 +186,12 @@ class IoAnalysis(Analysis):
     def _process_block_rq_complete(self, **kwargs):
         req = kwargs['req']
         proc = kwargs['proc']
+        cpu = kwargs['cpu_id']
+
+        if not self._filter_process(proc):
+            return
+        if not self._filter_cpu(cpu):
+            return
 
         if req.dev not in self.disks:
             self.disks[req.dev] = DiskStats(req.dev)
@@ -210,6 +217,12 @@ class IoAnalysis(Analysis):
         proc = kwargs['proc']
         parent_proc = kwargs['parent_proc']
         io_rq = kwargs['io_rq']
+        cpu = kwargs['cpu_id']
+
+        if not self._filter_process(parent_proc):
+            return
+        if not self._filter_cpu(cpu):
+            return
 
         if proc.tid not in self.tids:
             self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
@@ -237,6 +250,9 @@ class IoAnalysis(Analysis):
         proc = kwargs['proc']
         parent_proc = kwargs['parent_proc']
 
+        if not self._filter_process(parent_proc):
+            return
+
         if proc.tid not in self.tids:
             self.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
 
@@ -254,7 +270,13 @@ class IoAnalysis(Analysis):
         timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
+        cpu = kwargs['cpu_id']
         fd = kwargs['fd']
+
+        if not self._filter_process(parent_proc):
+            return
+        if not self._filter_cpu(cpu):
+            return
 
         if tid not in self.tids:
             self.tids[tid] = ProcessIOStats.new_from_process(parent_proc)
@@ -269,11 +291,26 @@ class IoAnalysis(Analysis):
         timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
+        cpu = kwargs['cpu_id']
         fd = kwargs['fd']
+
+        if not self._filter_process(parent_proc):
+            return
+        if not self._filter_cpu(cpu):
+            return
 
         parent_stats = self.tids[tid]
         last_fd = parent_stats.get_fd(fd)
         last_fd.close_ts = timestamp
+
+    def _process_update_fd(self, **kwargs):
+        parent_proc = kwargs['parent_proc']
+        tid = parent_proc.tid
+        fd = kwargs['fd']
+
+        new_filename = parent_proc.fds[fd].filename
+        fd_list = self.tids[tid].fds[fd]
+        fd_list[-1].filename = new_filename
 
 
 class DiskStats():

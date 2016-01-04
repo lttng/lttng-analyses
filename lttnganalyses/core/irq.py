@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Antoine Busque <abusque@efficios.com>
@@ -60,12 +58,14 @@ class IrqAnalysis(Analysis):
     def _process_irq_handler_exit(self, **kwargs):
         irq = kwargs['hard_irq']
 
-        duration = irq.end_ts - irq.begin_ts
+        if not self._filter_cpu(irq.cpu_id):
+            return
+
         if self._conf.min_duration is not None and \
-           duration < self._conf.min_duration:
+           irq.duration < self._conf.min_duration:
             return
         if self._conf.max_duration is not None and \
-           duration > self._conf.max_duration:
+           irq.duration > self._conf.max_duration:
             return
 
         self.irq_list.append(irq)
@@ -77,12 +77,14 @@ class IrqAnalysis(Analysis):
     def _process_softirq_exit(self, **kwargs):
         irq = kwargs['softirq']
 
-        duration = irq.end_ts - irq.begin_ts
+        if not self._filter_cpu(irq.cpu_id):
+            return
+
         if self._conf.min_duration is not None and \
-           duration < self._conf.min_duration:
+           irq.duration < self._conf.min_duration:
             return
         if self._conf.max_duration is not None and \
-           duration > self._conf.max_duration:
+           irq.duration > self._conf.max_duration:
             return
 
         self.irq_list.append(irq)
@@ -106,15 +108,13 @@ class IrqStats():
         return len(self.irq_list)
 
     def update_stats(self, irq):
-        duration = irq.end_ts - irq.begin_ts
+        if self.min_duration is None or irq.duration < self.min_duration:
+            self.min_duration = irq.duration
 
-        if self.min_duration is None or duration < self.min_duration:
-            self.min_duration = duration
+        if self.max_duration is None or irq.duration > self.max_duration:
+            self.max_duration = irq.duration
 
-        if self.max_duration is None or duration > self.max_duration:
-            self.max_duration = duration
-
-        self.total_duration += duration
+        self.total_duration += irq.duration
         self.irq_list.append(irq)
 
     def reset(self):

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
@@ -41,6 +39,9 @@ class State:
         self.disks = {}
         self.mm = MemoryManagement()
         self._notification_cbs = {}
+        # State changes can be handled differently depending on
+        # version of tracer used, so keep track of it.
+        self._tracer_version = None
 
     def register_notification_cbs(self, cbs):
         for name in cbs:

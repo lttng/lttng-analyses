@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
+# Copyright (C) 2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,22 +20,40 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from functools import total_ordering
 
-class StateProvider:
-    def __init__(self, state, cbs):
-        self._state = state
-        self._cbs = cbs
 
-    def process_event(self, ev):
-        name = ev.name
+@total_ordering
+class Version:
+    def __init__(self, major, minor, patch, extra=None):
+        self.major = major
+        self.minor = minor
+        self.patch = patch
+        self.extra = extra
 
-        if name in self._cbs:
-            self._cbs[name](ev)
-        # for now we process all the syscalls at the same place
-        elif 'syscall_entry' in self._cbs and \
-                (name.startswith('sys_') or name.startswith('syscall_entry_')):
-            self._cbs['syscall_entry'](ev)
-        elif 'syscall_exit' in self._cbs and \
-                (name.startswith('exit_syscall') or
-                 name.startswith('syscall_exit_')):
-            self._cbs['syscall_exit'](ev)
+    def __lt__(self, other):
+        if self.major < other.major:
+            return True
+        if self.major > other.major:
+            return False
+
+        if self.minor < other.minor:
+            return True
+        if self.minor > other.minor:
+            return False
+
+        return self.patch < other.patch
+
+    def __eq__(self, other):
+        return (
+            self.major == other.major and
+            self.minor == other.minor and
+            self.patch == other.patch
+        )
+
+    def __repr__(self):
+        version_str = '{}.{}.{}'.format(self.major, self.minor, self.patch)
+        if self.extra:
+            version_str += self.extra
+
+        return version_str

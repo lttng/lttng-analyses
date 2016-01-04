@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
@@ -33,11 +31,7 @@ class SyscallsStateProvider(sp.StateProvider):
             'syscall_exit': self._process_syscall_exit
         }
 
-        self._state = state
-        self._register_cbs(cbs)
-
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _process_syscall_entry(self, event):
         cpu_id = event['cpu_id']
@@ -70,7 +64,8 @@ class SyscallsStateProvider(sp.StateProvider):
 
         self._state.send_notification_cb('syscall_exit',
                                          proc=proc,
-                                         event=event)
+                                         event=event,
+                                         cpu_id=cpu_id)
 
         # If it's an IO Syscall, the IO state provider will take care of
         # clearing the current syscall, so only clear here if it's not

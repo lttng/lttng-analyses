@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
@@ -30,14 +28,12 @@ class MemStateProvider(sp.StateProvider):
     def __init__(self, state):
         cbs = {
             'mm_page_alloc': self._process_mm_page_alloc,
-            'mm_page_free': self._process_mm_page_free
+            'kmem_mm_page_alloc': self._process_mm_page_alloc,
+            'mm_page_free': self._process_mm_page_free,
+            'kmem_mm_page_free': self._process_mm_page_free,
         }
 
-        self._state = state
-        self._register_cbs(cbs)
-
-    def process_event(self, ev):
-        self._process_event_cb(ev)
+        super().__init__(state, cbs)
 
     def _get_current_proc(self, event):
         cpu_id = event['cpu_id']
@@ -67,7 +63,8 @@ class MemStateProvider(sp.StateProvider):
             return
 
         self._state.send_notification_cb('tid_page_alloc',
-                                         proc=current_process)
+                                         proc=current_process,
+                                         cpu_id=event['cpu_id'])
 
     def _process_mm_page_free(self, event):
         if self._state.mm.page_count == 0:
@@ -79,4 +76,6 @@ class MemStateProvider(sp.StateProvider):
         if current_process is None:
             return
 
-        self._state.send_notification_cb('tid_page_free', proc=current_process)
+        self._state.send_notification_cb('tid_page_free',
+                                         proc=current_process,
+                                         cpu_id=event['cpu_id'])

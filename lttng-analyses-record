@@ -88,7 +88,7 @@ trap "destroy" SIGINT SIGTERM
 lttng enable-channel -k chan1 --subbuf-size=8M >/dev/null
 
 # events that always work
-lttng enable-event -s $SESSION_NAME -k sched_switch,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device,mm_vmscan_wakeup_kswapd,mm_page_free,mm_page_alloc,block_dirty_buffer,irq_handler_entry,irq_handler_exit,softirq_entry,softirq_exit,softirq_raise -c chan1 >/dev/null
+lttng enable-event -s $SESSION_NAME -k sched_switch,sched_wakeup,sched_waking,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device,mm_vmscan_wakeup_kswapd,mm_page_free,mm_page_alloc,block_dirty_buffer,irq_handler_entry,irq_handler_exit,softirq_entry,softirq_exit,softirq_raise -c chan1 >/dev/null
 [[ $? != 0 ]] && echo "Warning: some events were not enabled, some analyses might not be complete"
 
 # events that might fail on specific kernels and that are not mandatory

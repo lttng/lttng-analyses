@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
@@ -118,7 +116,7 @@ def trace_collection_date(handles):
 def extract_timerange(handles, timerange, gmt):
     pattern = re.compile(r'^\[(?P<begin>.*),(?P<end>.*)\]$')
     if not pattern.match(timerange):
-        return None
+        return None, None
     begin_str = pattern.search(timerange).group('begin').strip()
     end_str = pattern.search(timerange).group('end').strip()
     begin = date_to_epoch_nsec(handles, begin_str, gmt)
@@ -128,19 +126,22 @@ def extract_timerange(handles, timerange, gmt):
 
 def date_to_epoch_nsec(handles, date, gmt):
     # match 2014-12-12 17:29:43.802588035 or 2014-12-12T17:29:43.802588035
-    pattern1 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
-                          r'(?P<day>[0123]\d)[\sTt]'
-                          r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
-                          r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    pattern1 = re.compile(r'^(?P<year>\d{4})-(?P<mon>[01]\d)-'
+                          r'(?P<day>[0-3]\d)[\sTt]'
+                          r'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.'
+                          r'(?P<nsec>\d{9})$')
     # match 2014-12-12 17:29:43 or 2014-12-12T17:29:43
-    pattern2 = re.compile(r'^(?P<year>\d\d\d\d)-(?P<mon>[01]\d)-'
-                          r'(?P<day>[0123]\d)[\sTt]'
-                          r'(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    pattern2 = re.compile(r'^(?P<year>\d{4})-(?P<mon>[01]\d)-'
+                          r'(?P<day>[0-3]\d)[\sTt]'
+                          r'(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$')
     # match 17:29:43.802588035
-    pattern3 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d).'
-                          r'(?P<nsec>\d\d\d\d\d\d\d\d\d)$')
+    pattern3 = re.compile(r'^(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})\.'
+                          r'(?P<nsec>\d{9})$')
     # match 17:29:43
-    pattern4 = re.compile(r'^(?P<hour>\d\d):(?P<min>\d\d):(?P<sec>\d\d)$')
+    pattern4 = re.compile(r'^(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$')
+
+    # match 93847238974923874
+    pattern5 = re.compile(r'^\d+$')
 
     if pattern1.match(date):
         year = pattern1.search(date).group('year')
@@ -180,6 +181,8 @@ def date_to_epoch_nsec(handles, date, gmt):
         minute = pattern4.search(date).group('min')
         sec = pattern4.search(date).group('sec')
         nsec = 0
+    elif pattern5.match(date):
+        return int(date)
     else:
         return None
 

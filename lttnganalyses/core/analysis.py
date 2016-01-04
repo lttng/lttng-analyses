@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
@@ -22,22 +20,27 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from ..linuxautomaton import common
-
 
 class AnalysisConfig:
     def __init__(self):
         self.refresh_period = None
         self.period_begin_ev_name = None
         self.period_end_ev_name = None
-        self.period_key_fields = None
+        self.period_begin_key_fields = None
+        self.period_end_key_fields = None
+        self.period_key_value = None
         self.begin_ts = None
         self.end_ts = None
         self.min_duration = None
         self.max_duration = None
+        self.proc_list = None
+        self.tid_list = None
+        self.cpu_list = None
 
 
 class Analysis:
+    TICK_CB = 'tick'
+
     def __init__(self, state, conf):
         self._state = state
         self._conf = conf
@@ -108,9 +111,9 @@ class Analysis:
             self._cbs['syscall_exit'](ev)
 
     def _check_analysis_begin(self, ev):
-        if self._conf.begin_ts and ev.timestamp >= self._conf.begin:
+        if self._conf.begin_ts and ev.timestamp >= self._conf.begin_ts:
             self.started = True
-            self._period_start_ts = ev.ts
+            self._period_start_ts = ev.timestamp
             self.reset()
 
     def _check_analysis_end(self, ev):
@@ -130,13 +133,15 @@ class Analysis:
            ev.name != self._conf.period_end_ev_name:
             return
 
-        period_key = self._get_period_event_key(ev)
-        if not period_key:
-            # There was an error caused by a missing field, ignore
-            # this period event
-            return
-
         if self._period_key:
+            period_key = Analysis._get_period_event_key(
+                ev, self._conf.period_end_key_fields)
+
+            if not period_key:
+                # There was an error caused by a missing field, ignore
+                # this period event
+                return
+
             if period_key == self._period_key:
                 if self._conf.period_end_ev_name:
                     if ev.name == self._conf.period_end_ev_name:
@@ -145,29 +150,44 @@ class Analysis:
                         self._period_start_ts = None
                 elif ev.name == self._conf.period_begin_ev_name:
                     self._end_period()
-                    self._period_key = period_key
-                    self._period_start_ts = ev.timestamp
+                    self._begin_period(period_key, ev.timestamp)
         elif ev.name == self._conf.period_begin_ev_name:
-            self._period_key = period_key
-            self._period_start_ts = ev.timestamp
+            period_key = Analysis._get_period_event_key(
+                ev, self._conf.period_begin_key_fields)
+
+            if not period_key:
+                return
+
+            if self._conf.period_key_value:
+                # Must convert the period key to string for comparison
+                str_period_key = tuple(map(str, period_key))
+                if self._conf.period_key_value != str_period_key:
+                    return
+
+            self._begin_period(period_key, ev.timestamp)
+
+    def _begin_period(self, period_key, timestamp):
+        self._period_key = period_key
+        self._period_start_ts = timestamp
+        self.reset()
 
     def _end_period(self):
         self._end_period_cb()
-        self._send_notification_cb('output_results',
+        self._send_notification_cb(Analysis.TICK_CB,
                                    begin_ns=self._period_start_ts,
                                    end_ns=self._last_event_ts)
-        self.reset()
 
     def _end_period_cb(self):
         pass
 
-    def _get_period_event_key(self, ev):
-        if not self._conf.period_key_fields:
+    @staticmethod
+    def _get_period_event_key(ev, key_fields):
+        if not key_fields:
             return None
 
         key_values = []
 
-        for field in self._conf.period_key_fields:
+        for field in key_fields:
             try:
                 key_values.append(ev[field])
             except KeyError:
@@ -175,3 +195,15 @@ class Analysis:
                 return None
 
         return tuple(key_values)
+
+    def _filter_process(self, proc):
+        if not proc:
+            return True
+        if self._conf.proc_list and proc.comm not in self._conf.proc_list:
+            return False
+        if self._conf.tid_list and proc.tid not in self._conf.tid_list:
+            return False
+        return True
+
+    def _filter_cpu(self, cpu):
+        return not (self._conf.cpu_list and cpu not in self._conf.cpu_list)
