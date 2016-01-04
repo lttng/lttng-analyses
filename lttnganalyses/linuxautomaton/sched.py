@@ -22,9 +22,14 @@
 # SOFTWARE.
 
 from . import sp, sv
+from ..common import version_utils
 
 
 class SchedStateProvider(sp.StateProvider):
+    # The priority offset for sched_wak* events was fixed in
+    # lttng-modules 2.7.1 upwards
+    PRIO_OFFSET_FIX_VERSION = version_utils.Version(2,7,1)
+
     def __init__(self, state):
         cbs = {
             'sched_switch': self._process_sched_switch,
@@ -135,6 +140,9 @@ class SchedStateProvider(sp.StateProvider):
         current_cpu = event['cpu_id']
         prio = event['prio']
         tid = event['tid']
+
+        if self._state.tracer_version < self.PRIO_OFFSET_FIX_VERSION:
+            prio -= 100
 
         if target_cpu not in self._state.cpus:
             self._state.cpus[target_cpu] = sv.CPU(target_cpu)

@@ -75,6 +75,7 @@ setup(
 
     packages=[
         'lttnganalyses',
+        'lttnganalyses.common',
         'lttnganalyses.core',
         'lttnganalyses.cli',
         'lttnganalyses.linuxautomaton',

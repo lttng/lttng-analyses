@@ -511,10 +511,10 @@ def get_metadata(version, title, description, authors, url, tags,
 
     return {
         'version': {
-            'major': version[0],
-            'minor': version[1],
-            'patch': version[2],
-            'extra': version[3]
+            'major': version.major,
+            'minor': version.minor,
+            'patch': version.patch,
+            'extra': version.extra
         },
         'title': title,
         'description': description,

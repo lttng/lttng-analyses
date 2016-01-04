@@ -133,8 +133,7 @@ class Cputop(Command):
                                          begin_ns, end_ns)
 
         for cpu in sorted(self._analysis.cpus.values(),
-                          key=operator.attrgetter('usage_percent'),
-                          reverse=True):
+                          key=operator.attrgetter('cpu_id')):
             result_table.append_row(
                 cpu=mi.Cpu(cpu.cpu_id),
                 usage=mi.Ratio.from_percentage(cpu.usage_percent)

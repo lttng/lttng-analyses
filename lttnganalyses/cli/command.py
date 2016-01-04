@@ -24,6 +24,7 @@
 
 import argparse
 import json
+import os
 import re
 import sys
 import subprocess
@@ -32,6 +33,7 @@ from . import mi
 from .. import _version
 from . import progressbar
 from .. import __version__
+from ..common import version_utils
 from ..core import analysis
 from ..linuxautomaton import common
 from ..linuxautomaton import automaton
@@ -162,12 +164,43 @@ class Command:
         self._handles = handles
         self._traces = traces
         self._process_date_args()
+        self._read_tracer_version()
         if not self._args.skip_validation:
             self._check_lost_events()
 
     def _close_trace(self):
         for handle in self._handles.values():
             self._traces.remove_trace(handle)
+
+    def _read_tracer_version(self):
+        kernel_path = None
+        for root, _, _ in os.walk(self._args.path):
+            if root.endswith('kernel'):
+                kernel_path = root
+                break
+
+        if kernel_path is None:
+            self._gen_error('Could not find kernel trace directory')
+
+        try:
+            metadata = subprocess.getoutput(
+                'babeltrace -o ctf-metadata "%s"' % kernel_path)
+        except subprocess.CalledProcessError:
+            self._gen_error('Cannot run babeltrace on the trace, cannot read'
+                            ' tracer version')
+
+        major_match = re.search(r'tracer_major = (\d+)', metadata)
+        minor_match = re.search(r'tracer_minor = (\d+)', metadata)
+        patch_match = re.search(r'tracer_patchlevel = (\d+)', metadata)
+
+        if not major_match or not minor_match or not patch_match:
+            self._gen_error('Malformed metadata, cannot read tracer version')
+
+        self.state.tracer_version = version_utils.Version(
+            int(major_match.group(1)),
+            int(minor_match.group(1)),
+            int(patch_match.group(1)),
+        )
 
     def _check_lost_events(self):
         self._print('Checking the trace for lost events...')
@@ -494,9 +527,9 @@ class Command:
 # create MI version
 _cmd_version = _version.get_versions()['version']
 _version_match = re.match(r'(\d+)\.(\d+)\.(\d+)(.*)', _cmd_version)
-Command._MI_VERSION = [
+Command._MI_VERSION = version_utils.Version(
     int(_version_match.group(1)),
     int(_version_match.group(2)),
     int(_version_match.group(3)),
     _version_match.group(4),
-]
+)
