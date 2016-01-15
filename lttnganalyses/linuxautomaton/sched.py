@@ -28,7 +28,7 @@ from ..common import version_utils
 class SchedStateProvider(sp.StateProvider):
     # The priority offset for sched_wak* events was fixed in
     # lttng-modules 2.7.1 upwards
-    PRIO_OFFSET_FIX_VERSION = version_utils.Version(2,7,1)
+    PRIO_OFFSET_FIX_VERSION = version_utils.Version(2, 7, 1)
 
     def __init__(self, state):
         cbs = {
