@@ -25,8 +25,8 @@
 import operator
 from .command import Command
 from ..core import memtop
-from ..ascii_graph import Pyasciigraph
 from . import mi
+from . import termgraph
 
 
 class Memtop(Command):
@@ -154,17 +154,17 @@ class Memtop(Command):
         return result_table
 
     def _print_per_tid_result(self, result_table, title):
-        graph = Pyasciigraph()
-        values = []
+        graph = termgraph.BarGraph(
+            title=title,
+            unit='pages',
+            get_value=lambda row: row.pages.value,
+            get_label=lambda row: '%s (%d)' % (row.process.name,
+                                               row.process.tid),
+            label_header='Process',
+            data=result_table.rows
+        )
 
-        for row in result_table.rows:
-            process_do = row.process
-            pages = row.pages.value
-            values.append(('%s (%d)' % (process_do.name, process_do.tid),
-                           pages))
-
-        for line in graph.graph(title, values, unit=' pages'):
-            print(line)
+        graph.print_graph()
 
     def _print_per_tid_allocd(self, result_table):
         self._print_per_tid_result(result_table, 'Per-TID Memory Allocations')
