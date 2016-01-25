@@ -429,8 +429,6 @@ class ProcessIOStats(stats.Process):
             self._update_read(req.returned_size, fd_types['fd_in'])
             self._update_write(req.returned_size, fd_types['fd_out'])
 
-        self.rq_list.append(req)
-
     def _update_read(self, size, fd_type):
         if fd_type == sv.FDType.disk:
             self.disk_io.read += size
