@@ -32,7 +32,6 @@ from ..core import io
 from ..common import format_utils
 from .command import Command
 from ..linuxautomaton import common
-from ..ascii_graph import Pyasciigraph
 
 
 _UsageTables = collections.namedtuple('_UsageTables', [
@@ -809,29 +808,15 @@ class IoAnalysisCommand(Command):
         return syscall_tables + disk_tables
 
     def _print_one_freq(self, result_table):
-        if not result_table.rows:
-            return
-
-        graph = Pyasciigraph()
-        graph_data = []
-
-        for row in result_table.rows:
-            graph_data.append(('%0.03f' % row.latency_lower.to_us(),
-                               row.count.value))
-
-        title = '{} {} (usec)'.format(result_table.title,
-                                      result_table.subtitle)
-        graph_lines = graph.graph(
-            title,
-            graph_data,
-            info_before=True,
-            count=True
+        graph = termgraph.FreqGraph(
+            data=result_table.rows,
+            get_value=lambda row: row.count.value,
+            get_lower_bound=lambda row: row.latency_lower.to_us(),
+            title='{} {}'.format(result_table.title, result_table.subtitle),
+            unit='µs'
         )
 
-        for line in graph_lines:
-            print(line)
-
-        print()
+        graph.print_graph()
 
     def _print_freq(self, freq_tables):
         for freq_table in freq_tables:
