@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
-from TraceTest import AnalyzesTest
+from TraceTest import AnalysesTest
 import sys
 
 
-class IoTest(AnalyzesTest):
+class IoTest(AnalysesTest):
     def __init__(self, delete_trace=False, verbose=False):
         super().__init__(delete_trace=delete_trace,
                          verbose=verbose)
@@ -93,7 +91,7 @@ Network sent bytes
                                                                    0 B wlan1"""
 
         return self.compare_output('%slttng-iousagetop %s "%s"' % (
-                       self.cmd_root, self.common_options, self.t.get_trace_root()),
+                       self.cmd_root, self.common_options, self.t.trace_root),
                        expected)
 
     def run_iolatencytop(self):

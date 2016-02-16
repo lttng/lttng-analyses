@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
-from TraceTest import AnalyzesTest
+from TraceTest import AnalysesTest
 import sys
 
 
-class IrqTest(AnalyzesTest):
+class IrqTest(AnalysesTest):
     def __init__(self, delete_trace=True, verbose=False):
         super().__init__(delete_trace=delete_trace,
                          verbose=verbose)
@@ -76,7 +74,7 @@ Soft IRQ                                             Duration (us)              
 9:  <RCU_SOFTIRQ>          2     1000.000     1500.000     2000.000      707.107  |      2     8000.000     9000.000    10000.000     1414.214"""
 
         return self.compare_output('%slttng-irqstats %s "%s"' % (
-                       self.cmd_root, self.common_options, self.t.get_trace_root()),
+                       self.cmd_root, self.common_options, self.t.trace_root),
                        expected)
 
     def run_irqlog(self):
@@ -101,7 +99,7 @@ Begin                End                   Duration (us)  CPU  Type         #  N
 [19:00:01.044000000, 19:00:01.045000000]        1000.000    0  SoftIRQ      4  BLOCK_SOFTIRQ (raised at 19:00:01.042000000)"""
 
         return self.compare_output('%slttng-irqlog %s "%s"' % (
-                       self.cmd_root, self.common_options, self.t.get_trace_root()),
+                       self.cmd_root, self.common_options, self.t.trace_root),
                        expected)
 
 

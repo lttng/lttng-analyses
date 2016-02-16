@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
-from TraceTest import AnalyzesTest
+from TraceTest import AnalysesTest
 import sys
 
 
-class CpuTest(AnalyzesTest):
+class CpuTest(AnalysesTest):
     def __init__(self, delete_trace=True, verbose=False):
         super().__init__(delete_trace=delete_trace,
                          verbose=verbose)
@@ -40,7 +38,7 @@ Total CPU Usage: 48.33%
 """
 
         return self.compare_output('%slttng-cputop %s "%s"' % (
-                       self.cmd_root, self.common_options, self.t.get_trace_root()),
+                       self.cmd_root, self.common_options, self.t.trace_root),
                        expected)
 
 
