@@ -52,8 +52,8 @@ class IrqAnalysis(Analysis):
         name = kwargs['irq_name']
         if id not in self.hard_irq_stats:
             self.hard_irq_stats[id] = HardIrqStats(name)
-        elif self.hard_irq_stats[id].name != name:
-            self.hard_irq_stats[id].name = name
+        elif name not in self.hard_irq_stats[id].names:
+            self.hard_irq_stats[id].names.append(name)
 
     def _process_irq_handler_exit(self, **kwargs):
         irq = kwargs['hard_irq']
@@ -97,11 +97,15 @@ class IrqAnalysis(Analysis):
 
 class IrqStats():
     def __init__(self, name):
-        self.name = name
+        self._name = name
         self.min_duration = None
         self.max_duration = None
         self.total_duration = 0
         self.irq_list = []
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def count(self):
@@ -125,8 +129,15 @@ class IrqStats():
 
 
 class HardIrqStats(IrqStats):
+    NAMES_SEPARATOR = ', '
+
     def __init__(self, name='unknown'):
         super().__init__(name)
+        self.names = [name]
+
+    @property
+    def name(self):
+        return self.NAMES_SEPARATOR.join(self.names)
 
 
 class SoftIrqStats(IrqStats):
