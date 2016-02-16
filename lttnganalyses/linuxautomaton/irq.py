@@ -100,11 +100,16 @@ class IrqStateProvider(sp.StateProvider):
     def _process_softirq_exit(self, event):
         cpu = self._get_cpu(event['cpu_id'])
         vec = event['vec']
+        # List of enqueued softirqs for the current cpu/vec
+        # combination. None if vec is not found in the dictionary.
+        current_softirqs = cpu.current_softirqs.get(vec)
 
-        if vec not in cpu.current_softirqs:
+        # Ignore the exit if either vec was not in the cpu's dict or
+        # if its irq list was empty (i.e. no matching raise).
+        if not current_softirqs:
             return
 
-        cpu.current_softirqs[vec][0].end_ts = event.timestamp
+        current_softirqs[0].end_ts = event.timestamp
         self._state.send_notification_cb('softirq_exit',
-                                         softirq=cpu.current_softirqs[vec][0])
-        del cpu.current_softirqs[vec][0]
+                                         softirq=current_softirqs[0])
+        del current_softirqs[0]
