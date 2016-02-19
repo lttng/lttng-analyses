@@ -138,7 +138,11 @@ class BarGraph(Graph):
         print(header)
 
     def _get_bar_str(self, datum):
-        bar_width = int(self.MAX_GRAPH_WIDTH * datum.value / self._max_value)
+        if self._max_value == 0:
+            bar_width = 0
+        else:
+            bar_width = int(self.MAX_GRAPH_WIDTH * datum.value /
+                            self._max_value)
         space_width = self.MAX_GRAPH_WIDTH - bar_width
         bar_str = self.BAR_CHAR * bar_width + ' ' * space_width
 
@@ -177,7 +181,10 @@ class FreqGraph(Graph):
 
     def _get_bar_str(self, datum):
         max_width = self.MAX_GRAPH_WIDTH - self.LOWER_BOUND_WIDTH
-        bar_width = int(max_width * datum.value / self._max_value)
+        if self._max_value == 0:
+            bar_width = 0
+        else:
+            bar_width = int(max_width * datum.value / self._max_value)
         space_width = max_width - bar_width
         bar_str = self.BAR_CHAR * bar_width + ' ' * space_width
 
