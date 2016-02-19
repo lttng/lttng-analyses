@@ -21,27 +21,42 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .analysis_test import AnalysisTest
+import os
+import subprocess
+import unittest
+from .trace_writer import TraceWriter
 
 
-class CpuTest(AnalysisTest):
+class AnalysisTest(unittest.TestCase):
+    COMMON_OPTIONS = '--no-progress --skip-validation'
+
+    def set_up_class(self):
+        dirname = os.path.dirname(os.path.realpath(__file__))
+        self.data_path = dirname + '/expected/'
+        self.maxDiff = None
+        self.trace_writer = TraceWriter()
+        self.write_trace()
+
+    def tear_down_class(self):
+        self.trace_writer.rm_trace()
+
     def write_trace(self):
-        # runs the whole time: 100%
-        self.trace_writer.write_sched_switch(1000, 5, 'swapper/5',
-                                             0, 'prog100pc-cpu5', 42)
-        # runs for 2s alternating with swapper out every 100ms
-        self.trace_writer.sched_switch_50pc(1100, 5000, 0, 100, 'swapper/0',
-                                            0, 'prog20pc-cpu0', 30664)
-        # runs for 2.5s alternating with swapper out every 100ms
-        self.trace_writer.sched_switch_50pc(5100, 10000, 1, 100, 'swapper/1',
-                                            0, 'prog25pc-cpu1', 30665)
-        # switch out prog100pc-cpu5
-        self.trace_writer.write_sched_switch(11000, 5, 'prog100pc-cpu5',
-                                             42, 'swapper/5', 0)
-        self.trace_writer.flush()
+        raise NotImplementedError
 
-    def test_cputop(self):
-        expected = self.get_expected_output('cputop.txt')
-        result = self.get_cmd_output('lttng-cputop')
+    def run(self, result=None):
+        self.set_up_class()
+        super().run(result)
+        self.tear_down_class()
 
-        self.assertMultiLineEqual(result, expected)
+        return result
+
+    def get_expected_output(self, filename):
+        with open(self.data_path + filename, 'r') as expected_file:
+            return expected_file.read()
+
+    def get_cmd_output(self, exec_name, options=''):
+        cmd_fmt = './{} {} {} {}'
+        cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS,
+                             options, self.trace_writer.trace_root)
+
+        return subprocess.getoutput(cmd)

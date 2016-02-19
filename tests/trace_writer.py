@@ -1,15 +1,35 @@
+# The MIT License (MIT)
+#
+# Copyright (C) 2016 - Julien Desfossez <jdesfossez@efficios.com>
+#                      Antoine Busque <abusque@efficios.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import sys
 import os
 import shutil
 import tempfile
-import difflib
-import subprocess
 from babeltrace import CTFWriter, CTFStringEncoding
 
 
-class TraceTest():
-    def __init__(self, delete_trace=True):
-        self.delete_trace = delete_trace
+class TraceWriter():
+    def __init__(self):
         self._trace_root = tempfile.mkdtemp()
         self.trace_path = os.path.join(self.trace_root, "kernel")
         self.create_writer()
@@ -17,10 +37,6 @@ class TraceTest():
         self.define_base_types()
         self.define_events()
         self.create_stream()
-
-    def __del__(self):
-        if self.delete_trace:
-            self.rm_trace()
 
     @property
     def trace_root(self):
@@ -516,43 +532,3 @@ class TraceTest():
             current += period
             self.write_sched_switch(current, cpu_id, comm2, tid2, comm1, tid1)
             current += period
-
-    def compare_output(self, cmd, expected):
-        line_sep = '\n'
-        result = subprocess.getoutput(cmd)
-        diff = difflib.ndiff(expected.split(line_sep), result.split(line_sep))
-
-        for line in diff:
-            if line[0] != ' ':
-                # result doesn't match expected. Print the diff and
-                # return False
-                print(line_sep.join(diff))
-                return False
-
-        return True
-
-
-class AnalysesTest():
-    def __init__(self, delete_trace=True, verbose=False):
-        self.verbose = verbose
-        self.t = TraceTest(delete_trace=delete_trace)
-        self.common_options = '--no-progress --skip-validation'
-        self.cmd_root = './'
-        self.log('Trace in %s' % (self.t.trace_root))
-
-    def log(self, msg):
-        if self.verbose:
-            print(msg)
-
-    def compare_output(self, cmd, expected):
-        return self.t.compare_output(cmd, expected)
-
-    def run(self):
-        ok = True
-        self.write_trace()
-        for t in self.test_list:
-            ret = t[1]()
-            self.log('%s: %s' % (t[0], ret))
-            if not ret:
-                ok = False
-        return ok
