@@ -241,6 +241,13 @@ class IoAnalysis(Analysis):
         proc_stats.update_io_stats(io_rq, fd_types)
         parent_stats.update_fd_stats(io_rq)
 
+        # Check if the proc stats comm corresponds to the actual
+        # process comm. It might be that it was missing so far.
+        if proc_stats.comm != proc.comm:
+            proc_stats.comm = proc.comm
+        if parent_stats.comm != parent_proc.comm:
+            parent_stats.comm = parent_proc.comm
+
     def _process_create_parent_proc(self, **kwargs):
         proc = kwargs['proc']
         parent_proc = kwargs['parent_proc']
