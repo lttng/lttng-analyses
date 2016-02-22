@@ -186,15 +186,25 @@ class Command:
             self._gen_error('Could not find kernel trace directory')
 
         try:
-            metadata = subprocess.getoutput(
+            ret, metadata = subprocess.getstatusoutput(
                 'babeltrace -o ctf-metadata "%s"' % kernel_path)
         except subprocess.CalledProcessError:
             self._gen_error('Cannot run babeltrace on the trace, cannot read'
                             ' tracer version')
 
-        major_match = re.search(r'tracer_major = (\d+)', metadata)
-        minor_match = re.search(r'tracer_minor = (\d+)', metadata)
-        patch_match = re.search(r'tracer_patchlevel = (\d+)', metadata)
+        # fallback to reading the text metadata if babeltrace failed to
+        # output the CTF metadata
+        if ret != 0:
+            try:
+                metadata = subprocess.getoutput(
+                    'cat "%s"' % os.path.join(kernel_path, 'metadata'))
+            except subprocess.CalledProcessError:
+                self._gen_error('Cannot read the metadata of the trace, cannot'
+                                'extract tracer version')
+
+        major_match = re.search(r'tracer_major = "*(\d+)"*', metadata)
+        minor_match = re.search(r'tracer_minor = "*(\d+)"*', metadata)
+        patch_match = re.search(r'tracer_patchlevel = "*(\d+)"*', metadata)
 
         if not major_match or not minor_match or not patch_match:
             self._gen_error('Malformed metadata, cannot read tracer version')
