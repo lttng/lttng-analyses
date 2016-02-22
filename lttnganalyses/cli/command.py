@@ -174,6 +174,9 @@ class Command:
 
     def _read_tracer_version(self):
         kernel_path = None
+        # remove the trailing /
+        while self._args.path.endswith('/'):
+            self._args.path = self._args.path[:-1]
         for root, _, _ in os.walk(self._args.path):
             if root.endswith('kernel'):
                 kernel_path = root
