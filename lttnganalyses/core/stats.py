@@ -63,5 +63,5 @@ class IO(Stats):
 
     def __iadd__(self, other):
         self.read += other.read
-        self.write += other.read
+        self.write += other.write
         return self
