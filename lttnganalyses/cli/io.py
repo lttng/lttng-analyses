@@ -559,7 +559,7 @@ class IoAnalysisCommand(Command):
                                             per_file_write_table)
         self._fill_per_process_block_read_usage_result_table(
             per_proc_block_read_table)
-        self._fill_per_process_block_read_usage_result_table(
+        self._fill_per_process_block_write_usage_result_table(
             per_proc_block_write_table)
         self._fill_disk_sector_usage_result_table(per_disk_sector_table)
         self._fill_disk_request_usage_result_table(per_disk_request_table)
