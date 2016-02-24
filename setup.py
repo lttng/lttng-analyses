@@ -78,8 +78,7 @@ setup(
         'lttnganalyses.common',
         'lttnganalyses.core',
         'lttnganalyses.cli',
-        'lttnganalyses.linuxautomaton',
-        'lttnganalyses.ascii_graph'
+        'lttnganalyses.linuxautomaton'
         ],
 
     entry_points={
