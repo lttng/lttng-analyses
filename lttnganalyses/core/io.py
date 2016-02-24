@@ -126,7 +126,7 @@ class IoAnalysis(Analysis):
                     # Add process name to generic filenames to
                     # distinguish them
                     if FileStats.is_generic_name(filename):
-                        filename += '(%s)' % proc_stats.comm
+                        filename += ' (%s)' % proc_stats.comm
 
                     if filename not in files_stats:
                         files_stats[filename] = FileStats(filename)
