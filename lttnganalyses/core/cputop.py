@@ -48,7 +48,7 @@ class Cputop(Analysis):
     def reset(self):
         for cpu_stats in self.cpus.values():
             cpu_stats.reset()
-            if cpu_stats.last_sched_ts is not None:
+            if cpu_stats.current_task_start_ts is not None:
                 cpu_stats.current_task_start_ts = self._last_event_ts
 
         for proc_stats in self.tids.values():
