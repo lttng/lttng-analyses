@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 import operator
+from ..common import format_utils
 from .command import Command
 from ..core import cputop
 from . import mi
@@ -105,26 +106,6 @@ class Cputop(Command):
         self._mi_clear_result_tables()
         self._mi_append_result_table(summary_table)
 
-    def _cleanup_prio_list(self, prio_list):
-        prios = {}
-        prio_str = None
-        for p in prio_list:
-            if p.prio in prios:
-                prios[p.prio] += 1
-            else:
-                prios[p.prio] = 1
-        for p in sorted(prios.keys()):
-            if prios[p] > 1:
-                count_str = " (%s times)" % prios[p]
-            else:
-                count_str = ""
-            if prio_str is None:
-                prio_str = "[%s%s" % (p, count_str)
-            else:
-                prio_str = "%s, %s%s" % (prio_str, p, count_str)
-        prio_str = prio_str + "]"
-        return prio_str
-
     def _get_per_tid_usage_result_table(self, begin_ns, end_ns):
         result_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PROC,
@@ -134,7 +115,7 @@ class Cputop(Command):
         for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
-            prio_list = self._cleanup_prio_list(tid.prio_list)
+            prio_list = format_utils.format_prio_list(tid.prio_list)
 
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),

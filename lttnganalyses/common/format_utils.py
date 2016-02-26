@@ -66,3 +66,42 @@ def format_size(size, binary_prefix=True):
         format_str = '{:0.2f} {}'
 
     return format_str.format(size, unit)
+
+def format_prio_list(prio_list):
+    """Format a list of prios into a string of unique prios with count
+
+    Args:
+        prio_list: a list of PrioEvent objects
+
+    Returns:
+        The formatted string containing the unique priorities and
+        their count if they occurred more than once.
+    """
+    prio_count = {}
+    prio_str = None
+
+    for prio_event in prio_list:
+        prio = prio_event.prio
+        if prio not in prio_count:
+            prio_count[prio] = 0
+
+        prio_count[prio] += 1
+
+    for prio in sorted(prio_count.keys()):
+        count = prio_count[prio]
+        if count > 1:
+            count_str = ' ({} times)'.format(count)
+        else:
+            count_str = ''
+
+        if prio_str is None:
+            prio_str = '[{}{}'.format(prio, count_str)
+        else:
+            prio_str += ', {}{}'.format(prio, count_str)
+
+    if prio_str is None:
+        prio_str = '[]'
+    else:
+        prio_str += ']'
+
+    return prio_str
