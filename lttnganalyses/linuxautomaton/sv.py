@@ -72,7 +72,12 @@ class SyscallEvent():
 
     def process_exit(self, event):
         self.end_ts = event.timestamp
-        self.ret = event['ret']
+        try:
+            self.ret = event['ret']
+        except:
+            print("[warning] syscall %s does not have a return code, that "
+                  "should not happen" % event.name)
+            self.ret = -1
         self.duration = self.end_ts - self.begin_ts
 
     @classmethod
