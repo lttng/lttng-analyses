@@ -705,8 +705,8 @@ class SchedAnalysisCommand(Command):
         return common.ns_to_hour_nsec(ts, self._args.multi_day, self._args.gmt)
 
     def _print_sched_events(self, result_table):
-        fmt = '[{:<18}, {:<18}] {:>15} {:>10} {:>3} {:<25}  {:<25}'
-        title_fmt = '{:<20} {:<19} {:>15} {:>10} {:>3} {:<25}  {:<25}'
+        fmt = '[{:<18}, {:<18}] {:>15} {:>10}  {:>3}   {:<25}  {:<25}'
+        title_fmt = '{:<20} {:<19} {:>15} {:>10}  {:>3}   {:<25}  {:<25}'
         print()
         print(result_table.title)
         print(title_fmt.format('Wakeup', 'Switch', 'Latency (us)', 'Priority',
@@ -758,7 +758,7 @@ class SchedAnalysisCommand(Command):
                 print(row_str)
 
     def _print_per_tid_stats(self, stats_table):
-        row_format = '{:<25} {:>8}  {:>12}  {:>12}  {:>12}  {:>12} {}'
+        row_format = '{:<25} {:>8}  {:>12}  {:>12}  {:>12}  {:>12}   {}'
         header = row_format.format(
             'Process', 'Count', 'Min', 'Avg', 'Max', 'Stdev', 'Priorities'
         )

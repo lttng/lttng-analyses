@@ -188,7 +188,7 @@ class Cputop(Command):
         return result_table
 
     def _print_per_tid_usage(self, result_table):
-        row_format = '{:<25} {:>10} {}'
+        row_format = '  {:<25} {:>10}   {}'
         label_header = row_format.format('Process', 'Migrations', 'Priorities')
 
         def format_label(row):
