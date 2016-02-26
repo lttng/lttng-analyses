@@ -21,11 +21,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from collections import namedtuple
+from . import stats
 from .analysis import Analysis
-
-
-PrioEvent = namedtuple('PrioEvent', ['timestamp', 'prio'])
 
 
 class SchedAnalysis(Analysis):
@@ -85,11 +82,12 @@ class SchedAnalysis(Analysis):
 
         if waker_proc is not None and waker_proc.tid not in self.tids:
             self.tids[waker_proc.tid] = \
-                SchedStats.new_from_process(waker_proc)
+                ProcessSchedStats.new_from_process(waker_proc)
             self.tids[waker_proc.tid].update_prio(switch_ts, waker_proc.prio)
 
         if next_tid not in self.tids:
-            self.tids[next_tid] = SchedStats.new_from_process(wakee_proc)
+            self.tids[next_tid] = \
+                ProcessSchedStats.new_from_process(wakee_proc)
             self.tids[next_tid].update_prio(switch_ts, wakee_proc.prio)
 
         sched_event = SchedEvent(
@@ -118,19 +116,14 @@ class SchedAnalysis(Analysis):
         self.sched_list.append(sched_event)
 
 
-class SchedStats():
-    def __init__(self, tid, comm):
-        self.tid = tid
-        self.comm = comm
+class ProcessSchedStats(stats.Process):
+    def __init__(self, pid, tid, comm):
+        super().__init__(pid, tid, comm)
+
         self.min_latency = None
         self.max_latency = None
         self.total_latency = 0
         self.sched_list = []
-        self.prio_list = []
-
-    @classmethod
-    def new_from_process(cls, proc):
-        return cls(proc.tid, proc.comm)
 
     @property
     def count(self):
@@ -146,17 +139,12 @@ class SchedStats():
         self.total_latency += sched_event.latency
         self.sched_list.append(sched_event)
 
-    def update_prio(self, timestamp, prio):
-        self.prio_list.append(PrioEvent(timestamp, prio))
-
     def reset(self):
+        super().reset()
         self.min_latency = None
         self.max_latency = None
         self.total_latency = 0
         self.sched_list = []
-        if self.prio_list:
-            # Keep the last prio as the first for the next period
-            self.prio_list = self.prio_list[-1:]
 
 
 class SchedEvent():

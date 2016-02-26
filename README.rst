@@ -74,7 +74,7 @@ The **latest development version** can be installed directly from GitHub:
 
 .. code-block:: bash
 
-    pip3 install --upgrade https://github.com/lttng/lttng-analyses/tarball/master
+    pip3 install --upgrade git+git://github.com/lttng/lttng-analyses.git
 
 
 ==============

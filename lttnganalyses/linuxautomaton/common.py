@@ -20,7 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import math
 import re
 import time
 import datetime
@@ -48,32 +47,6 @@ def get_syscall_name(event):
 
     # Name begins with syscall_entry_ (14 chars long)
     return name[14:]
-
-
-def convert_size(size, padding_after=False, padding_before=False):
-    if padding_after and size < 1024:
-        space_after = ' '
-    else:
-        space_after = ''
-    if padding_before and size < 1024:
-        space_before = ' '
-    else:
-        space_before = ''
-    if size <= 0:
-        return '0 ' + space_before + 'B' + space_after
-    size_name = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')
-    i = int(math.floor(math.log(size, 1024)))
-    p = math.pow(1024, i)
-    s = round(size/p, 2)
-    if s > 0:
-        try:
-            v = '%0.02f' % s
-            return '%s %s%s%s' % (v, space_before, size_name[i], space_after)
-        except:
-            print(i, size_name)
-            raise Exception('Too big to be true')
-    else:
-        return '0 B'
 
 
 def is_multi_day_trace_collection(handles):

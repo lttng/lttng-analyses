@@ -27,10 +27,11 @@ import operator
 import statistics
 import sys
 from . import mi
+from . import termgraph
 from ..core import io
+from ..common import format_utils
 from .command import Command
 from ..linuxautomaton import common
-from ..ascii_graph import Pyasciigraph
 
 
 _UsageTables = collections.namedtuple('_UsageTables', [
@@ -272,10 +273,6 @@ class IoAnalysisCommand(Command):
                     begin > self._args.end)
 
     def _filter_io_request(self, io_rq):
-        if io_rq.tid in self._analysis.tids:
-            proc = self._analysis.tids[io_rq.tid]
-        else:
-            proc = None
         return self._filter_size(io_rq.size) and \
             self._filter_latency(io_rq.duration) and \
             self._filter_time_range(io_rq.begin_ts, io_rq.end_ts)
@@ -289,9 +286,9 @@ class IoAnalysisCommand(Command):
             process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                tid=proc_stats.tid),
             size=mi.Size(proc_stats.total_read),
-            disk_size=mi.Size(proc_stats.disk_read),
-            net_size=mi.Size(proc_stats.net_read),
-            unknown_size=mi.Size(proc_stats.unk_read),
+            disk_size=mi.Size(proc_stats.disk_io.read),
+            net_size=mi.Size(proc_stats.net_io.read),
+            unknown_size=mi.Size(proc_stats.unk_io.read),
         )
 
         return True
@@ -301,15 +298,15 @@ class IoAnalysisCommand(Command):
             process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                tid=proc_stats.tid),
             size=mi.Size(proc_stats.total_write),
-            disk_size=mi.Size(proc_stats.disk_write),
-            net_size=mi.Size(proc_stats.net_write),
-            unknown_size=mi.Size(proc_stats.unk_write),
+            disk_size=mi.Size(proc_stats.disk_io.write),
+            net_size=mi.Size(proc_stats.net_io.write),
+            unknown_size=mi.Size(proc_stats.unk_io.write),
         )
 
         return True
 
     def _append_per_proc_block_read_usage_row(self, proc_stats, result_table):
-        if proc_stats.block_read == 0:
+        if proc_stats.block_io.read == 0:
             return False
 
         if proc_stats.comm:
@@ -320,13 +317,13 @@ class IoAnalysisCommand(Command):
         result_table.append_row(
             process=mi.Process(proc_name, pid=proc_stats.pid,
                                tid=proc_stats.tid),
-            size=mi.Size(proc_stats.block_read),
+            size=mi.Size(proc_stats.block_io.read),
         )
 
         return True
 
     def _append_per_proc_block_write_usage_row(self, proc_stats, result_table):
-        if proc_stats.block_write == 0:
+        if proc_stats.block_io.write == 0:
             return False
 
         if proc_stats.comm:
@@ -337,7 +334,7 @@ class IoAnalysisCommand(Command):
         result_table.append_row(
             process=mi.Process(proc_name, pid=proc_stats.pid,
                                tid=proc_stats.tid),
-            size=mi.Size(proc_stats.block_write),
+            size=mi.Size(proc_stats.block_io.write),
         )
 
         return True
@@ -402,26 +399,26 @@ class IoAnalysisCommand(Command):
         return fd_by_pid_str
 
     def _append_file_read_usage_row(self, file_stats, result_table):
-        if file_stats.read == 0:
+        if file_stats.io.read == 0:
             return False
 
         fd_owners = self._get_file_stats_fd_owners_str(file_stats)
         result_table.append_row(
             path=mi.Path(file_stats.filename),
-            size=mi.Size(file_stats.read),
+            size=mi.Size(file_stats.io.read),
             fd_owners=mi.String(fd_owners),
         )
 
         return True
 
     def _append_file_write_usage_row(self, file_stats, result_table):
-        if file_stats.write == 0:
+        if file_stats.io.write == 0:
             return False
 
         fd_owners = self._get_file_stats_fd_owners_str(file_stats)
         result_table.append_row(
             path=mi.Path(file_stats.filename),
-            size=mi.Size(file_stats.write),
+            size=mi.Size(file_stats.io.write),
             fd_owners=mi.String(fd_owners),
         )
 
@@ -457,7 +454,7 @@ class IoAnalysisCommand(Command):
 
     def _fill_per_process_block_read_usage_result_table(self, result_table):
         input_list = sorted(self._analysis.tids.values(),
-                            key=operator.attrgetter('block_read'),
+                            key=operator.attrgetter('block_io.read'),
                             reverse=True)
         self._fill_usage_result_table(
             input_list, self._append_per_proc_block_read_usage_row,
@@ -465,7 +462,7 @@ class IoAnalysisCommand(Command):
 
     def _fill_per_process_block_write_usage_result_table(self, result_table):
         input_list = sorted(self._analysis.tids.values(),
-                            key=operator.attrgetter('block_write'),
+                            key=operator.attrgetter('block_io.write'),
                             reverse=True)
         self._fill_usage_result_table(
             input_list, self._append_per_proc_block_write_usage_row,
@@ -511,7 +508,7 @@ class IoAnalysisCommand(Command):
 
     def _fill_file_read_usage_result_table(self, files, result_table):
         input_list = sorted(files.values(),
-                            key=lambda file_stats: file_stats.read,
+                            key=lambda file_stats: file_stats.io.read,
                             reverse=True)
         self._fill_usage_result_table(input_list,
                                       self._append_file_read_usage_row,
@@ -519,7 +516,7 @@ class IoAnalysisCommand(Command):
 
     def _fill_file_write_usage_result_table(self, files, result_table):
         input_list = sorted(files.values(),
-                            key=lambda file_stats: file_stats.write,
+                            key=lambda file_stats: file_stats.io.write,
                             reverse=True)
         self._fill_usage_result_table(input_list,
                                       self._append_file_write_usage_row,
@@ -562,7 +559,7 @@ class IoAnalysisCommand(Command):
                                             per_file_write_table)
         self._fill_per_process_block_read_usage_result_table(
             per_proc_block_read_table)
-        self._fill_per_process_block_read_usage_result_table(
+        self._fill_per_process_block_write_usage_result_table(
             per_proc_block_write_table)
         self._fill_disk_sector_usage_result_table(per_disk_sector_table)
         self._fill_disk_request_usage_result_table(per_disk_request_table)
@@ -584,166 +581,140 @@ class IoAnalysisCommand(Command):
             per_netif_send=per_netif_send_table,
         )
 
-    def _get_per_process_read_write_usage_datum(self, row):
-        if row.process.pid is None:
-            pid_str = 'unknown (tid=%d)' % (row.process.tid)
-        else:
-            pid_str = str(row.process.pid)
+    def _print_per_proc_io(self, result_table, title):
+        header_format = '{:<25} {:<10} {:<10} {:<10}'
+        label_header = header_format.format(
+            'Process', 'Disk', 'Net', 'Unknown'
+        )
 
-        format_str = '{:>10} {:<25} {:>9} file {:>9} net {:>9} unknown'
-        output_str = format_str.format(
-            common.convert_size(row.size.value, padding_after=True),
-            '%s (%s)' % (row.process.name, pid_str),
-            common.convert_size(row.disk_size.value, padding_after=True),
-            common.convert_size(row.net_size.value, padding_after=True),
-            common.convert_size(row.unknown_size.value, padding_after=True))
+        def get_label(row):
+            label_format = '{:<25} {:>10} {:>10} {:>10}'
+            if row.process.pid is None:
+                pid_str = 'unknown (tid=%d)' % (row.process.tid)
+            else:
+                pid_str = str(row.process.pid)
 
-        return (output_str, row.size.value)
+            label = label_format.format(
+                '%s (%s)' % (row.process.name, pid_str),
+                format_utils.format_size(row.disk_size.value),
+                format_utils.format_size(row.net_size.value),
+                format_utils.format_size(row.unknown_size.value)
+            )
 
-    def _get_per_process_block_read_write_usage_datum(self, row):
-        proc_name = row.process.name
+            return label
 
-        if not proc_name:
-            proc_name = 'unknown'
+        graph = termgraph.BarGraph(
+            title='Per-process I/O ' + title,
+            label_header=label_header,
+            get_value=lambda row: row.size.value,
+            get_value_str=format_utils.format_size,
+            get_label=get_label,
+            data=result_table.rows
+        )
 
-        if row.process.pid is None:
-            pid_str = 'unknown (tid=%d)' % (row.process.tid)
-        else:
-            pid_str = str(row.process.pid)
+        graph.print_graph()
 
-        format_str = '{:>10} {:<22}'
-        output_str = format_str.format(
-            common.convert_size(row.size.value, padding_after=True),
-            '%s (pid=%s)' % (proc_name, pid_str))
+    def _print_per_proc_block_io(self, result_table, title):
+        def get_label(row):
+            proc_name = row.process.name
 
-        return (output_str, row.size.value)
+            if not proc_name:
+                proc_name = 'unknown'
 
-    def _get_per_disk_count_usage_datum(self, row):
-        return (row.disk.name, row.count.value)
+            if row.process.pid is None:
+                pid_str = 'unknown (tid={})'.format(row.process.tid)
+            else:
+                pid_str = str(row.process.pid)
 
-    def _get_per_disk_rtps_usage_datum(self, row):
-        avg_latency = row.rtps.value / common.NSEC_PER_MSEC
-        avg_latency = round(avg_latency, 3)
+            return '{} (pid={})'.format(proc_name, pid_str)
 
-        return (row.disk.name, avg_latency)
+        graph = termgraph.BarGraph(
+            title='Block I/O ' + title,
+            label_header='Process',
+            get_value=lambda row: row.size.value,
+            get_value_str=format_utils.format_size,
+            get_label=get_label,
+            data=result_table.rows
+        )
 
-    def _get_per_netif_recv_send_usage_datum(self, row):
-        return ('%s %s' %
-                (common.convert_size(row.size.value), row.netif.name),
-                row.size.value)
-
-    def _get_per_file_read_write_usage_datum(self, row):
-        format_str = '{:>10} {} {}'
-        output_str = format_str.format(
-            common.convert_size(row.size.value, padding_after=True),
-            row.path.path, row.fd_owners.value)
-
-        return (output_str, row.size.value)
-
-    def _print_usage_ascii_graph(self, result_table, get_datum_cb, graph_label,
-                                 graph_args=None):
-        graph = Pyasciigraph()
-        data = []
-
-        if graph_args is None:
-            graph_args = {}
-
-        for row in result_table.rows:
-            datum = get_datum_cb(row)
-            data.append(datum)
-
-        for line in graph.graph(graph_label, data, **graph_args):
-            print(line)
-
-    def _print_per_process_read(self, result_table):
-        label = 'Per-process I/O Read'
-        graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(
-            result_table, self._get_per_process_read_write_usage_datum,
-            label, graph_args)
-
-    def _print_per_process_write(self, result_table):
-        label = 'Per-process I/O Write'
-        graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(
-            result_table, self._get_per_process_read_write_usage_datum,
-            label, graph_args)
-
-    def _print_per_process_block_read(self, result_table):
-        label = 'Block I/O Read'
-        graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(
-            result_table, self._get_per_process_block_read_write_usage_datum,
-            label, graph_args)
-
-    def _print_per_process_block_write(self, result_table):
-        label = 'Block I/O Write'
-        graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(
-            result_table, self._get_per_process_block_read_write_usage_datum,
-            label, graph_args)
+        graph.print_graph()
 
     def _print_per_disk_sector(self, result_table):
-        label = 'Disk requests sector count'
-        graph_args = {'unit': ' sectors'}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_disk_count_usage_datum,
-                                      label, graph_args)
+        graph = termgraph.BarGraph(
+            title='Disk Requests Sector Count',
+            label_header='Disk',
+            unit='sectors',
+            get_value=lambda row: row.count.value,
+            get_label=lambda row: row.disk.name,
+            data=result_table.rows
+        )
+
+        graph.print_graph()
 
     def _print_per_disk_request(self, result_table):
-        label = 'Disk request count'
-        graph_args = {'unit': ' requests'}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_disk_count_usage_datum,
-                                      label, graph_args)
+        graph = termgraph.BarGraph(
+            title='Disk Request Count',
+            label_header='Disk',
+            unit='requests',
+            get_value=lambda row: row.count.value,
+            get_label=lambda row: row.disk.name,
+            data=result_table.rows
+        )
+
+        graph.print_graph()
 
     def _print_per_disk_rtps(self, result_table):
-        label = 'Disk request average latency'
-        graph_args = {'unit': ' ms', 'sort': 2}
-        self._print_usage_ascii_graph(result_table,
-                                      self._get_per_disk_rtps_usage_datum,
-                                      label, graph_args)
+        graph = termgraph.BarGraph(
+            title='Disk Request Average Latency',
+            label_header='Disk',
+            unit='ms',
+            get_value=lambda row: row.rtps.value / common.NSEC_PER_MSEC,
+            get_label=lambda row: row.disk.name,
+            data=result_table.rows
+        )
 
-    def _print_per_netif_recv(self, result_table):
-        label = 'Network received bytes'
-        graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(
-            result_table, self._get_per_netif_recv_send_usage_datum,
-            label, graph_args)
+        graph.print_graph()
 
-    def _print_per_netif_send(self, result_table):
-        label = 'Network sent bytes'
-        graph_args = {'with_value': False}
-        self._print_usage_ascii_graph(
-            result_table, self._get_per_netif_recv_send_usage_datum,
-            label, graph_args)
+    def _print_per_netif_io(self, result_table, title):
+        graph = termgraph.BarGraph(
+            title='Network ' + title + ' Bytes',
+            label_header='Interface',
+            get_value=lambda row: row.size.value,
+            get_value_str=format_utils.format_size,
+            get_label=lambda row: row.netif.name,
+            data=result_table.rows
+        )
 
-    def _print_per_file_read(self, result_table):
-        label = 'Files read'
-        graph_args = {'with_value': False, 'sort': 2}
-        self._print_usage_ascii_graph(
-            result_table, self._get_per_file_read_write_usage_datum,
-            label, graph_args)
+        graph.print_graph()
 
-    def _print_per_file_write(self, result_table):
-        label = 'Files write'
-        graph_args = {'with_value': False, 'sort': 2}
-        self._print_usage_ascii_graph(
-            result_table, self._get_per_file_read_write_usage_datum,
-            label, graph_args)
+    def _print_per_file_io(self, result_table, title):
+        # FIXME add option to show FD owners
+        # FIXME why are read and write values the same?
+        graph = termgraph.BarGraph(
+            title='Per-file I/O ' + title,
+            label_header='Path',
+            get_value=lambda row: row.size.value,
+            get_value_str=format_utils.format_size,
+            get_label=lambda row: row.path.path,
+            data=result_table.rows
+        )
+
+        graph.print_graph()
 
     def _print_usage(self, usage_tables):
-        self._print_per_process_read(usage_tables.per_proc_read)
-        self._print_per_process_write(usage_tables.per_proc_write)
-        self._print_per_file_read(usage_tables.per_file_read)
-        self._print_per_file_write(usage_tables.per_file_write)
-        self._print_per_process_block_read(usage_tables.per_proc_block_read)
-        self._print_per_process_block_write(usage_tables.per_proc_block_write)
+        self._print_per_proc_io(usage_tables.per_proc_read, 'Read')
+        self._print_per_proc_io(usage_tables.per_proc_write, 'Write')
+        self._print_per_file_io(usage_tables.per_file_read, 'Read')
+        self._print_per_file_io(usage_tables.per_file_write, 'Write')
+        self._print_per_proc_block_io(usage_tables.per_proc_block_read, 'Read')
+        self._print_per_proc_block_io(
+            usage_tables.per_proc_block_write, 'Write'
+        )
         self._print_per_disk_sector(usage_tables.per_disk_sector)
         self._print_per_disk_request(usage_tables.per_disk_request)
         self._print_per_disk_rtps(usage_tables.per_disk_rtps)
-        self._print_per_netif_recv(usage_tables.per_netif_recv)
-        self._print_per_netif_send(usage_tables.per_netif_send)
+        self._print_per_netif_io(usage_tables.per_netif_recv, 'Received')
+        self._print_per_netif_io(usage_tables.per_netif_send, 'Sent')
 
     def _fill_freq_result_table(self, duration_list, result_table):
         if not duration_list:
@@ -837,29 +808,15 @@ class IoAnalysisCommand(Command):
         return syscall_tables + disk_tables
 
     def _print_one_freq(self, result_table):
-        if not result_table.rows:
-            return
-
-        graph = Pyasciigraph()
-        graph_data = []
-
-        for row in result_table.rows:
-            graph_data.append(('%0.03f' % row.latency_lower.to_us(),
-                               row.count.value))
-
-        title = '{} {} (usec)'.format(result_table.title,
-                                      result_table.subtitle)
-        graph_lines = graph.graph(
-            title,
-            graph_data,
-            info_before=True,
-            count=True
+        graph = termgraph.FreqGraph(
+            data=result_table.rows,
+            get_value=lambda row: row.count.value,
+            get_lower_bound=lambda row: row.latency_lower.to_us(),
+            title='{} {}'.format(result_table.title, result_table.subtitle),
+            unit='µs'
         )
 
-        for line in graph_lines:
-            print(line)
-
-        print()
+        graph.print_graph()
 
     def _print_freq(self, freq_tables):
         for freq_table in freq_tables:
@@ -963,7 +920,7 @@ class IoAnalysisCommand(Command):
         if type(row.size) is mi.Empty:
             size = 'N/A'
         else:
-            size = common.convert_size(row.size.value)
+            size = format_utils.format_size(row.size.value)
 
         tid = row.process.tid
         proc_name = row.process.name

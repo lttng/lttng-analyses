@@ -28,7 +28,7 @@ from ..common import version_utils
 class SchedStateProvider(sp.StateProvider):
     # The priority offset for sched_wak* events was fixed in
     # lttng-modules 2.7.1 upwards
-    PRIO_OFFSET_FIX_VERSION = version_utils.Version(2,7,1)
+    PRIO_OFFSET_FIX_VERSION = version_utils.Version(2, 7, 1)
 
     def __init__(self, state):
         cbs = {
@@ -131,9 +131,9 @@ class SchedStateProvider(sp.StateProvider):
         else:
             proc = self._state.tids[tid]
 
-        self._check_prio_changed(event.timestamp, tid, prio)
         self._state.send_notification_cb(
             'sched_migrate_task', proc=proc, cpu_id=event['cpu_id'])
+        self._check_prio_changed(event.timestamp, tid, prio)
 
     def _process_sched_wakeup(self, event):
         target_cpu = event['target_cpu']
