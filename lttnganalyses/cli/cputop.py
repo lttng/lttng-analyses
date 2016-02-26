@@ -23,10 +23,11 @@
 # SOFTWARE.
 
 import operator
+from ..common import format_utils
 from .command import Command
 from ..core import cputop
-from ..ascii_graph import Pyasciigraph
 from . import mi
+from . import termgraph
 
 
 class Cputop(Command):
@@ -45,7 +46,7 @@ class Cputop(Command):
             'Per-TID top CPU usage', [
                 ('process', 'Process', mi.Process),
                 ('migrations', 'Migration count', mi.Integer, 'migrations'),
-                ('priority', 'Priority', mi.Integer),
+                ('prio_list', 'Chronological priorities', mi.String),
                 ('usage', 'CPU usage', mi.Ratio),
             ]
         ),
@@ -114,10 +115,12 @@ class Cputop(Command):
         for tid in sorted(self._analysis.tids.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
+            prio_list = format_utils.format_prio_list(tid.prio_list)
+
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),
                 migrations=mi.Integer(tid.migrate_count),
-                priority=mi.Integer(tid.prio),
+                prio_list=mi.String(prio_list),
                 usage=mi.Ratio.from_percentage(tid.usage_percent)
             )
             count += 1
@@ -166,37 +169,37 @@ class Cputop(Command):
         return result_table
 
     def _print_per_tid_usage(self, result_table):
-        graph = Pyasciigraph()
-        values = []
+        row_format = '  {:<25} {:>10}   {}'
+        label_header = row_format.format('Process', 'Migrations', 'Priorities')
 
-        for row in result_table.rows:
-            process_do = row.process
-            migration_count = row.migrations.value
-            if row.priority.value is not None:
-                prio_str = 'prio: %d' % row.priority.value
-            else:
-                prio_str = 'prio: ?'
-            output_str = '%s (%d) (%s)' % (process_do.name, process_do.tid,
-                                           prio_str)
+        def format_label(row):
+            return row_format.format(
+                '%s (%d)' % (row.process.name, row.process.tid),
+                row.migrations.value,
+                row.prio_list.value,
+            )
 
-            if migration_count > 0:
-                output_str += ', %d migrations' % (migration_count)
+        graph = termgraph.BarGraph(
+            title='Per-TID Usage',
+            unit='%',
+            get_value=lambda row: row.usage.to_percentage(),
+            get_label=format_label,
+            label_header=label_header,
+            data=result_table.rows
+        )
 
-            values.append((output_str, row.usage.to_percentage()))
-
-        for line in graph.graph('Per-TID CPU Usage', values, unit=' %'):
-            print(line)
+        graph.print_graph()
 
     def _print_per_cpu_usage(self, result_table):
-        graph = Pyasciigraph()
-        values = []
+        graph = termgraph.BarGraph(
+            title='Per-CPU Usage',
+            unit='%',
+            get_value=lambda row: row.usage.to_percentage(),
+            get_label=lambda row: 'CPU %d' % row.cpu.id,
+            data=result_table.rows
+        )
 
-        for row in result_table.rows:
-            cpu = row.cpu
-            values.append(('CPU %d' % cpu.id, row.usage.to_percentage()))
-
-        for line in graph.graph('Per-CPU Usage', values, unit=' %'):
-            print(line)
+        graph.print_graph()
 
     def _print_total_cpu_usage(self, result_table):
         usage_percent = result_table.rows[0].usage.to_percentage()
@@ -212,11 +215,9 @@ def _run(mi_mode):
     cputopcmd.run()
 
 
-# entry point (human)
 def run():
     _run(mi_mode=False)
 
 
-# entry point (MI)
 def run_mi():
     _run(mi_mode=True)

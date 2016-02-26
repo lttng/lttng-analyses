@@ -174,6 +174,9 @@ class Command:
 
     def _read_tracer_version(self):
         kernel_path = None
+        # remove the trailing /
+        while self._args.path.endswith('/'):
+            self._args.path = self._args.path[:-1]
         for root, _, _ in os.walk(self._args.path):
             if root.endswith('kernel'):
                 kernel_path = root
@@ -183,15 +186,25 @@ class Command:
             self._gen_error('Could not find kernel trace directory')
 
         try:
-            metadata = subprocess.getoutput(
+            ret, metadata = subprocess.getstatusoutput(
                 'babeltrace -o ctf-metadata "%s"' % kernel_path)
         except subprocess.CalledProcessError:
             self._gen_error('Cannot run babeltrace on the trace, cannot read'
                             ' tracer version')
 
-        major_match = re.search(r'tracer_major = (\d+)', metadata)
-        minor_match = re.search(r'tracer_minor = (\d+)', metadata)
-        patch_match = re.search(r'tracer_patchlevel = (\d+)', metadata)
+        # fallback to reading the text metadata if babeltrace failed to
+        # output the CTF metadata
+        if ret != 0:
+            try:
+                metadata = subprocess.getoutput(
+                    'cat "%s"' % os.path.join(kernel_path, 'metadata'))
+            except subprocess.CalledProcessError:
+                self._gen_error('Cannot read the metadata of the trace, cannot'
+                                'extract tracer version')
+
+        major_match = re.search(r'tracer_major = "*(\d+)"*', metadata)
+        minor_match = re.search(r'tracer_minor = "*(\d+)"*', metadata)
+        patch_match = re.search(r'tracer_patchlevel = "*(\d+)"*', metadata)
 
         if not major_match or not minor_match or not patch_match:
             self._gen_error('Malformed metadata, cannot read tracer version')
@@ -284,18 +297,18 @@ class Command:
         self._analysis_conf.period_begin_ev_name = args.period_begin
         self._analysis_conf.period_end_ev_name = args.period_end
         self._analysis_conf.period_begin_key_fields = \
-                                            args.period_begin_key.split(',')
+            args.period_begin_key.split(',')
 
         if args.period_end_key:
             self._analysis_conf.period_end_key_fields = \
-                                            args.period_end_key.split(',')
+                args.period_end_key.split(',')
         else:
             self._analysis_conf.period_end_key_fields = \
-                                    self._analysis_conf.period_begin_key_fields
+                self._analysis_conf.period_begin_key_fields
 
         if args.period_key_value:
             self._analysis_conf.period_key_value = \
-                                        tuple(args.period_key_value.split(','))
+                tuple(args.period_key_value.split(','))
 
         if args.cpu:
             self._analysis_conf.cpu_list = args.cpu.split(',')

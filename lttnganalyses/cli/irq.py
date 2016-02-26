@@ -27,9 +27,9 @@ import math
 import statistics
 import sys
 from . import mi
+from . import termgraph
 from .command import Command
 from ..core import irq as core_irq
-from ..ascii_graph import Pyasciigraph
 from ..linuxautomaton import common, sv
 
 
@@ -487,28 +487,17 @@ class IrqAnalysisCommand(Command):
         return statistics.stdev(raise_latencies)
 
     def _print_frequency_distribution(self, freq_table):
-        graph = Pyasciigraph()
-        graph_data = []
+        title_fmt = 'Handler duration frequency distribution {}'
 
-        for row in freq_table.rows:
-            # The graph data format is a tuple (info, value). Here info
-            # is the lower bound of the bucket, value the bucket's count
-            lower_bound_us = row.duration_lower.to_us()
-            count = row.count.value
-
-            graph_data.append(('%0.03f' % lower_bound_us, count))
-
-        title_fmt = 'Handler duration frequency distribution {} (usec)'
-
-        graph_lines = graph.graph(
-            title_fmt.format(freq_table.subtitle),
-            graph_data,
-            info_before=True,
-            count=True
+        graph = termgraph.FreqGraph(
+            data=freq_table.rows,
+            get_value=lambda row: row.count.value,
+            get_lower_bound=lambda row: row.duration_lower.to_us(),
+            title=title_fmt.format(freq_table.subtitle),
+            unit='µs'
         )
 
-        for line in graph_lines:
-            print(line)
+        graph.print_graph()
 
     def _filter_irq(self, irq):
         if type(irq) is sv.HardIRQ:

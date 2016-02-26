@@ -27,10 +27,11 @@ import operator
 import statistics
 import collections
 from . import mi
+from . import termgraph
 from ..core import sched
 from .command import Command
+from ..common import format_utils
 from ..linuxautomaton import common
-from ..ascii_graph import Pyasciigraph
 
 
 _SchedStats = collections.namedtuple('_SchedStats', [
@@ -411,8 +412,7 @@ class SchedAnalysisCommand(Command):
             else:
                 stdev = mi.Duration(stdev)
 
-            prio_list = str([prio_evt.prio for
-                             prio_evt in tid_stats.prio_list])
+            prio_list = format_utils.format_prio_list(tid_stats.prio_list)
 
             stats_table.append_row(
                 process=mi.Process(tid=tid_stats.tid, name=tid_stats.comm),
@@ -686,8 +686,8 @@ class SchedAnalysisCommand(Command):
         return common.ns_to_hour_nsec(ts, self._args.multi_day, self._args.gmt)
 
     def _print_sched_events(self, result_table):
-        fmt = '[{:<18}, {:<18}] {:>15} {:>10} {:>3} {:<25}  {:<25}'
-        title_fmt = '{:<20} {:<19} {:>15} {:>10} {:>3} {:<25}  {:<25}'
+        fmt = '[{:<18}, {:<18}] {:>15} {:>10}  {:>3}   {:<25}  {:<25}'
+        title_fmt = '{:<20} {:<19} {:>15} {:>10}  {:>3}   {:<25}  {:<25}'
         print()
         print(result_table.title)
         print(title_fmt.format('Wakeup', 'Switch', 'Latency (us)', 'Priority',
@@ -739,7 +739,7 @@ class SchedAnalysisCommand(Command):
                 print(row_str)
 
     def _print_per_tid_stats(self, stats_table):
-        row_format = '{:<25} {:>8}  {:>12}  {:>12}  {:>12}  {:>12} {}'
+        row_format = '{:<25} {:>8}  {:>12}  {:>12}  {:>12}  {:>12}   {}'
         header = row_format.format(
             'Process', 'Count', 'Min', 'Avg', 'Max', 'Stdev', 'Priorities'
         )
@@ -797,34 +797,21 @@ class SchedAnalysisCommand(Command):
                 print(row_str)
 
     def _print_frequency_distribution(self, freq_table):
-        graph = Pyasciigraph()
-        graph_data = []
+        title_fmt = 'Scheduling latency frequency distribution - {}'
 
-        for row in freq_table.rows:
-            # The graph data format is a tuple (info, value). Here info
-            # is the lower bound of the bucket, value the bucket's count
-            lower_bound_us = row.duration_lower.to_us()
-            count = row.count.value
-
-            graph_data.append(('%0.03f' % lower_bound_us, count))
-
-        title_fmt = 'Scheduling latency (µs) frequency distribution - {}'
-
-        graph_lines = graph.graph(
-            title_fmt.format(freq_table.subtitle),
-            graph_data,
-            info_before=True,
-            count=True
+        graph = termgraph.FreqGraph(
+            data=freq_table.rows,
+            get_value=lambda row: row.count.value,
+            get_lower_bound=lambda row: row.duration_lower.to_us(),
+            title=title_fmt.format(freq_table.subtitle),
+            unit='µs'
         )
 
-        for line in graph_lines:
-            print(line)
+        graph.print_graph()
 
     def _print_freq(self, freq_tables):
         for freq_table in freq_tables:
-            if freq_table.rows:
-                print()
-                self._print_frequency_distribution(freq_table)
+            self._print_frequency_distribution(freq_table)
 
     def _validate_transform_args(self, args):
         # If neither --total nor --per-prio are specified, default
