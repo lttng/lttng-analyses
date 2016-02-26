@@ -72,12 +72,13 @@ class SyscallEvent():
 
     def process_exit(self, event):
         self.end_ts = event.timestamp
-        try:
-            self.ret = event['ret']
-        except:
-            print("[warning] syscall %s does not have a return code, that "
-                  "should not happen" % event.name)
-            self.ret = -1
+        # On certain architectures (notably arm32), lttng-modules
+        # versions prior to 2.8 would erroneously trace certain
+        # syscalls (e.g. mmap2) without their return value. In this
+        # case, get() will simply set self.ret to None. These syscalls
+        # with a None return value should simply be ignored down the
+        # line.
+        self.ret = event.get('ret')
         self.duration = self.end_ts - self.begin_ts
 
     @classmethod
