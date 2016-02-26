@@ -393,6 +393,26 @@ class SchedAnalysisCommand(Command):
 
         return stats_table
 
+    def _cleanup_prio_list(self, prio_list):
+        prios = {}
+        prio_str = None
+        for p in prio_list:
+            if p.prio in prios:
+                prios[p.prio] += 1
+            else:
+                prios[p.prio] = 1
+        for p in sorted(prios.keys()):
+            if prios[p] > 1:
+                count_str = " (%s times)" % prios[p]
+            else:
+                count_str = ""
+            if prio_str is None:
+                prio_str = "[%s%s" % (p, count_str)
+            else:
+                prio_str = "%s, %s%s" % (prio_str, p, count_str)
+        prio_str = prio_str + "]"
+        return prio_str
+
     def _get_per_tid_stats_result_table(self, begin_ns, end_ns):
         stats_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_TID_STATS,
@@ -411,8 +431,7 @@ class SchedAnalysisCommand(Command):
             else:
                 stdev = mi.Duration(stdev)
 
-            prio_list = str([prio_evt.prio for
-                             prio_evt in tid_stats.prio_list])
+            prio_list = self._cleanup_prio_list(tid_stats.prio_list)
 
             stats_table.append_row(
                 process=mi.Process(tid=tid_stats.tid, name=tid_stats.comm),
@@ -808,7 +827,6 @@ class SchedAnalysisCommand(Command):
         )
 
         graph.print_graph()
-
 
     def _print_freq(self, freq_tables):
         for freq_table in freq_tables:
