@@ -25,10 +25,6 @@ import socket
 from . import common
 
 
-class StateVariable:
-    pass
-
-
 class Process():
     def __init__(self, tid=None, pid=None, comm='', prio=None):
         self.tid = tid
