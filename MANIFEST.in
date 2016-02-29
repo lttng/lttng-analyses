@@ -1,2 +1,17 @@
 include versioneer.py
 recursive-include tests *
+include lttng-cputop
+include lttng-iolatencyfreq
+include lttng-iolatencystats
+include lttng-iolatencytop
+include lttng-iolog
+include lttng-iousagetop
+include lttng-irqfreq
+include lttng-irqlog
+include lttng-irqstats
+include lttng-memtop
+include lttng-schedfreq
+include lttng-schedlog
+include lttng-schedstats
+include lttng-schedtop
+include lttng-syscallstats
