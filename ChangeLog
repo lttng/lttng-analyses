@@ -1,7 +1,14 @@
+2016-03-01 LTTng analyses 0.4.2
+	* Packaging fixes
+
+2016-02-29 LTTng analyses 0.4.1
+	* Packaging fixes
+
 2016-02-26 LTTng analyses 0.4.0
 	* Scheduler latency analyses
 	* Priority fields in CPU and latency analyses
 	* Machine Interface (json) output
+	* Period-based analyses (begin and end events)
 	* Refactoring/Bugfixes/Cleanup
 	* Basic testing infrastructure
 
