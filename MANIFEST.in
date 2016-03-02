@@ -1,5 +1,8 @@
 include versioneer.py
 recursive-include tests *
+include ChangeLog
+include LICENSE
+include mit-license.txt
 include lttng-cputop
 include lttng-iolatencyfreq
 include lttng-iolatencystats
