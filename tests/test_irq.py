@@ -78,10 +78,10 @@ class IrqTest(AnalysisTest):
         expected = self.get_expected_output('irqstats.txt')
         result = self.get_cmd_output('lttng-irqstats')
 
-        self.assertMultiLineEqual(result, expected)
+        self.diff("irqstats", result, expected)
 
     def test_irqlog(self):
         expected = self.get_expected_output('irqlog.txt')
         result = self.get_cmd_output('lttng-irqlog')
 
-        self.assertMultiLineEqual(result, expected)
+        self.diff("irqlog", result, expected)

@@ -44,4 +44,4 @@ class CpuTest(AnalysisTest):
         expected = self.get_expected_output('cputop.txt')
         result = self.get_cmd_output('lttng-cputop')
 
-        self.assertMultiLineEqual(result, expected)
+        self.diff("cputop", result, expected)

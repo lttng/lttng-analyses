@@ -68,10 +68,10 @@ class IoTest(AnalysisTest):
         expected = self.get_expected_output('iousagetop.txt')
         result = self.get_cmd_output('lttng-iousagetop')
 
-        self.assertMultiLineEqual(result, expected)
+        self.diff("iousagetop", result, expected)
 
     def test_iolatencytop(self):
         expected = self.get_expected_output('iolatencytop.txt')
         result = self.get_cmd_output('lttng-iolatencytop')
 
-        self.assertMultiLineEqual(result, expected)
+        self.diff("iolatencytop", result, expected)
