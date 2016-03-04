@@ -28,7 +28,7 @@ from .trace_writer import TraceWriter
 
 
 class AnalysisTest(unittest.TestCase):
-    COMMON_OPTIONS = '--no-progress --skip-validation'
+    COMMON_OPTIONS = '--no-progress --skip-validation --gmt'
 
     def set_up_class(self):
         dirname = os.path.dirname(os.path.realpath(__file__))

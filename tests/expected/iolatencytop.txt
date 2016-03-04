@@ -1,14 +1,14 @@
-Timerange: [1969-12-31 19:00:01.000000000, 1969-12-31 19:00:01.024000000]
+Timerange: [1970-01-01 00:00:01.000000000, 1970-01-01 00:00:01.024000000]
 
 Top system call latencies open (usec)
 Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename      
-[19:00:01.023000000,19:00:01.024000000]  open                    1000.000          N/A  app3                     101      test/open/file (fd=42)
+[00:00:01.023000000,00:00:01.024000000]  open                    1000.000          N/A  app3                     101      test/open/file (fd=42)
 
 Top system call latencies read (usec)
 Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename      
-[19:00:01.008000000,19:00:01.009000000]  read                    1000.000      100   B  app2                     100      testfile (fd=3)
-[19:00:01.012000000,19:00:01.013000000]  read                    1000.000       42   B  app3                     101      unknown (fd=3)
+[00:00:01.008000000,00:00:01.009000000]  read                    1000.000      100   B  app2                     100      testfile (fd=3)
+[00:00:01.012000000,00:00:01.013000000]  read                    1000.000       42   B  app3                     101      unknown (fd=3)
 
 Top system call latencies write (usec)
 Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename      
-[19:00:01.004000000,19:00:01.005000000]  write                   1000.000       10   B  app                      99       unknown (fd=4)
+[00:00:01.004000000,00:00:01.005000000]  write                   1000.000       10   B  app                      99       unknown (fd=4)
