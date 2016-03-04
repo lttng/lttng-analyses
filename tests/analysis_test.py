@@ -30,6 +30,10 @@ from .trace_writer import TraceWriter
 class AnalysisTest(unittest.TestCase):
     COMMON_OPTIONS = '--no-progress --skip-validation --gmt'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rm_trace = True
+
     def set_up_class(self):
         dirname = os.path.dirname(os.path.realpath(__file__))
         self.data_path = dirname + '/expected/'
@@ -38,7 +42,8 @@ class AnalysisTest(unittest.TestCase):
         self.write_trace()
 
     def tear_down_class(self):
-        self.trace_writer.rm_trace()
+        if self.rm_trace:
+            self.trace_writer.rm_trace()
 
     def write_trace(self):
         raise NotImplementedError
@@ -60,3 +65,16 @@ class AnalysisTest(unittest.TestCase):
                              options, self.trace_writer.trace_root)
 
         return subprocess.getoutput(cmd)
+
+    def get_output(self, name, output):
+        out = open(os.path.join(self.trace_writer.trace_root, name), "w")
+        out.write(output)
+        out.close()
+        self.rm_trace = False
+
+    def diff(self, name, result, expected):
+        try:
+            self.assertMultiLineEqual(result, expected)
+        except AssertionError:
+            self.get_output(name, result)
+            raise
