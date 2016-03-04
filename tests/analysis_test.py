@@ -55,8 +55,9 @@ class AnalysisTest(unittest.TestCase):
 
         return result
 
-    def get_expected_output(self, filename):
-        with open(self.data_path + filename, 'r') as expected_file:
+    def get_expected_output(self, test_name):
+        expected_path = os.path.join(self.data_path, test_name + '.txt')
+        with open(expected_path, 'r') as expected_file:
             return expected_file.read()
 
     def get_cmd_output(self, exec_name, options=''):
@@ -66,15 +67,15 @@ class AnalysisTest(unittest.TestCase):
 
         return subprocess.getoutput(cmd)
 
-    def get_output(self, name, output):
-        out = open(os.path.join(self.trace_writer.trace_root, name), "w")
-        out.write(output)
-        out.close()
-        self.rm_trace = False
+    def save_test_result(self, result, test_name):
+        result_path = os.path.join(self.trace_writer.trace_root, test_name)
+        with open(result_path, 'w') as result_file:
+            result_file.write(result)
+            self.rm_trace = False
 
-    def diff(self, name, result, expected):
+    def _assertMultiLineEqual(self, result, expected, test_name):
         try:
             self.assertMultiLineEqual(result, expected)
         except AssertionError:
-            self.get_output(name, result)
+            self.save_test_result(result, test_name)
             raise

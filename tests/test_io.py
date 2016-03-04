@@ -65,13 +65,15 @@ class IoTest(AnalysisTest):
         self.trace_writer.flush()
 
     def test_iousagetop(self):
-        expected = self.get_expected_output('iousagetop.txt')
+        test_name = 'iousagetop'
+        expected = self.get_expected_output(test_name)
         result = self.get_cmd_output('lttng-iousagetop')
 
-        self.diff("iousagetop", result, expected)
+        self._assertMultiLineEqual(result, expected, test_name)
 
     def test_iolatencytop(self):
-        expected = self.get_expected_output('iolatencytop.txt')
+        test_name = 'iolatencytop'
+        expected = self.get_expected_output(test_name)
         result = self.get_cmd_output('lttng-iolatencytop')
 
-        self.diff("iolatencytop", result, expected)
+        self._assertMultiLineEqual(result, expected, test_name)
