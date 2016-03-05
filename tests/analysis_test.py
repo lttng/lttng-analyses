@@ -30,6 +30,10 @@ from .trace_writer import TraceWriter
 class AnalysisTest(unittest.TestCase):
     COMMON_OPTIONS = '--no-progress --skip-validation --gmt'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rm_trace = True
+
     def set_up_class(self):
         dirname = os.path.dirname(os.path.realpath(__file__))
         self.data_path = dirname + '/expected/'
@@ -38,7 +42,8 @@ class AnalysisTest(unittest.TestCase):
         self.write_trace()
 
     def tear_down_class(self):
-        self.trace_writer.rm_trace()
+        if self.rm_trace:
+            self.trace_writer.rm_trace()
 
     def write_trace(self):
         raise NotImplementedError
@@ -50,8 +55,9 @@ class AnalysisTest(unittest.TestCase):
 
         return result
 
-    def get_expected_output(self, filename):
-        with open(self.data_path + filename, 'r') as expected_file:
+    def get_expected_output(self, test_name):
+        expected_path = os.path.join(self.data_path, test_name + '.txt')
+        with open(expected_path, 'r') as expected_file:
             return expected_file.read()
 
     def get_cmd_output(self, exec_name, options=''):
@@ -60,3 +66,16 @@ class AnalysisTest(unittest.TestCase):
                              options, self.trace_writer.trace_root)
 
         return subprocess.getoutput(cmd)
+
+    def save_test_result(self, result, test_name):
+        result_path = os.path.join(self.trace_writer.trace_root, test_name)
+        with open(result_path, 'w') as result_file:
+            result_file.write(result)
+            self.rm_trace = False
+
+    def _assertMultiLineEqual(self, result, expected, test_name):
+        try:
+            self.assertMultiLineEqual(result, expected)
+        except AssertionError:
+            self.save_test_result(result, test_name)
+            raise

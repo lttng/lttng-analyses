@@ -75,13 +75,15 @@ class IrqTest(AnalysisTest):
         self.trace_writer.flush()
 
     def test_irqstats(self):
-        expected = self.get_expected_output('irqstats.txt')
+        test_name = 'irqstats'
+        expected = self.get_expected_output(test_name)
         result = self.get_cmd_output('lttng-irqstats')
 
-        self.assertMultiLineEqual(result, expected)
+        self._assertMultiLineEqual(result, expected, test_name)
 
     def test_irqlog(self):
-        expected = self.get_expected_output('irqlog.txt')
+        test_name = 'irqlog'
+        expected = self.get_expected_output(test_name)
         result = self.get_cmd_output('lttng-irqlog')
 
-        self.assertMultiLineEqual(result, expected)
+        self._assertMultiLineEqual(result, expected, test_name)

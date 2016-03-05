@@ -41,7 +41,8 @@ class CpuTest(AnalysisTest):
         self.trace_writer.flush()
 
     def test_cputop(self):
-        expected = self.get_expected_output('cputop.txt')
+        test_name = 'cputop'
+        expected = self.get_expected_output(test_name)
         result = self.get_cmd_output('lttng-cputop')
 
-        self.assertMultiLineEqual(result, expected)
+        self._assertMultiLineEqual(result, expected, test_name)
