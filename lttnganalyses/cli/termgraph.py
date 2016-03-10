@@ -29,6 +29,7 @@ FreqGraphDatum = namedtuple(
     'FreqGraphDatum', ['value', 'value_str', 'lower_bound']
 )
 
+
 class Graph():
     MAX_GRAPH_WIDTH = 80
     BAR_CHAR = '█'
@@ -128,8 +129,9 @@ class BarGraph(Graph):
             return self._title
 
         title_len = len(self._title)
-        space_width = (self.MAX_GRAPH_WIDTH - title_len) + \
-                      1 + self._max_value_len + 1
+        space_width = (
+            self.MAX_GRAPH_WIDTH - title_len + 1 + self._max_value_len + 1
+        )
 
         return self._title + ' ' * space_width + self._label_header
 
