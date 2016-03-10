@@ -21,9 +21,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
 import socket
 from babeltrace import CTFScope
-from . import sp, sv, common
+from . import sp, sv
+from ..common import format_utils, trace_utils
 
 
 class IoStateProvider(sp.StateProvider):
@@ -41,7 +43,7 @@ class IoStateProvider(sp.StateProvider):
 
     def _process_syscall_entry(self, event):
         # Only handle IO Syscalls
-        name = common.get_syscall_name(event)
+        name = trace_utils.get_syscall_name(event)
         if name not in sv.SyscallConsts.IO_SYSCALLS:
             return
 
@@ -106,9 +108,9 @@ class IoStateProvider(sp.StateProvider):
         if 'family' in event and event['family'] == socket.AF_INET:
             fd = event['fd']
             if fd in parent_proc.fds:
-                parent_proc.fds[fd].filename = (
-                    '%s:%d' % (common.get_v4_addr_str(event['v4addr']),
-                               event['dport']))
+                parent_proc.fds[fd].filename = format_utils.format_ipv4(
+                    event['v4addr'], event['dport']
+                )
 
     def _process_writeback_pages_written(self, event):
         for cpu in self._state.cpus.values():
@@ -203,7 +205,7 @@ class IoStateProvider(sp.StateProvider):
             event, proc.tid, old_file)
 
         if name == 'dup3':
-            cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
+            cloexec = event['flags'] & os.O_CLOEXEC == os.O_CLOEXEC
             current_syscall.io_rq.cloexec = cloexec
 
     def _track_close(self, event, name, proc):

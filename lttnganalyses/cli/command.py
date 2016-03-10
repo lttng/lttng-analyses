@@ -29,13 +29,12 @@ import re
 import sys
 import subprocess
 from babeltrace import TraceCollection
-from . import mi
-from .. import _version
-from . import progressbar
-from .. import __version__
-from ..common import version_utils
+from . import mi, progressbar
+from .. import _version, __version__
 from ..core import analysis
-from ..linuxautomaton import common
+from ..common import (
+    format_utils, parse_utils, time_utils, trace_utils, version_utils
+)
 from ..linuxautomaton import automaton
 
 
@@ -252,12 +251,17 @@ class Command:
         self._post_analysis()
 
     def _print_date(self, begin_ns, end_ns):
-        date = 'Timerange: [%s, %s]' % (
-            common.ns_to_hour_nsec(begin_ns, gmt=self._args.gmt,
-                                   multi_day=True),
-            common.ns_to_hour_nsec(end_ns, gmt=self._args.gmt,
-                                   multi_day=True))
+        time_range_str = format_utils.format_time_range(
+            begin_ns, end_ns, print_date=True, gmt=self._args.gmt
+        )
+        date = 'Timerange: {}'.format(time_range_str)
+
         self._print(date)
+
+    def _format_timestamp(self, timestamp):
+        return format_utils.format_timestamp(
+            timestamp, print_date=self._args.multi_day, gmt=self._args.gmt
+        )
 
     def _get_uniform_freq_values(self, durations):
         if self._args.uniform_step is not None:
@@ -288,7 +292,7 @@ class Command:
         refresh_period_ns = None
         if args.refresh is not None:
             try:
-                refresh_period_ns = common.duration_str_to_ns(args.refresh)
+                refresh_period_ns = parse_utils.parse_duration(args.refresh)
             except ValueError as e:
                 self._cmdline_error(str(e))
 
@@ -477,30 +481,36 @@ class Command:
         pass
 
     def _process_date_args(self):
-        def date_to_epoch_nsec(date):
-            ts = common.date_to_epoch_nsec(self._handles, date, self._args.gmt)
-            if ts is None:
-                self._cmdline_error('Invalid date format: "{}"'.format(date))
+        def parse_date(date):
+            try:
+                ts = parse_utils.parse_trace_collection_date(
+                    self._traces, date, self._args.gmt
+                )
+            except ValueError as e:
+                self._cmdline_error(str(e))
 
             return ts
 
-        self._args.multi_day = common.is_multi_day_trace_collection(
-            self._handles)
+        self._args.multi_day = trace_utils.is_multi_day_trace_collection(
+            self._traces
+        )
         begin_ts = None
         end_ts = None
 
         if self._args.timerange:
-            begin_ts, end_ts = common.extract_timerange(self._handles,
-                                                        self._args.timerange,
-                                                        self._args.gmt)
-            if None in [begin_ts, end_ts]:
-                self._cmdline_error(
-                    'Invalid time format: "{}"'.format(self._args.timerange))
+            try:
+                begin_ts, end_ts = (
+                    parse_utils.parse_trace_collection_time_range(
+                        self._traces, self._args.timerange, self._args.gmt
+                    )
+                )
+            except ValueError as e:
+                self._cmdline_error(str(e))
         else:
             if self._args.begin:
-                begin_ts = date_to_epoch_nsec(self._args.begin)
+                begin_ts = parse_date(self._args.begin)
             if self._args.end:
-                end_ts = date_to_epoch_nsec(self._args.end)
+                end_ts = parse_date(self._args.end)
 
                 # We have to check if timestamp_begin is None, which
                 # it always is in older versions of babeltrace. In
