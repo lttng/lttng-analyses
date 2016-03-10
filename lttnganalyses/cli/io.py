@@ -31,7 +31,6 @@ from . import termgraph
 from ..core import io
 from ..common import format_utils
 from .command import Command
-from ..linuxautomaton import common
 
 
 _UsageTables = collections.namedtuple('_UsageTables', [
@@ -668,7 +667,7 @@ class IoAnalysisCommand(Command):
             title='Disk Request Average Latency',
             label_header='Disk',
             unit='ms',
-            get_value=lambda row: row.rtps.value / common.NSEC_PER_MSEC,
+            get_value=lambda row: row.rtps.value / 1000000,
             get_label=lambda row: row.disk.name,
             data=result_table.rows
         )
@@ -908,13 +907,12 @@ class IoAnalysisCommand(Command):
 
     def _print_log_row(self, row):
         fmt = '{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} {:<14}'
-        begin_time = common.ns_to_hour_nsec(row.time_range.begin,
-                                            self._args.multi_day,
-                                            self._args.gmt)
-        end_time = common.ns_to_hour_nsec(row.time_range.end,
-                                          self._args.multi_day,
-                                          self._args.gmt)
-        time_range_str = '[' + begin_time + ',' + end_time + ']'
+        time_range_str = format_utils.format_time_range(
+            row.time_range.begin,
+            row.time_range.end,
+            self._args.multi_day,
+            self._args.gmt
+        )
         duration_str = '%0.03f' % row.duration.to_us()
 
         if type(row.size) is mi.Empty:
@@ -954,7 +952,7 @@ class IoAnalysisCommand(Command):
         print()
         fmt = '{} {} (usec)'
         print(fmt.format(result_table.title, result_table.subtitle))
-        header_fmt = '{:<19} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} {:<14}'
+        header_fmt = '{:<20} {:<20} {:<16} {:<23} {:<5} {:<24} {:<8} {:<14}'
         print(header_fmt.format(
             'Begin', 'End', 'Name', 'Duration (usec)', 'Size', 'Proc', 'PID',
             'Filename'))

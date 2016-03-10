@@ -21,7 +21,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from . import sp, sv, common
+import os
+from . import sp, sv
 
 
 class StatedumpStateProvider(sp.StateProvider):
@@ -77,7 +78,7 @@ class StatedumpStateProvider(sp.StateProvider):
         pid = event['pid']
         fd = event['fd']
         filename = event['filename']
-        cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
+        cloexec = event['flags'] & os.O_CLOEXEC == os.O_CLOEXEC
 
         if pid not in self._state.tids:
             self._state.tids[pid] = sv.Process(tid=pid, pid=pid)

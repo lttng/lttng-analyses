@@ -26,12 +26,10 @@ import math
 import operator
 import statistics
 import collections
-from . import mi
-from . import termgraph
+from . import mi, termgraph
 from ..core import sched
 from .command import Command
 from ..common import format_utils
-from ..linuxautomaton import common
 
 
 _SchedStats = collections.namedtuple('_SchedStats', [
@@ -682,9 +680,6 @@ class SchedAnalysisCommand(Command):
 
         return statistics.stdev(sched_latencies)
 
-    def _ns_to_hour_nsec(self, ts):
-        return common.ns_to_hour_nsec(ts, self._args.multi_day, self._args.gmt)
-
     def _print_sched_events(self, result_table):
         fmt = '[{:<18}, {:<18}] {:>15} {:>10}  {:>3}   {:<25}  {:<25}'
         title_fmt = '{:<20} {:<19} {:>15} {:>10}  {:>3}   {:<25}  {:<25}'
@@ -707,8 +702,8 @@ class SchedAnalysisCommand(Command):
             else:
                 waker_str = '%s (%d)' % (waker_proc.name, waker_proc.tid)
 
-            print(fmt.format(self._ns_to_hour_nsec(wakeup_ts),
-                             self._ns_to_hour_nsec(switch_ts),
+            print(fmt.format(self._format_timestamp(wakeup_ts),
+                             self._format_timestamp(switch_ts),
                              '%0.03f' % (latency / 1000), prio,
                              target_cpu, wakee_str, waker_str))
 
