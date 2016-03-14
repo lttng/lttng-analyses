@@ -58,7 +58,7 @@ def parse_size(size_str):
         units.
 
     Returns:
-        A non-negative number of bytes.
+        A number of bytes.
 
     Raises:
         ValueError: if units are unrecognised or the size is not a
@@ -106,7 +106,7 @@ def parse_duration(duration_str):
         duration and units.
 
     Returns:
-        A non-negative number of nanoseconds.
+        A number of nanoseconds.
 
     Raises:
         ValueError: if units are unrecognised or the size is not a
@@ -301,7 +301,7 @@ def _parse_date_time(date):
 def _parse_date_timestamp(date):
     """Parse timestamp string in nanoseconds from epoch.
 
-    This matches 93847238974923874.
+    This matches 1418423383802588035.
 
     Args:
         date (str): the date string to be parsed.
