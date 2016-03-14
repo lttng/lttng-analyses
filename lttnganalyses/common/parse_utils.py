@@ -21,7 +21,6 @@
 # SOFTWARE.
 
 import datetime
-import math
 import re
 from time import timezone
 from . import trace_utils
@@ -92,7 +91,7 @@ def parse_size(size_str):
         else:
             raise ValueError('unrecognised units: {}'.format(units))
 
-        size *= math.pow(base, exponent)
+        size *= base ** exponent
 
     return int(size)
 
@@ -148,7 +147,7 @@ def parse_duration(duration_str):
         # no units defaults to seconds
         exponent = 3
 
-    duration *= math.pow(base, exponent)
+    duration *= base ** exponent
 
     return int(duration)
 
