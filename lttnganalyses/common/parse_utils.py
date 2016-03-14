@@ -310,6 +310,9 @@ def _parse_date_timestamp(date):
     date_time = datetime.datetime.fromtimestamp(
         timestamp_ns / NSEC_PER_SEC
     )
+    # Set the microseconds to 0 because values < 1 second are covered
+    # by the nsec value.
+    date_time = date_time.replace(microsecond=0)
     nsec = timestamp_ns % NSEC_PER_SEC
 
     return date_time, nsec
