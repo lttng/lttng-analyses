@@ -112,20 +112,7 @@ def parse_duration(duration_str):
         real number.
     """
     base = 1000
-
-    try:
-        units_index = next(i for i, c in enumerate(duration_str)
-                           if c.isalpha())
-    except StopIteration:
-        # no units found
-        units_index = None
-
-    if units_index is not None:
-        duration = duration_str[:units_index]
-        units = duration_str[units_index:].lower()
-    else:
-        duration = duration_str
-        units = None
+    duration, units = _split_value_units(duration_str)
 
     try:
         duration = float(duration)
