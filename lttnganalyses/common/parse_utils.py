@@ -412,7 +412,7 @@ def parse_trace_collection_date(collection, date, gmt=False):
     if gmt:
         date_time = date_time + datetime.timedelta(seconds=timezone)
 
-    timestamp_ns = date_time.timestamp() * NSEC_PER_SEC + nsec
+    timestamp_ns = int(date_time.timestamp()) * NSEC_PER_SEC + nsec
 
     return timestamp_ns
 
