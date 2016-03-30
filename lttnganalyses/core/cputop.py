@@ -138,7 +138,6 @@ class Cputop(Analysis):
         next_proc = self.tids[next_tid]
         next_proc.last_sched_ts = timestamp
 
-
     def _process_sched_migrate_task(self, **kwargs):
         cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']

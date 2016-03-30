@@ -21,12 +21,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
 import socket
-from . import common
-
-
-class StateVariable:
-    pass
+from ..common import format_utils, trace_utils
 
 
 class Process():
@@ -83,7 +80,7 @@ class SyscallEvent():
 
     @classmethod
     def new_from_entry(cls, event):
-        name = common.get_syscall_name(event)
+        name = trace_utils.get_syscall_name(event)
         return cls(name, event.timestamp)
 
 
@@ -262,11 +259,11 @@ class OpenIORequest(SyscallIORequest):
     @classmethod
     def new_from_disk_open(cls, event, tid):
         begin_ts = event.timestamp
-        name = common.get_syscall_name(event)
+        name = trace_utils.get_syscall_name(event)
         filename = event['filename']
 
         req = cls(begin_ts, tid, name, filename, FDType.disk)
-        req.cloexec = event['flags'] & common.O_CLOEXEC == common.O_CLOEXEC
+        req.cloexec = event['flags'] & os.O_CLOEXEC == os.O_CLOEXEC
 
         return req
 
@@ -274,15 +271,16 @@ class OpenIORequest(SyscallIORequest):
     def new_from_accept(cls, event, tid):
         # Handle both accept and accept4
         begin_ts = event.timestamp
-        name = common.get_syscall_name(event)
+        name = trace_utils.get_syscall_name(event)
         req = cls(begin_ts, tid, name, 'socket', FDType.net)
 
         if 'family' in event:
             req.family = event['family']
             # Set filename to ip:port if INET socket
             if req.family == socket.AF_INET:
-                req.filename = '%s:%d' % (common.get_v4_addr_str(
-                    event['v4addr']), event['sport'])
+                req.filename = format_utils.format_ipv4(
+                    event['v4addr'], event['sport']
+                )
 
         return req
 
@@ -299,7 +297,7 @@ class OpenIORequest(SyscallIORequest):
     @classmethod
     def new_from_old_fd(cls, event, tid, old_fd):
         begin_ts = event.timestamp
-        name = common.get_syscall_name(event)
+        name = trace_utils.get_syscall_name(event)
         if old_fd is None:
             filename = 'unknown'
             fd_type = FDType.unknown
@@ -367,7 +365,7 @@ class ReadWriteIORequest(SyscallIORequest):
         else:
             size = None
 
-        syscall_name = common.get_syscall_name(event)
+        syscall_name = trace_utils.get_syscall_name(event)
         if syscall_name in SyscallConsts.READ_SYSCALLS:
             operation = IORequest.OP_READ
         else:
@@ -395,7 +393,7 @@ class SyncIORequest(SyscallIORequest):
         # Also handle fdatasync
         begin_ts = event.timestamp
         size = None
-        syscall_name = common.get_syscall_name(event)
+        syscall_name = trace_utils.get_syscall_name(event)
 
         req = cls(begin_ts, size, tid, syscall_name)
         req.fd = event['fd']
