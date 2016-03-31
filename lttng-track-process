@@ -11781,7 +11781,7 @@ if __name__ == "__main__":
                     help='Filter the results only for this list '
                          'of TIDs')
     parser.add_argument('--follow-child', '-f', action="store_true",
-            help='Follow childs on fork')
+            help='Follow children on fork')
     args = parser.parse_args()
 
     arg_proc_list = None
