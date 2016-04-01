@@ -549,10 +549,16 @@ class Command:
 
 # create MI version
 _cmd_version = _version.get_versions()['version']
-_version_match = re.match(r'(\d+)\.(\d+)\.(\d+)(.*)', _cmd_version)
+_version_match = re.match(r'(\d+)(?:\.(\d+)\.(\d+))?(.*)', _cmd_version)
+_version = [0, 0, 0, ""]
+if _version_match is not None:
+    for i in range(0, 4):
+        v = _version_match.group(i + 1)
+        if v is not None:
+            _version[i] = v
 Command._MI_VERSION = version_utils.Version(
-    int(_version_match.group(1)),
-    int(_version_match.group(2)),
-    int(_version_match.group(3)),
-    _version_match.group(4),
+    int(_version[0]),
+    int(_version[1]),
+    int(_version[2]),
+    _version[3],
 )
