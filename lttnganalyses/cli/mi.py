@@ -527,3 +527,14 @@ def get_metadata(version, title, description, authors, url, tags,
         'tags': tags,
         'table-classes': t_classes,
     }
+
+
+def get_error(message, code=None):
+    error = {
+        'error-message': message,
+    }
+
+    if code is not None:
+        error['error-code'] = code
+
+    return error
