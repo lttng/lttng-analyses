@@ -72,7 +72,10 @@ class Command:
         except KeyboardInterrupt:
             sys.exit(0)
 
-    def _error(self, msg, exit_code=1):
+    def _mi_error(self, msg, code=None):
+        print(json.dumps(mi.get_error(msg, code)))
+
+    def _non_mi_error(self, msg):
         try:
             import termcolor
 
@@ -81,6 +84,13 @@ class Command:
             pass
 
         print(msg, file=sys.stderr)
+
+    def _error(self, msg, code, exit_code=1):
+        if self._mi_mode:
+            self._mi_error(msg)
+        else:
+            self._non_mi_error(msg)
+
         sys.exit(exit_code)
 
     def _gen_error(self, msg, exit_code=1):
