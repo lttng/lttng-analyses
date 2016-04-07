@@ -510,6 +510,10 @@ def get_metadata(version, title, description, authors, url, tags,
     t_classes = {t.name: t.to_native_object() for t in table_classes}
 
     return {
+        'mi-version': {
+            'major': 0,
+            'minor': 1,
+        },
         'version': {
             'major': version.major,
             'minor': version.minor,
