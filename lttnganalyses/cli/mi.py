@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from collections import namedtuple
+import sys
 
 
 class Tags:
@@ -538,3 +539,20 @@ def get_error(message, code=None):
         error['error-code'] = code
 
     return error
+
+
+def get_progress(at=None, msg=None):
+    if at is None:
+        at = '*'
+
+    add = ''
+
+    if msg is not None:
+        add = ' {}'.format(msg)
+
+    return '{}{}'.format(at, add)
+
+
+def print_progress(at=None, msg=None):
+    print(get_progress(at, msg))
+    sys.stdout.flush()
