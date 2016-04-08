@@ -22,6 +22,8 @@
 
 import os
 import sys
+from . import mi
+from collections import namedtuple
 
 try:
     from progressbar import ETA, Bar, Percentage, ProgressBar
@@ -44,18 +46,23 @@ def get_folder_size(folder):
     return total_size
 
 
+def _get_maxval(obj):
+    size = get_folder_size(obj._args.path)
+
+    return size / BYTES_PER_EVENT
+
+
 def progressbar_setup(obj):
     if obj._args.no_progress:
         obj.pbar = None
         return
 
     if progressbar_available:
-        size = get_folder_size(obj._args.path)
         widgets = ['Processing the trace: ', Percentage(), ' ',
                    Bar(marker='#', left='[', right=']'),
                    ' ', ETA(), ' ']  # see docs for other options
         obj.pbar = ProgressBar(widgets=widgets,
-                               maxval=size/BYTES_PER_EVENT)
+                               maxval=_get_maxval(obj))
         obj.pbar.start()
     else:
         print('Warning: progressbar module not available, '
@@ -79,4 +86,45 @@ def progressbar_update(obj):
 def progressbar_finish(obj):
     if obj._args.no_progress:
         return
+    obj.pbar.finish()
+
+
+class _MiProgress:
+    def __init__(self, maxval):
+        self._maxval = maxval
+        self._events = 0
+        self._step = maxval // 997
+
+        if self._step == 0:
+            self._step = 1
+
+    def init(self):
+        msg = 'Starting analysis: {} estimated events'.format(round(self._maxval))
+        mi.print_progress(0, msg)
+
+    def update(self):
+        if (self._events % self._step) == 0:
+            if self._events > self._maxval:
+                mi.print_progress(1, 'Almost done...')
+            else:
+                at = round(self._events / self._maxval, 4)
+                msg = '{} events processed'.format(self._events)
+                mi.print_progress(at, msg)
+
+        self._events += 1
+
+    def finish(self):
+        mi.print_progress(1, 'Done!')
+
+
+def mi_progress_setup(obj):
+    obj.pbar = _MiProgress(_get_maxval(obj))
+    obj.pbar.init()
+
+
+def mi_progress_update(obj):
+    obj.pbar.update()
+
+
+def mi_progress_finish(obj):
     obj.pbar.finish()

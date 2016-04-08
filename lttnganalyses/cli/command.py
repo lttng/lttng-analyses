@@ -225,7 +225,12 @@ class Command:
         )
 
     def _check_lost_events(self):
-        self._print('Checking the trace for lost events...')
+        msg = 'Checking the trace for lost events...'
+        self._print(msg)
+
+        if self._mi_mode and self._args.output_progress:
+            mi.print_progress(0, msg)
+
         try:
             subprocess.check_output('babeltrace "%s"' % self._args.path,
                                     shell=True)
@@ -245,18 +250,39 @@ class Command:
 
         self._mi_print()
 
+    def _pb_setup(self):
+        if self._mi_mode:
+            if self._args.output_progress:
+                progressbar.mi_progress_setup(self)
+        else:
+            progressbar.progressbar_setup(self)
+
+    def _pb_update(self):
+        if self._mi_mode:
+            if self._args.output_progress:
+                progressbar.mi_progress_update(self)
+        else:
+            progressbar.progressbar_update(self)
+
+    def _pb_finish(self):
+        if self._mi_mode:
+            if self._args.output_progress:
+                progressbar.mi_progress_finish(self)
+        else:
+            progressbar.progressbar_finish(self)
+
     def _run_analysis(self):
         self._pre_analysis()
-        progressbar.progressbar_setup(self)
+        self._pb_setup()
 
         for event in self._traces.events:
-            progressbar.progressbar_update(self)
+            self._pb_update()
             self._analysis.process_event(event)
             if self._analysis.ended:
                 break
             self._automaton.process_event(event)
 
-        progressbar.progressbar_finish(self)
+        self._pb_finish()
         self._analysis.end()
         self._post_analysis()
 
@@ -357,9 +383,6 @@ class Command:
                 args.freq_uniform = True
 
         if self._mi_mode:
-            # force no progress in MI mode
-            args.no_progress = True
-
             # print MI metadata if required
             if args.metadata:
                 self._mi_print_metadata()
@@ -420,6 +443,8 @@ class Command:
                             help='Show analysis\'s metadata')
             ap.add_argument('path', metavar='<path/to/trace>',
                             help='trace path', nargs='*')
+            ap.add_argument('--output-progress', action='store_true',
+                            help='Print progress indication lines')
         else:
             ap.add_argument('--no-progress', action='store_true',
                             help='Don\'t display the progress bar')
