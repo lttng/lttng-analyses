@@ -232,7 +232,7 @@ class Integer(_UnstructuredDataObject):
 
 
 class Float(_UnstructuredDataObject):
-    CLASS = 'float'
+    CLASS = 'number'
 
 
 class String(_UnstructuredDataObject):
