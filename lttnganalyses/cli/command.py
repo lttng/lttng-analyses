@@ -172,6 +172,8 @@ class Command:
             self._gen_error('Failed to open ' + self._args.path, -1)
         self._handles = handles
         self._traces = traces
+        self._ts_begin = traces.timestamp_begin
+        self._ts_end = traces.timestamp_end
         self._process_date_args()
         self._read_tracer_version()
         if not self._args.skip_validation:
@@ -251,32 +253,40 @@ class Command:
         self._mi_print()
 
     def _pb_setup(self):
-        if self._mi_mode:
-            if self._args.output_progress:
-                progressbar.mi_progress_setup(self)
-        else:
-            progressbar.progressbar_setup(self)
+        if self._args.no_progress:
+            return
 
-    def _pb_update(self):
+        ts_end = self._ts_end
+
+        if self._analysis_conf.end_ts is not None:
+            ts_end = self._analysis_conf.end_ts
+
         if self._mi_mode:
-            if self._args.output_progress:
-                progressbar.mi_progress_update(self)
+            cls = progressbar.MiProgress
         else:
-            progressbar.progressbar_update(self)
+            cls = progressbar.FancyProgressBar
+
+        self._progress = cls(self._ts_begin, ts_end, self._args.path,
+                             self._args.progress_use_size)
+
+    def _pb_update(self, event):
+        if self._args.no_progress:
+            return
+
+        self._progress.update(event)
 
     def _pb_finish(self):
-        if self._mi_mode:
-            if self._args.output_progress:
-                progressbar.mi_progress_finish(self)
-        else:
-            progressbar.progressbar_finish(self)
+        if self._args.no_progress:
+            return
+
+        self._progress.finalize()
 
     def _run_analysis(self):
         self._pre_analysis()
         self._pb_setup()
 
         for event in self._traces.events:
-            self._pb_update()
+            self._pb_update(event)
             self._analysis.process_event(event)
             if self._analysis.ended:
                 break
@@ -434,6 +444,8 @@ class Command:
                         'CPU IDs')
         ap.add_argument('--timerange', type=str, help='time range: '
                                                       '[begin,end]')
+        ap.add_argument('--progress-use-size', action='store_true',
+                        help='use trace size to approximate progress')
         ap.add_argument('-V', '--version', action='version',
                         version='LTTng Analyses v' + __version__)
 
@@ -455,6 +467,13 @@ class Command:
         self._add_arguments(ap)
 
         args = ap.parse_args()
+
+        if self._mi_mode:
+            args.no_progress = True
+
+            if args.output_progress:
+                args.no_progress = False
+
         self._validate_transform_common_args(args)
         self._validate_transform_args(args)
         self._args = args
@@ -551,8 +570,8 @@ class Command:
                 # it always is in older versions of babeltrace. In
                 # that case, the test is simply skipped and an invalid
                 # --end value will cause an empty analysis
-                if self._traces.timestamp_begin is not None and \
-                   end_ts < self._traces.timestamp_begin:
+                if self._ts_begin is not None and \
+                   end_ts < self._ts_begin:
                     self._cmdline_error(
                         '--end timestamp before beginning of trace')
 
