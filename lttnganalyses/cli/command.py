@@ -48,12 +48,14 @@ class Command:
     ]
     _MI_URL = 'https://github.com/lttng/lttng-analyses'
     _VERSION = version_utils.Version.new_from_string(__version__)
+    _BT_INTERSECT_VERSION = version_utils.Version(1, 4, 0)
     _DEBUG_ENV_VAR = 'LTTNG_ANALYSES_DEBUG'
 
     def __init__(self, mi_mode=False):
         self._analysis = None
         self._analysis_conf = None
         self._args = None
+        self._babeltrace_version = None
         self._handles = None
         self._traces = None
         self._ticks = 0
@@ -183,7 +185,16 @@ class Command:
         pass
 
     def _open_trace(self):
-        traces = TraceCollection()
+        self._read_babeltrace_version()
+        if self._babeltrace_version >= self._BT_INTERSECT_VERSION:
+            traces = TraceCollection(intersect_mode=self._args.intersect_mode)
+        else:
+            if self._args.intersect_mode:
+                self._print('Warning: intersect mode not available - disabling')
+                self._print('         Use babeltrace {} or later to enable'.format(
+                    self._BT_INTERSECT_VERSION))
+                self._args.intersect_mode = False
+            traces = TraceCollection()
         handles = traces.add_traces_recursive(self._args.path, 'ctf')
         if handles == {}:
             self._gen_error('Failed to open ' + self._args.path, -1)
@@ -243,6 +254,19 @@ class Command:
             int(patch_match.group(1)),
         )
 
+    def _read_babeltrace_version(self):
+        try:
+            output = subprocess.check_output('babeltrace')
+        except subprocess.CalledProcessError:
+            self._gen_error('Could not run babeltrace to verify version')
+
+        output = output.decode(sys.stdout.encoding)
+        first_line = output.splitlines()[0]
+        version_string = first_line.split()[-1]
+
+        self._babeltrace_version = \
+                    version_utils.Version.new_from_string(version_string)
+
     def _check_lost_events(self):
         msg = 'Checking the trace for lost events...'
         self._print(msg)
@@ -301,6 +325,11 @@ class Command:
     def _run_analysis(self):
         self._pre_analysis()
         self._pb_setup()
+
+        if self._args.intersect_mode:
+            if not self._traces.has_intersection:
+                self._gen_error('Trace has no intersection. '
+                                'Use --no-intersection to override')
 
         for event in self._traces.events:
             self._pb_update(event)
@@ -471,6 +500,9 @@ class Command:
                                                       '[begin,end]')
         ap.add_argument('--progress-use-size', action='store_true',
                         help='use trace size to approximate progress')
+        ap.add_argument('--no-intersection', action='store_false',
+                        dest='intersect_mode',
+                        help='disable stream intersection mode')
         ap.add_argument('-V', '--version', action='version',
                         version='LTTng Analyses v{}'.format(self._VERSION))
         ap.add_argument('--debug', action='store_true',
