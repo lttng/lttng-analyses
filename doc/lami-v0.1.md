@@ -1,63 +1,136 @@
-# LTTng analyses machine interface
+# LTTng analyses machine interface (LAMI) v0.1
 
-This document explains the input and output of the LTTng analyses'
-**machine interface**.
+This document explains the input and output formats of the LTTng
+analyses' **machine interface** (LAMI), version 0.1.
 
 The LTTng analyses project is a set of scripts which analyze one or more
-traces and output the results of this analysis. Each script is responsible
-for one analysis.
+traces and output the results of this analysis. Each script is
+responsible for one analysis.
+
+
+## Definitions
+
+  * **Analysis**: A producer of LAMI. An analysis is a program which
+    receives an input following the LAMI [input format](#input-format),
+    performs an analysis on a set of traces, and outputs the results
+    following the LAMI [output format](#output-format).
+  * **Consumer**: A consumer of LAMI. A consumer, usually some sort of
+    user interface, executes an analysis program following the LAMI
+    input format, and receives its results, following the LAMI output
+    format.
 
 
 ## Input format
 
-There are two different phases. The client first gets the static metadata
-of the analysis, then the client can perform as many analyses as needed
-on different time ranges using this metadata.
+A consumer executes an analysis program with one or more standard
+command-line arguments, then reads the standard output of the analysis
+to its metadata or results following the [output
+format](#output-format).
 
-The input format of the LTTng analyses MI scripts is a list of standard
-command-line arguments.
+There are two different phases of analysis execution:
+
+  1. **Metadata phase**: The consumer obtains the static metadata of
+     the analysis.
+  2. **Analysis phase**: The consumer can perform as many analyses as
+     needed on different time ranges and set of traces, using the
+     metadata of step 1 to interpret the results.
+
+Having two phases avoids attaching the same metadata to each result
+of a given analysis.
+
+The LAMI input format is a list of standard command-line arguments.
 
 **Metadata phase**:
 
-| Argument | Description | Default |
-|---|---|---|
-| `--metadata` | Output the analysis' metadata instead of analyzing | N/A |
+| Argument | Description | Required? | Default |
+|---|---|---|---|
+| `--metadata` | Output the analysis' metadata instead of analyzing | Yes | N/A |
 
 **Analysis phase**:
 
-| Argument | Description | Default |
-|---|---|---|
-| 1st positional | Path to trace(s) to analyze | N/A |
-| `--begin` | Beginning timestamp of analysis (ns) | Absolute beginning of the analyzed traces |
-| `--end` | End timestamp of analysis (ns) | Absolute end of the analyzed traces |
-| `--limit` | Maximum number of output rows per result table or `unlimited` | `unlimited` |
+| Argument | Description | Required? | Default |
+|---|---|---|---|
+| 1st positional | Path to trace(s) to analyze | Yes | N/A |
+| `--begin=TS` | Set beginning timestamp of analysis to `TS` ns | No | Absolute beginning of the analyzed traces |
+| `--end=TS` | Set end timestamp of analysis to `TS` ns | No | Absolute end of the analyzed traces |
+| `--limit=COUNT` | Set maximum number of output rows per result table to `COUNT` (use `unlimited` for no maximum number of rows) | No | `unlimited` |
+| `--output-progress` | Output [progress data](#progress) before outputting the results | No | No progress output |
 
 
 ## Output format
 
-The output format is always UTF-8 [JSON](http://json.org/).
+The LAMI output format is produced by the analysis and is consumed by
+the consumer.
 
-There are two different output phases. The client should first get the
-analysis' metadata by running:
+An analysis has two output channels:
 
-    script --metadata
+  1. Its standard output, which contains progress data, a metadata
+     object, an analysis result object, or an error object.
+  2. Its exit status, which indicates if the analysis was successful
+     or not.
 
-where `script` is the script containing the analysis. This is know as the
-[metadata phase](#metadata). This output provides everything about the analysis
-which is not result data: analysis title, authors, description, result table
-column classes/titles/units, etc.
+If an analysis is successful, its exit status is set to 0. Otherwise,
+it's set to non-zero.
 
-Then, the client can perform as many analyses as required by running the script
-with the mandatory trace path argument. This is known
-as the [analysis phase](#analysis).
+During the [metadata phase](#metadata), the standard output of the
+analysis provides everything about the analysis which is not result
+data: analysis title, authors, description, result table column
+classes/titles/units, etc. This metadata is essential to interpret the
+result objects of the analysis phase.
 
-Note that any [result table](#result-table) can still provide a dynamic table class
-object along with the data when, for example, dynamic columns are required.
+The output format of the metadata phase is always an
+UTF-8 [JSON](http://json.org/) object.
+
+During the [analysis phase](#analysis-phase), the consumer can perform
+as many analyses as required by running the analysis with the mandatory
+trace path argument.
+
+The output format of the analysis phase depends on the command-line
+arguments passed to the analysis program:
+
+  * If `--output-progress` is passed, then the output format _may_
+    contain [progress indication](#progress) lines, followed by an UTF-8
+    [JSON](http://json.org/) object.
+  * If `--output-progress` is _not_ passed, then the output format is
+    always an UTF-8 [JSON](http://json.org/) object.
+
+In all the objects of the output format, an unknown key must be
+**ignored** by the consumer.
 
 
-### Data objects
+### Common objects
 
-_Data objects_ contain data of specific classes.
+The following subsections document objects that can be written during
+both the [metadata phase](#metadata) and the [analysis
+phase](#analysis).
+
+
+#### Error object
+
+An _error object_ indicates that the analysis encountered an error
+during its execution.
+
+**Properties**:
+
+| Property | Type | Description | Required? | Default value |
+|---|---|---|---|---|
+| `error-code` | String or number | Error code | No | No error code |
+| `error-message` | String | Error message | Yes | N/A |
+
+
+**Example**:
+
+```json
+{
+  "error-message": "Cannot open trace \"/root/lttng-traces/my-session\": Permission denied",
+  "error-code": 1
+}
+```
+
+
+#### Data objects
+
+_Data objects_ contain result data of specific classes.
 
 All data objects share a common `class` property which identifies the
 object's class. The available values are:
@@ -84,13 +157,17 @@ object's class. The available values are:
 The following subsections explain each class of data object.
 
 
-#### Unknown object
+##### Unknown object
 
 The special _unknown object_ represents an unknown value. It is
 typically used in result table cells where a given computation cannot
 produce a result for some reason.
 
-This object has no properties.
+**Properties**:
+
+| Property | Type | Description | Required? | Default value |
+|---|---|---|---|---|
+| `class` | String | Set to `unknown` | Yes | N/A |
 
 **Example**:
 
@@ -101,18 +178,19 @@ This object has no properties.
 ```
 
 
-#### Ratio object
+##### Ratio object
 
 A _ratio object_ describes a simple, dimensionless ratio, that is,
 a relationship between two quantities having the same unit indicating
 how many times the first quantity contains the second.
 
-It is suggested that the client shows a ratio object as a percentage.
+It is suggested that the consumer shows a ratio object as a percentage.
 
 **Properties**:
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `ratio` | Yes | N/A |
 | `value` | Number | Ratio as a decimal fraction | Yes | N/A |
 
 **Example**:
@@ -125,7 +203,7 @@ It is suggested that the client shows a ratio object as a percentage.
 ```
 
 
-#### Timestamp object
+##### Timestamp object
 
 A _timestamp object_ describes a specific point in time.
 
@@ -133,6 +211,7 @@ A _timestamp object_ describes a specific point in time.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `timestamp` | Yes | N/A |
 | `value` | Number | Number of nanoseconds since Unix epoch | Yes | N/A |
 
 **Example**:
@@ -145,7 +224,7 @@ A _timestamp object_ describes a specific point in time.
 ```
 
 
-#### Time range object
+##### Time range object
 
 A _time range object_ describes an interval bounded by two point in
 time.
@@ -154,6 +233,7 @@ time.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `time-range` | Yes | N/A |
 | `begin` | Number | Beginning timestamp (number of nanoseconds since Unix epoch) | Yes | N/A |
 | `end` | Number | End timestamp (number of nanoseconds since Unix epoch) | Yes | N/A |
 
@@ -171,7 +251,7 @@ the `begin` property.
 ```
 
 
-#### Duration object
+##### Duration object
 
 A _duration object_ describes the difference between two points in time.
 
@@ -179,6 +259,7 @@ A _duration object_ describes the difference between two points in time.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `duration` | Yes | N/A |
 | `value` | Number | Time duration in nanoseconds | Yes | N/A |
 
 **Example**:
@@ -191,14 +272,16 @@ A _duration object_ describes the difference between two points in time.
 ```
 
 
-#### Size object
+##### Size object
 
-A _size object_ describes the size of a file, of a buffer, of a transfer, etc.
+A _size object_ describes the size of a file, of a buffer, of a
+transfer, etc.
 
 **Properties**:
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `size` | Yes | N/A |
 | `value` | Integer | Size in bytes | Yes | N/A |
 
 **Example**:
@@ -211,7 +294,7 @@ A _size object_ describes the size of a file, of a buffer, of a transfer, etc.
 ```
 
 
-#### Bitrate object
+##### Bitrate object
 
 A _bitrate object_ describes a transfer rate.
 
@@ -219,6 +302,7 @@ A _bitrate object_ describes a transfer rate.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `bitrate` | Yes | N/A |
 | `value` | Number | Bitrate in bits/second | Yes | N/A |
 
 **Example**:
@@ -231,7 +315,7 @@ A _bitrate object_ describes a transfer rate.
 ```
 
 
-#### Syscall object
+##### Syscall object
 
 A _syscall object_ describes the name of a system call.
 
@@ -239,6 +323,7 @@ A _syscall object_ describes the name of a system call.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `syscall` | Yes | N/A |
 | `name` | String | System call name | Yes | N/A |
 
 **Example**:
@@ -251,7 +336,7 @@ A _syscall object_ describes the name of a system call.
 ```
 
 
-#### Process object
+##### Process object
 
 A _process object_ describes a system process.
 
@@ -259,6 +344,7 @@ A _process object_ describes a system process.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `process` | Yes | N/A |
 | `name` | String | Process name | No | No process name |
 | `pid` | Integer | Process ID (PID) | No | No process ID |
 | `tid` | Integer | Thread ID (TID) | No | No thread ID |
@@ -275,7 +361,7 @@ A _process object_ describes a system process.
 ```
 
 
-#### Path object
+##### Path object
 
 A _path object_ describes a relative or absolute file system path.
 
@@ -283,6 +369,7 @@ A _path object_ describes a relative or absolute file system path.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `path` | Yes | N/A |
 | `path` | String | File system path | Yes | N/A |
 
 **Example**:
@@ -295,7 +382,7 @@ A _path object_ describes a relative or absolute file system path.
 ```
 
 
-#### File descriptor object
+##### File descriptor object
 
 A _file descriptor object_ describes the numeric descriptor of a file.
 
@@ -303,6 +390,7 @@ A _file descriptor object_ describes the numeric descriptor of a file.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `fd` | Yes | N/A |
 | `fd` | Integer | File descriptor | Yes | N/A |
 
 **Example**:
@@ -315,7 +403,7 @@ A _file descriptor object_ describes the numeric descriptor of a file.
 ```
 
 
-#### IRQ object
+##### IRQ object
 
 An _IRQ object_ describes an interrupt source.
 
@@ -323,6 +411,7 @@ An _IRQ object_ describes an interrupt source.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `irq` | Yes | N/A |
 | `hard` | Boolean | `true` if this interrupt source generates hardware interrupts, `false` for software interrupts | No | `true` |
 | `nr` | Integer | Interrupt source number | Yes | N/A |
 | `name` | String | Interrupt source name | No | No interrupt source name |
@@ -339,7 +428,7 @@ An _IRQ object_ describes an interrupt source.
 ```
 
 
-#### CPU object
+##### CPU object
 
 A _CPU object_ describes a numeric CPU identifier.
 
@@ -347,6 +436,7 @@ A _CPU object_ describes a numeric CPU identifier.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `cpu` | Yes | N/A |
 | `id` | Integer | CPU identifier number | Yes | N/A |
 
 **Example**:
@@ -359,7 +449,7 @@ A _CPU object_ describes a numeric CPU identifier.
 ```
 
 
-#### Disk object
+##### Disk object
 
 A _disk object_ describes a disk name.
 
@@ -367,6 +457,7 @@ A _disk object_ describes a disk name.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `disk` | Yes | N/A |
 | `name` | String | Disk name | Yes | N/A |
 
 **Example**:
@@ -379,7 +470,7 @@ A _disk object_ describes a disk name.
 ```
 
 
-#### Disk partition object
+##### Disk partition object
 
 A _disk partition object_ describes a disk partition name.
 
@@ -387,6 +478,7 @@ A _disk partition object_ describes a disk partition name.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `part` | Yes | N/A |
 | `name` | String | Disk partition name | Yes | N/A |
 
 **Example**:
@@ -399,7 +491,7 @@ A _disk partition object_ describes a disk partition name.
 ```
 
 
-#### Network interface object
+##### Network interface object
 
 A _network interface object_ describes a network interface name.
 
@@ -407,6 +499,7 @@ A _network interface object_ describes a network interface name.
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `class` | String | Set to `netif` | Yes | N/A |
 | `name` | String | Network interface name | Yes | N/A |
 
 **Example**:
@@ -421,11 +514,17 @@ A _network interface object_ describes a network interface name.
 
 ### Metadata
 
-The _metadata phase_ explains the analysis. It provides an optional title for the
-analysis and the format of the result tables (outputted in the
-[analysis phase](#analysis) by the same analysis).
+The _metadata phase_ explains the analysis. It provides an optional
+title for the analysis and the format of the result tables (outputted
+during the [analysis phase](#analysis) by the same analysis).
 
-The metadata phase writes a [metadata object](#metadata-object).
+The metadata phase writes either:
+
+  * A [metadata object](#metadata-object), or
+  * An [error object](#error-object).
+
+The following subsections document objects that can only be written
+during the metadata phase.
 
 
 #### Column description object
@@ -550,6 +649,7 @@ column descriptions):
 
 | Property | Type | Description | Required? | Default value |
 |---|---|---|---|---|
+| `mi-version` | [Version object](#version-object) | Latest version of the LAMI standard supported by this analysis, amongst:<ul><li>`{"major": 0, "minor": 1}`</li></ul> | Yes | N/A |
 | `version` | [Version object](#version-object) | Version of the analysis | No | No version |
 | `title` | String | Analysis title | No | No title |
 | `authors` | Array of strings | Author(s) of the analysis | No | No authors |
@@ -557,6 +657,9 @@ column descriptions):
 | `url` | String | URL where to find the analysis | No | No URL |
 | `tags` | Array of strings | List of tags associated with the analysis | No | No tags |
 | `table-classes` | Object mapping table class names (strings) to [table class objects](#table-class-object) | Classes of potential result tables | Yes (at least one table class) | N/A |
+
+A consumer not implementing the LAMI standard version indicated by
+the `mi-version` property should not perform the analysis.
 
 The `table-classes` property describes all the potential result
 tables with a static layout that can be generated by the
@@ -568,6 +671,10 @@ dynamic result tables.
 
 ```json
 {
+  "mi-version": {
+    "major": 0,
+    "minor": 1
+  },
   "version": {
     "major": 1,
     "minor": 2,
@@ -617,15 +724,95 @@ dynamic result tables.
 
 ### Analysis
 
-The _analysis phase_ outputs the actual data of the analysis.
+The _analysis phase_ outputs the actual data computer by the analysis.
+The consumer needs the metadata object of the [metadata
+phase](#metadata) in order to interpret the results of the analysis
+phase.
 
-The analysis phase writes an [analysis results object](#analysis-results-object).
+If the `--output-progress` option is passed to the analysis program,
+then the analysis _may_ output [progress indication](#progress) lines
+before writing its main object.
+
+Then, the analysis phase writes either:
+
+  * A [result object](#analysis-results-object), or
+  * An [error object](#error-object).
+
+The following subsections document objects that can only be written
+during the analysis phase.
+
+
+#### Progress
+
+Zero or more _progress lines_ may be written by the analysis during the
+analysis phase _before_ it writes its main object. Progress lines are
+only written if the `--output-progress` option is passed to the analysis
+program.
+
+The format of a progress line is as follows (plain text):
+
+    VALUE[ MESSAGE]
+
+where:
+
+  * `VALUE`: a floating point number from 0 to 1 indicating the current
+    progress of the analysis, or the string `*` which means that the
+    analysis is not able to estimate when it will finish.
+  * `MESSAGE`: an optional message which accompanies the progress
+    indication.
+
+Note that `VALUE` and `MESSAGE` are delimited by a single space
+character.
+
+The line must be terminated by a Unix newline (ASCII LF).
+
+If one progress line has the `*` value, _all_ the progress lines should
+have it.
+
+**Example** (with progress value):
+
+```
+0 Starting the analysis
+0 About to process 1248 events
+0.17 38/1248 events procesed
+0.342 142/1248 events processed
+0.53 203/1248 events processed
+0.54 Connecting to database
+0.54 Connected
+0.65
+0.663
+0.681 511/1248 events processed
+0.759 810/1248 events processed
+0.84 1051/1248 events processed
+0.932 1194/1248 events processed
+0.98 1248/1248 events processed
+1 Done!
+{ JSON result object }
+```
+
+**Example** (without progress value):
+
+```
+* Starting the analysis
+* 124 events procesed
+* 1150 events processed
+* 3845 events processed
+* Connecting to database
+* Connected
+* 9451 events processed
+* 11542 events processed
+* 15464 events processed
+* 17704 events processed
+* 21513 events processed
+* Done!
+{ JSON result object }
+```
 
 
 #### Result table object
 
-A _result table object_ represents the data of an analysis in rows
-and columns.
+A _result table object_ represents the data of an analysis in rows and
+columns.
 
 **Properties**:
 
@@ -647,7 +834,8 @@ The `class` property indicates either:
 The `data` property is a JSON array of rows. Each row is a JSON array of
 column cells. Each column cell contains a value (either a plain JSON
 value, or a [data object](#data-objects)), as described by the `class`
-property of the associated [column description object](#column-description-object).
+property of the associated
+[column description object](#column-description-object).
 
 Any column cell may contain the [unknown object](#unknown-object) when
 it would be possible to get a result for this cell, but the result is

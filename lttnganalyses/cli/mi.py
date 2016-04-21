@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from collections import namedtuple
+import sys
 
 
 class Tags:
@@ -231,7 +232,7 @@ class Integer(_UnstructuredDataObject):
 
 
 class Float(_UnstructuredDataObject):
-    CLASS = 'float'
+    CLASS = 'number'
 
 
 class String(_UnstructuredDataObject):
@@ -510,6 +511,10 @@ def get_metadata(version, title, description, authors, url, tags,
     t_classes = {t.name: t.to_native_object() for t in table_classes}
 
     return {
+        'mi-version': {
+            'major': 0,
+            'minor': 1,
+        },
         'version': {
             'major': version.major,
             'minor': version.minor,
@@ -523,3 +528,31 @@ def get_metadata(version, title, description, authors, url, tags,
         'tags': tags,
         'table-classes': t_classes,
     }
+
+
+def get_error(message, code=None):
+    error = {
+        'error-message': message,
+    }
+
+    if code is not None:
+        error['error-code'] = code
+
+    return error
+
+
+def get_progress(at=None, msg=None):
+    if at is None:
+        at = '*'
+
+    add = ''
+
+    if msg is not None:
+        add = ' {}'.format(msg)
+
+    return '{}{}'.format(at, add)
+
+
+def print_progress(at=None, msg=None):
+    print(get_progress(at, msg))
+    sys.stdout.flush()

@@ -22,6 +22,11 @@
 
 import os
 import sys
+import time
+from . import mi
+from collections import namedtuple
+from ..common import format_utils
+
 
 try:
     from progressbar import ETA, Bar, Percentage, ProgressBar
@@ -29,8 +34,9 @@ try:
 except ImportError:
     progressbar_available = False
 
+
 # approximation for the progress bar
-BYTES_PER_EVENT = 30
+_BYTES_PER_EVENT = 30
 
 
 def get_folder_size(folder):
@@ -44,39 +50,106 @@ def get_folder_size(folder):
     return total_size
 
 
-def progressbar_setup(obj):
-    if obj._args.no_progress:
-        obj.pbar = None
-        return
+class _Progress:
+    def __init__(self, ts_begin, ts_end, path, use_size=False):
+        if ts_begin is None or ts_end is None or use_size:
+            size = get_folder_size(path)
+            self._maxval = size / _BYTES_PER_EVENT
+            self._use_time = False
+        else:
+            self._maxval = ts_end - ts_begin
+            self._ts_begin = ts_begin
+            self._ts_end = ts_end
+            self._use_time = True
 
-    if progressbar_available:
-        size = get_folder_size(obj._args.path)
-        widgets = ['Processing the trace: ', Percentage(), ' ',
-                   Bar(marker='#', left='[', right=']'),
-                   ' ', ETA(), ' ']  # see docs for other options
-        obj.pbar = ProgressBar(widgets=widgets,
-                               maxval=size/BYTES_PER_EVENT)
-        obj.pbar.start()
-    else:
-        print('Warning: progressbar module not available, '
-              'using --no-progress.', file=sys.stderr)
-        obj._args.no_progress = True
-        obj.pbar = None
-    obj.event_count = 0
+        self._at = 0
+        self._event_count = 0
+        self._last_event_count_check = 0
+        self._last_time_check = time.time()
 
+    def update(self, event):
+        self._event_count += 1
 
-def progressbar_update(obj):
-    if obj._args.no_progress or obj.pbar is None:
-        return
+        if self._use_time:
+            self._at = event.timestamp - self._ts_begin
+        else:
+            self._at = self._event_count
 
-    try:
-        obj.pbar.update(obj.event_count)
-    except ValueError:
+        if self._at > self._maxval:
+            self._at = self._maxval
+
+        if self._event_count - self._last_event_count_check >= 101:
+            self._last_event_count_check = self._event_count
+            now = time.time()
+
+            if now - self._last_time_check >= .1:
+                self._update_progress()
+                self._last_time_check = now
+
+    def _update_progress(self):
         pass
-    obj.event_count += 1
+
+    def finalize(self):
+        pass
 
 
-def progressbar_finish(obj):
-    if obj._args.no_progress:
-        return
-    obj.pbar.finish()
+class FancyProgressBar(_Progress):
+    def __init__(self, ts_begin, ts_end, path, use_size):
+        super().__init__(ts_begin, ts_end, path, use_size)
+        self._pbar = None
+
+        if progressbar_available:
+            widgets = ['Processing the trace: ', Percentage(), ' ',
+                       Bar(marker='#', left='[', right=']'),
+                       ' ', ETA(), ' ']  # see docs for other options
+            self._pbar = ProgressBar(widgets=widgets,
+                                   maxval=self._maxval)
+            self._pbar.start()
+        else:
+            print('Warning: progressbar module not available, '
+                  'using --no-progress.', file=sys.stderr)
+
+    def _update_progress(self):
+        if self._pbar is None:
+            return
+
+        self._pbar.update(self._at)
+
+    def finalize(self):
+        if self._pbar is None:
+            return
+
+        self._pbar.finish()
+
+
+class MiProgress(_Progress):
+    def __init__(self, ts_begin, ts_end, path, use_size):
+        super().__init__(ts_begin, ts_end, path, use_size)
+
+        if self._use_time:
+            fmt = 'Starting analysis from {} to {}'
+            begin = format_utils.format_timestamp(self._ts_begin)
+            end = format_utils.format_timestamp(self._ts_end)
+            msg = fmt.format(begin, end)
+        else:
+            msg = 'Starting analysis: {} estimated events'.format(round(self._maxval))
+
+        mi.print_progress(0, msg)
+
+    def _update_progress(self):
+        if self._at == self._maxval:
+            mi.print_progress(1, 'Done!')
+            return
+
+        if self._use_time:
+            ts_at = self._at + self._ts_begin
+            at_ts = format_utils.format_timestamp(ts_at)
+            end = format_utils.format_timestamp(self._ts_end)
+            msg = '{}/{}; {} events processed'.format(at_ts, end, self._event_count)
+        else:
+            msg = '{} events processed'.format(self._event_count)
+
+        mi.print_progress(round(self._at / self._maxval, 4), msg)
+
+    def finalize(self):
+        mi.print_progress(1, 'Done!')
