@@ -55,22 +55,31 @@ class Command:
         self._traces = None
         self._ticks = 0
         self._mi_mode = mi_mode
-        self._create_automaton()
-        self._mi_setup()
+        self._run_step('create automaton', self._create_automaton)
+        self._run_step('setup MI', self._mi_setup)
 
     @property
     def mi_mode(self):
         return self._mi_mode
 
-    def run(self):
+    def _run_step(self, action_title, fn):
         try:
-            self._parse_args()
-            self._open_trace()
-            self._create_analysis()
-            self._run_analysis()
-            self._close_trace()
+            fn()
         except KeyboardInterrupt:
+            self._print('Cancelled by user')
             sys.exit(0)
+        except Exception as e:
+            self._gen_error('Cannot {}: {}'.format(action_title, e))
+
+    def run(self):
+        self._run_step('parse arguments', self._parse_args)
+        self._run_step('open trace', self._open_trace)
+        self._run_step('create analysis', self._create_analysis)
+
+        if self._mi_mode and not self._args.test_compatibility:
+            self._run_step('run analysis', self._run_analysis)
+
+        self._run_step('close trace', self._close_trace)
 
     def _mi_error(self, msg, code=None):
         print(json.dumps(mi.get_error(msg, code)))
@@ -393,6 +402,11 @@ class Command:
                 args.freq_uniform = True
 
         if self._mi_mode:
+            # print MI version if required
+            if args.mi_version:
+                print(mi.get_version_string())
+                sys.exit(0)
+
             # print MI metadata if required
             if args.metadata:
                 self._mi_print_metadata()
@@ -451,8 +465,12 @@ class Command:
 
         # MI mode-dependent arguments
         if self._mi_mode:
+            ap.add_argument('--mi-version', action='store_true',
+                            help='Print MI version')
             ap.add_argument('--metadata', action='store_true',
-                            help='Show analysis\'s metadata')
+                            help='Print analysis\'s metadata')
+            ap.add_argument('--test-compatibility', action='store_true',
+                            help='Check if the provided trace is supported and exit')
             ap.add_argument('path', metavar='<path/to/trace>',
                             help='trace path', nargs='*')
             ap.add_argument('--output-progress', action='store_true',
