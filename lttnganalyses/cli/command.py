@@ -67,7 +67,10 @@ class Command:
             self._parse_args()
             self._open_trace()
             self._create_analysis()
-            self._run_analysis()
+
+            if self._mi_mode and not self._args.test_compatibility:
+                self._run_analysis()
+
             self._close_trace()
         except KeyboardInterrupt:
             sys.exit(0)
@@ -460,6 +463,8 @@ class Command:
                             help='Print MI version')
             ap.add_argument('--metadata', action='store_true',
                             help='Print analysis\'s metadata')
+            ap.add_argument('--test-compatibility', action='store_true',
+                            help='Check if the provided trace is supported and exit')
             ap.add_argument('path', metavar='<path/to/trace>',
                             help='trace path', nargs='*')
             ap.add_argument('--output-progress', action='store_true',
