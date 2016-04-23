@@ -24,6 +24,9 @@ from collections import namedtuple
 import sys
 
 
+_MI_VERSION = (1, 0)
+
+
 class Tags:
     CPU = 'cpu'
     MEMORY = 'memory'
@@ -512,8 +515,8 @@ def get_metadata(version, title, description, authors, url, tags,
 
     return {
         'mi-version': {
-            'major': 0,
-            'minor': 1,
+            'major': _MI_VERSION[0],
+            'minor': _MI_VERSION[1],
         },
         'version': {
             'major': version.major,
@@ -551,6 +554,10 @@ def get_progress(at=None, msg=None):
         add = ' {}'.format(msg)
 
     return '{}{}'.format(at, add)
+
+
+def get_version_string():
+    return '{}.{}'.format(_MI_VERSION[0], _MI_VERSION[1])
 
 
 def print_progress(at=None, msg=None):

@@ -393,6 +393,11 @@ class Command:
                 args.freq_uniform = True
 
         if self._mi_mode:
+            # print MI version if required
+            if args.mi_version:
+                print(mi.get_version_string())
+                sys.exit(0)
+
             # print MI metadata if required
             if args.metadata:
                 self._mi_print_metadata()
@@ -451,8 +456,10 @@ class Command:
 
         # MI mode-dependent arguments
         if self._mi_mode:
+            ap.add_argument('--mi-version', action='store_true',
+                            help='Print MI version')
             ap.add_argument('--metadata', action='store_true',
-                            help='Show analysis\'s metadata')
+                            help='Print analysis\'s metadata')
             ap.add_argument('path', metavar='<path/to/trace>',
                             help='trace path', nargs='*')
             ap.add_argument('--output-progress', action='store_true',
