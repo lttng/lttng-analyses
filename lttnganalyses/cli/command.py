@@ -76,7 +76,7 @@ class Command:
         self._run_step('open trace', self._open_trace)
         self._run_step('create analysis', self._create_analysis)
 
-        if self._mi_mode and not self._args.test_compatibility:
+        if not self._mi_mode or not self._args.test_compatibility:
             self._run_step('run analysis', self._run_analysis)
 
         self._run_step('close trace', self._close_trace)
