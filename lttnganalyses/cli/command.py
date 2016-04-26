@@ -95,7 +95,7 @@ class Command:
 
         print(msg, file=sys.stderr)
 
-    def _error(self, msg, code, exit_code=1):
+    def _error(self, msg, exit_code=1):
         if self._mi_mode:
             self._mi_error(msg)
         else:
