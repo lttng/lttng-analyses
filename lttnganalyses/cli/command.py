@@ -30,7 +30,7 @@ import sys
 import subprocess
 from babeltrace import TraceCollection
 from . import mi, progressbar
-from .. import _version, __version__
+from .. import __version__
 from ..core import analysis
 from ..common import (
     format_utils, parse_utils, time_utils, trace_utils, version_utils
@@ -46,6 +46,7 @@ class Command:
         'Philippe Proulx',
     ]
     _MI_URL = 'https://github.com/lttng/lttng-analyses'
+    _VERSION = version_utils.Version.new_from_string(__version__)
 
     def __init__(self, mi_mode=False):
         self._analysis = None
@@ -128,7 +129,7 @@ class Command:
 
     def _mi_print_metadata(self):
         tags = self._MI_BASE_TAGS + self._MI_TAGS
-        infos = mi.get_metadata(version=self._MI_VERSION, title=self._MI_TITLE,
+        infos = mi.get_metadata(version=self._VERSION, title=self._MI_TITLE,
                                 description=self._MI_DESCRIPTION,
                                 authors=self._MI_AUTHORS, url=self._MI_URL,
                                 tags=tags,
@@ -461,7 +462,7 @@ class Command:
         ap.add_argument('--progress-use-size', action='store_true',
                         help='use trace size to approximate progress')
         ap.add_argument('-V', '--version', action='version',
-                        version='LTTng Analyses v' + __version__)
+                        version='LTTng Analyses v{}'.format(self._VERSION))
 
         # MI mode-dependent arguments
         if self._mi_mode:
@@ -617,14 +618,3 @@ class Command:
 
     def _analysis_tick(self, begin_ns, end_ns):
         raise NotImplementedError()
-
-
-# create MI version
-_cmd_version = _version.get_versions()['version']
-_version_match = re.match(r'(\d+)\.(\d+)\.(\d+)(.*)', _cmd_version)
-Command._MI_VERSION = version_utils.Version(
-    int(_version_match.group(1)),
-    int(_version_match.group(2)),
-    int(_version_match.group(3)),
-    _version_match.group(4),
-)
