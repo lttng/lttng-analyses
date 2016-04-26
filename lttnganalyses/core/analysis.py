@@ -54,6 +54,10 @@ class Analysis:
         self.ended = False
 
     def process_event(self, ev):
+        self._check_analysis_end(ev)
+        if self.ended:
+            return
+
         self._last_event_ts = ev.timestamp
 
         if not self.started:
@@ -64,10 +68,6 @@ class Analysis:
             else:
                 self._period_start_ts = ev.timestamp
                 self.started = True
-
-        self._check_analysis_end(ev)
-        if self.ended:
-            return
 
         # Prioritise period events over refresh period
         if self._conf.period_begin_ev_name is not None:
