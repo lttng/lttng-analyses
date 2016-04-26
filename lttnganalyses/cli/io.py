@@ -268,8 +268,10 @@ class IoAnalysisCommand(Command):
         # Note: we only want to return False only when a request has
         # ended and is completely outside the timerange (i.e. begun
         # after the end of the time range).
-        return not (self._args.begin and self._args.end and end and
-                    begin > self._args.end)
+        return not (
+            self._analysis_conf.begin_ts and self._analysis_conf.end_ts and
+            end and begin > self._analysis_conf.end_ts
+        )
 
     def _filter_io_request(self, io_rq):
         return self._filter_size(io_rq.size) and \
@@ -277,8 +279,12 @@ class IoAnalysisCommand(Command):
             self._filter_time_range(io_rq.begin_ts, io_rq.end_ts)
 
     def _is_io_rq_out_of_range(self, io_rq):
-        return self._args.begin and io_rq.begin_ts < self._args.begin or \
-            self._args.end and io_rq.end_ts > self._args.end
+        return (
+            self._analysis_conf.begin_ts and
+            io_rq.begin_ts < self._analysis_conf.begin_ts or
+            self._analysis_conf.end_ts and
+            io_rq.end_ts > self._analysis_conf.end_ts
+        )
 
     def _append_per_proc_read_usage_row(self, proc_stats, result_table):
         result_table.append_row(
