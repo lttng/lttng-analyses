@@ -92,12 +92,13 @@ class Command:
         print(json.dumps(mi.get_error(msg, code)))
 
     def _non_mi_error(self, msg):
-        try:
-            import termcolor
+        if self._args.color:
+            try:
+                import termcolor
 
-            msg = termcolor.colored(msg, 'red', attrs=['bold'])
-        except ImportError:
-            pass
+                msg = termcolor.colored(msg, 'red', attrs=['bold'])
+            except ImportError:
+                pass
 
         print(msg, file=sys.stderr)
 
@@ -475,6 +476,8 @@ class Command:
         ap.add_argument('--debug', action='store_true',
                         help='Enable debug mode (or set {} environment variable)'.format(
                             self._DEBUG_ENV_VAR))
+        ap.add_argument('--no-color', action='store_false', dest='color',
+                        help='Disable colored output')
 
         # MI mode-dependent arguments
         if self._mi_mode:
