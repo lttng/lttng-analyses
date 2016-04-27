@@ -64,7 +64,7 @@ class SchedAnalysisCommand(Command):
                 ('switch_ts', 'Switch timestamp', mi.Timestamp),
                 ('latency', 'Scheduling latency', mi.Duration),
                 ('prio', 'Priority', mi.Integer),
-                ('target_cpu', 'Target CPU', mi.Integer),
+                ('target_cpu', 'Target CPU', mi.Cpu),
                 ('wakee_proc', 'Wakee process', mi.Process),
                 ('waker_proc', 'Waker process', mi.Process),
             ]
@@ -76,7 +76,7 @@ class SchedAnalysisCommand(Command):
                 ('switch_ts', 'Switch timestamp', mi.Timestamp),
                 ('latency', 'Scheduling latency', mi.Duration),
                 ('prio', 'Priority', mi.Integer),
-                ('target_cpu', 'Target CPU', mi.Integer),
+                ('target_cpu', 'Target CPU', mi.Cpu),
                 ('wakee_proc', 'Wakee process', mi.Process),
                 ('waker_proc', 'Waker process', mi.Process),
             ]
@@ -330,7 +330,7 @@ class SchedAnalysisCommand(Command):
                 switch_ts=mi.Timestamp(sched_event.switch_ts),
                 latency=mi.Duration(sched_event.latency),
                 prio=mi.Integer(sched_event.prio),
-                target_cpu=mi.Integer(sched_event.target_cpu),
+                target_cpu=mi.Cpu(sched_event.target_cpu),
                 wakee_proc=wakee_proc,
                 waker_proc=waker_proc,
             )
@@ -363,7 +363,7 @@ class SchedAnalysisCommand(Command):
                 switch_ts=mi.Timestamp(sched_event.switch_ts),
                 latency=mi.Duration(sched_event.latency),
                 prio=mi.Integer(sched_event.prio),
-                target_cpu=mi.Integer(sched_event.target_cpu),
+                target_cpu=mi.Cpu(sched_event.target_cpu),
                 wakee_proc=wakee_proc,
                 waker_proc=waker_proc,
             )
@@ -692,7 +692,7 @@ class SchedAnalysisCommand(Command):
             switch_ts = row.switch_ts.value
             latency = row.latency.value
             prio = row.prio.value
-            target_cpu = row.target_cpu.value
+            target_cpu = row.target_cpu.id
             wakee_proc = row.wakee_proc
             waker_proc = row.waker_proc
 
