@@ -33,7 +33,7 @@ from . import mi, progressbar
 from .. import __version__
 from ..core import analysis
 from ..common import (
-    format_utils, parse_utils, time_utils, trace_utils, version_utils
+    format_utils, parse_utils, trace_utils, version_utils
 )
 from ..linuxautomaton import automaton
 
