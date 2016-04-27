@@ -28,6 +28,7 @@ import os
 import re
 import sys
 import subprocess
+import traceback
 from babeltrace import TraceCollection
 from . import mi, progressbar
 from .. import __version__
@@ -47,6 +48,7 @@ class Command:
     ]
     _MI_URL = 'https://github.com/lttng/lttng-analyses'
     _VERSION = version_utils.Version.new_from_string(__version__)
+    _DEBUG_ENV_VAR = 'LTTNG_ANALYSES_DEBUG'
 
     def __init__(self, mi_mode=False):
         self._analysis = None
@@ -56,6 +58,7 @@ class Command:
         self._traces = None
         self._ticks = 0
         self._mi_mode = mi_mode
+        self._debug_mode = os.environ.get(self._DEBUG_ENV_VAR)
         self._run_step('create automaton', self._create_automaton)
         self._run_step('setup MI', self._mi_setup)
 
@@ -70,6 +73,9 @@ class Command:
             self._print('Cancelled by user')
             sys.exit(0)
         except Exception as e:
+            if self._debug_mode:
+                traceback.print_exc()
+
             self._gen_error('Cannot {}: {}'.format(action_title, e))
 
     def run(self):
@@ -372,6 +378,9 @@ class Command:
             self._analysis_conf.cpu_list = [int(cpu) for cpu in
                                             self._analysis_conf.cpu_list]
 
+        if args.debug:
+            self._debug_mode = True
+
         # convert min/max args from µs to ns, if needed
         if hasattr(args, 'min') and args.min is not None:
             args.min *= 1000
@@ -455,6 +464,9 @@ class Command:
                         help='use trace size to approximate progress')
         ap.add_argument('-V', '--version', action='version',
                         version='LTTng Analyses v{}'.format(self._VERSION))
+        ap.add_argument('--debug', action='store_true',
+                        help='Enable debug mode (or set {} environment variable)'.format(
+                            self._DEBUG_ENV_VAR))
 
         # MI mode-dependent arguments
         if self._mi_mode:
