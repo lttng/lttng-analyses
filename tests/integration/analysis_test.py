@@ -28,7 +28,7 @@ from .trace_writer import TraceWriter
 
 
 class AnalysisTest(unittest.TestCase):
-    COMMON_OPTIONS = '--no-progress --skip-validation --gmt'
+    COMMON_OPTIONS = '--no-color --no-progress --skip-validation --gmt'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
