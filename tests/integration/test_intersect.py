@@ -48,6 +48,6 @@ class IntersectTest(AnalysisTest):
         test_name = 'disable_intersect'
         expected = self.get_expected_output(test_name)
         result = self.get_cmd_output('lttng-irqstats',
-                                     options='--disable-intersect-mode')
+                                     options='--no-intersection')
 
         self._assertMultiLineEqual(result, expected, test_name)
