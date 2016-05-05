@@ -1,1 +1,1 @@
-Error: Trace has no intersection. Use --disable-intersect-mode to override
+Error: Trace has no intersection. Use --no-intersection to override
