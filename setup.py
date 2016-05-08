@@ -22,19 +22,27 @@
 
 """LTTnganalyses setup script"""
 
+
+import shutil
+import sys
 from setuptools import setup
 import versioneer
-import sys
 
 if sys.version_info[0:2] < (3, 4):
     raise RuntimeError("Python version >= 3.4 required.")
 
 if 'install' in sys.argv:
+    if shutil.which('babeltrace') is None:
+        print('lttnganalysescli needs the babeltrace executable.\n'
+              'See https://www.efficios.com/babeltrace for more info.',
+              file=sys.stderr)
+        sys.exit(1)
+
     try:
         __import__('babeltrace')
     except ImportError:
-        print('lttnganalysescli needs the babeltrace package.\n \
-        See https://www.efficios.com/babeltrace for more info.\n',
+        print('lttnganalysescli needs the babeltrace python bindings.\n'
+              'See https://www.efficios.com/babeltrace for more info.',
               file=sys.stderr)
         sys.exit(1)
 
