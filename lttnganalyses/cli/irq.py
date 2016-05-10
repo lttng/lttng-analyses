@@ -58,7 +58,7 @@ class IrqAnalysisCommand(Command):
             _MI_TABLE_CLASS_HARD_STATS,
             'Hardware interrupt statistics', [
                 ('irq', 'Interrupt', mi.Irq),
-                ('count', 'Interrupt count', mi.Integer, 'interrupts'),
+                ('count', 'Interrupt count', mi.Number, 'interrupts'),
                 ('min_duration', 'Minimum duration', mi.Duration),
                 ('avg_duration', 'Average duration', mi.Duration),
                 ('max_duration', 'Maximum duration', mi.Duration),
@@ -70,13 +70,13 @@ class IrqAnalysisCommand(Command):
             _MI_TABLE_CLASS_SOFT_STATS,
             'Hardware interrupt statistics', [
                 ('irq', 'Interrupt', mi.Irq),
-                ('count', 'Interrupt count', mi.Integer, 'interrupts'),
+                ('count', 'Interrupt count', mi.Number, 'interrupts'),
                 ('min_duration', 'Minimum duration', mi.Duration),
                 ('avg_duration', 'Average duration', mi.Duration),
                 ('max_duration', 'Maximum duration', mi.Duration),
                 ('stdev_duration', 'Interrupt duration standard deviation',
                  mi.Duration),
-                ('raise_count', 'Interrupt raise count', mi.Integer,
+                ('raise_count', 'Interrupt raise count', mi.Number,
                  'interrupt raises'),
                 ('min_latency', 'Minimum raise latency', mi.Duration),
                 ('avg_latency', 'Average raise latency', mi.Duration),
@@ -90,14 +90,14 @@ class IrqAnalysisCommand(Command):
             'Interrupt handler duration frequency distribution', [
                 ('duration_lower', 'Duration (lower bound)', mi.Duration),
                 ('duration_upper', 'Duration (upper bound)', mi.Duration),
-                ('count', 'Interrupt count', mi.Integer, 'interrupts'),
+                ('count', 'Interrupt count', mi.Number, 'interrupts'),
             ]
         ),
         (
             _MI_TABLE_CLASS_SUMMARY,
             'Interrupt statistics - summary', [
                 ('time_range', 'Time range', mi.TimeRange),
-                ('count', 'Total interrupt count', mi.Integer, 'interrupts'),
+                ('count', 'Total interrupt count', mi.Number, 'interrupts'),
             ]
         ),
     ]
@@ -146,8 +146,8 @@ class IrqAnalysisCommand(Command):
         soft_stats_tables = \
             self._mi_get_result_tables(self._MI_TABLE_CLASS_SOFT_STATS)
         assert len(hard_stats_tables) == len(soft_stats_tables)
-        begin = hard_stats_tables[0].timerange.begin
-        end = hard_stats_tables[-1].timerange.end
+        begin = hard_stats_tables[0].timerange.begin.value
+        end = hard_stats_tables[-1].timerange.end.value
         summary_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_SUMMARY,
                                          begin, end)
@@ -205,7 +205,7 @@ class IrqAnalysisCommand(Command):
 
         return (
             mi.Irq(is_hard, irq_nr, irq_stats.name),
-            mi.Integer(irq_stats.count),
+            mi.Number(irq_stats.count),
             mi.Duration(irq_stats.min_duration),
             mi.Duration(irq_stats.total_duration / irq_stats.count),
             mi.Duration(irq_stats.max_duration),
@@ -254,7 +254,7 @@ class IrqAnalysisCommand(Command):
             avg_duration=common_row[3],
             max_duration=common_row[4],
             stdev_duration=common_row[5],
-            raise_count=mi.Integer(irq_stats.raise_count),
+            raise_count=mi.Number(irq_stats.raise_count),
             min_latency=min_latency,
             avg_latency=avg_latency,
             max_latency=max_latency,
@@ -316,7 +316,7 @@ class IrqAnalysisCommand(Command):
             freq_table.append_row(
                 duration_lower=mi.Duration.from_us(lower_bound),
                 duration_upper=mi.Duration.from_us(upper_bound),
-                count=mi.Integer(count),
+                count=mi.Number(count),
             )
 
     def _fill_stats_freq_result_tables(self, begin_ns, end_ns, is_hard,
@@ -369,14 +369,14 @@ class IrqAnalysisCommand(Command):
             column_infos.append((
                 'irq{}'.format(index),
                 freq_table.subtitle,
-                mi.Integer,
+                mi.Number,
                 'interrupts'
             ))
 
         title = 'Interrupt handlers duration frequency distributions'
         table_class = mi.TableClass(None, title, column_infos)
-        begin = freq_tables[0].timerange.begin
-        end = freq_tables[0].timerange.end
+        begin = freq_tables[0].timerange.begin.value
+        end = freq_tables[0].timerange.end.value
         result_table = mi.ResultTable(table_class, begin, end)
 
         for row_index, freq0_row in enumerate(freq_tables[0].rows):
@@ -427,8 +427,8 @@ class IrqAnalysisCommand(Command):
                                'Type', '#', 'Name'))
         for row in result_table.rows:
             timerange = row.time_range
-            begin_ts = timerange.begin
-            end_ts = timerange.end
+            begin_ts = timerange.begin.value
+            end_ts = timerange.end.value
 
             if type(row.raised_ts) is mi.Timestamp:
                 raised_ts = ' (raised at {})'.format(

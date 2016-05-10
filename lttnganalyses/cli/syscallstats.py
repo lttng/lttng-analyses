@@ -44,7 +44,7 @@ class SyscallsAnalysis(Command):
             _MI_TABLE_CLASS_PER_TID_STATS,
             'System call statistics', [
                 ('syscall', 'System call', mi.Syscall),
-                ('count', 'Call count', mi.Integer, 'calls'),
+                ('count', 'Call count', mi.Number, 'calls'),
                 ('min_duration', 'Minimum call duration', mi.Duration),
                 ('avg_duration', 'Average call duration', mi.Duration),
                 ('max_duration', 'Maximum call duration', mi.Duration),
@@ -57,7 +57,7 @@ class SyscallsAnalysis(Command):
             _MI_TABLE_CLASS_TOTAL,
             'Per-TID system call statistics', [
                 ('process', 'Process', mi.Process),
-                ('count', 'Total system call count', mi.Integer, 'calls'),
+                ('count', 'Total system call count', mi.Number, 'calls'),
             ]
         ),
         (
@@ -65,7 +65,7 @@ class SyscallsAnalysis(Command):
             'System call statistics - summary', [
                 ('time_range', 'Time range', mi.TimeRange),
                 ('process', 'Process', mi.Process),
-                ('count', 'Total system call count', mi.Integer, 'calls'),
+                ('count', 'Total system call count', mi.Number, 'calls'),
             ]
         ),
     ]
@@ -91,8 +91,8 @@ class SyscallsAnalysis(Command):
 
     def _create_summary_result_table(self):
         total_tables = self._mi_get_result_tables(self._MI_TABLE_CLASS_TOTAL)
-        begin = total_tables[0].timerange.begin
-        end = total_tables[-1].timerange.end
+        begin = total_tables[0].timerange.begin.value
+        end = total_tables[-1].timerange.end.value
         summary_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_SUMMARY,
                                          begin, end)
@@ -162,7 +162,7 @@ class SyscallsAnalysis(Command):
 
                 result_table.append_row(
                     syscall=mi.Syscall(syscall.name),
-                    count=mi.Integer(syscall.count),
+                    count=mi.Number(syscall.count),
                     min_duration=mi.Duration(syscall.min_duration),
                     avg_duration=mi.Duration(syscall.total_duration /
                                              syscall.count),
@@ -175,7 +175,7 @@ class SyscallsAnalysis(Command):
             total_table.append_row(
                 process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                    tid=proc_stats.tid),
-                count=mi.Integer(proc_stats.total_syscalls),
+                count=mi.Number(proc_stats.total_syscalls),
             )
 
         return total_table, per_tid_tables

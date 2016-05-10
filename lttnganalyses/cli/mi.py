@@ -183,6 +183,12 @@ class ResultTable:
 
 class _DataObject:
     def to_native_object(self):
+        base = {'class': self.CLASS}
+        base.update(self._to_native_object())
+
+        return base
+
+    def _to_native_object(self):
         raise NotImplementedError
 
     def __eq__(self, other):
@@ -197,51 +203,6 @@ class _DataObject:
         raise NotImplementedError
 
 
-class _UnstructuredDataObject(_DataObject):
-    def __init__(self, value):
-        self._value = value
-
-    @property
-    def value(self):
-        return self._value
-
-    def to_native_object(self):
-        return self._value
-
-    def __str__(self):
-        return str(self._value)
-
-    def _eq(self, other):
-        return self._value == other._value
-
-
-class _StructuredDataObject(_DataObject):
-    def to_native_object(self):
-        base = {'class': self.CLASS}
-        base.update(self._to_native_object())
-
-        return base
-
-    def _to_native_object(self):
-        raise NotImplementedError
-
-
-class Boolean(_UnstructuredDataObject):
-    CLASS = 'bool'
-
-
-class Integer(_UnstructuredDataObject):
-    CLASS = 'int'
-
-
-class Float(_UnstructuredDataObject):
-    CLASS = 'number'
-
-
-class String(_UnstructuredDataObject):
-    CLASS = 'string'
-
-
 class Empty(_DataObject):
     def to_native_object(self):
         return None
@@ -250,7 +211,7 @@ class Empty(_DataObject):
         return True
 
 
-class Unknown(_StructuredDataObject):
+class Unknown(_DataObject):
     CLASS = 'unknown'
 
     def _to_native_object(self):
@@ -263,7 +224,7 @@ class Unknown(_StructuredDataObject):
         return '?'
 
 
-class _SimpleValue(_StructuredDataObject):
+class _SimpleValue(_DataObject):
     def __init__(self, value):
         self._value = value
 
@@ -278,10 +239,59 @@ class _SimpleValue(_StructuredDataObject):
         return str(self._value)
 
     def _eq(self, other):
-        return self._value == other._value
+        return self.value == other.value
 
 
-class _SimpleName(_StructuredDataObject):
+class Boolean(_SimpleValue):
+    CLASS = 'bool'
+
+
+NEG_INF = '-inf'
+POS_INF = '+inf'
+
+
+class Number(_SimpleValue):
+    CLASS = 'number'
+
+    def __init__(self, value, low=None, high=None):
+        super().__init__(value)
+        self._low = low
+        self._high = high
+
+    @property
+    def low(self):
+        return self._low
+
+    @property
+    def high(self):
+        return self._high
+
+    def _to_native_object(self):
+        obj = {}
+
+        if self.value is not None:
+            obj['value'] = self.value
+
+        if self._low is not None:
+            obj['low'] = self._low
+
+        if self._high is not None:
+            obj['high'] = self._high
+
+        return obj
+
+    def _eq(self, other):
+        self_tuple = (self.value, self.low, self.high)
+        other_tuple = (other.value, other.low, other.high)
+
+        return self_tuple == other_tuple
+
+
+class String(_SimpleValue):
+    CLASS = 'string'
+
+
+class _SimpleName(_DataObject):
     def __init__(self, name):
         self._name = name
 
@@ -296,7 +306,7 @@ class _SimpleName(_StructuredDataObject):
         return self._name
 
     def _eq(self, other):
-        return self._name == other._name
+        return self.name == other.name
 
 
 class Ratio(_SimpleValue):
@@ -310,11 +320,11 @@ class Ratio(_SimpleValue):
         return self._value * 100
 
 
-class Timestamp(_SimpleValue):
+class Timestamp(Number):
     CLASS = 'timestamp'
 
 
-class Duration(_SimpleValue):
+class Duration(Number):
     CLASS = 'duration'
 
     @classmethod
@@ -332,11 +342,11 @@ class Duration(_SimpleValue):
         return self._value / 1000
 
 
-class Size(_SimpleValue):
+class Size(Number):
     CLASS = 'size'
 
 
-class Bitrate(_SimpleValue):
+class Bitrate(Number):
     CLASS = 'bitrate'
 
     @classmethod
@@ -344,12 +354,19 @@ class Bitrate(_SimpleValue):
         return cls(size * 8 / duration)
 
 
-class TimeRange(_StructuredDataObject):
+class TimeRange(_DataObject):
     CLASS = 'time-range'
 
     def __init__(self, begin, end):
-        self._begin = begin
-        self._end = end
+        self._begin = self._to_timestamp(begin)
+        self._end = self._to_timestamp(end)
+
+    @staticmethod
+    def _to_timestamp(val):
+        if type(val) is int or type(val) is float:
+            return Timestamp(val)
+
+        return val
 
     @property
     def begin(self):
@@ -360,17 +377,20 @@ class TimeRange(_StructuredDataObject):
         return self._end
 
     def _to_native_object(self):
-        return {'begin': self._begin, 'end': self._end}
+        return {
+            'begin': self._begin.to_native_object(),
+            'end': self._end.to_native_object()
+        }
 
     def _eq(self, other):
-        return (self._begin, self._end) == (other._begin, other._end)
+        return (self.begin, self.end) == (other.begin, other.end)
 
 
 class Syscall(_SimpleName):
     CLASS = 'syscall'
 
 
-class Process(_StructuredDataObject):
+class Process(_DataObject):
     CLASS = 'process'
 
     def __init__(self, name=None, pid=None, tid=None):
@@ -405,13 +425,13 @@ class Process(_StructuredDataObject):
         return ret_dict
 
     def _eq(self, other):
-        self_tuple = (self._name, self._pid, self._tid)
-        other_tuple = (other._name, other._pid, other._tid)
+        self_tuple = (self.name, self.pid, self.tid)
+        other_tuple = (other.name, other.pid, other.tid)
 
         return self_tuple == other_tuple
 
 
-class Path(_StructuredDataObject):
+class Path(_DataObject):
     CLASS = 'path'
 
     def __init__(self, path):
@@ -425,10 +445,10 @@ class Path(_StructuredDataObject):
         return {'path': self._path}
 
     def _eq(self, other):
-        return self._path == other._path
+        return self.path == other.path
 
 
-class Fd(_StructuredDataObject):
+class Fd(_DataObject):
     CLASS = 'fd'
 
     def __init__(self, fd):
@@ -442,10 +462,10 @@ class Fd(_StructuredDataObject):
         return {'fd': self._fd}
 
     def _eq(self, other):
-        return self._fd == other._fd
+        return self.fd == other.fd
 
 
-class Irq(_StructuredDataObject):
+class Irq(_DataObject):
     CLASS = 'irq'
 
     def __init__(self, is_hard, nr, name=None):
@@ -474,13 +494,13 @@ class Irq(_StructuredDataObject):
         return obj
 
     def _eq(self, other):
-        self_tuple = (self._is_hard, self._nr, self._name)
-        other_tuple = (other._is_hard, other._nr, other._name)
+        self_tuple = (self.is_hard, self.nr, self.name)
+        other_tuple = (other.is_hard, other.nr, other.name)
 
         return self_tuple == other_tuple
 
 
-class Cpu(_StructuredDataObject):
+class Cpu(_DataObject):
     CLASS = 'cpu'
 
     def __init__(self, cpu_id):
@@ -494,7 +514,7 @@ class Cpu(_StructuredDataObject):
         return {'id': self._id}
 
     def _eq(self, other):
-        return self._id == other._id
+        return self.id == other.id
 
 
 class Disk(_SimpleName):
