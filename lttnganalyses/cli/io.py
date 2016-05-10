@@ -80,7 +80,7 @@ class IoAnalysisCommand(Command):
             _MI_TABLE_CLASS_SYSCALL_LATENCY_STATS,
             'System call latency statistics', [
                 ('obj', 'System call category', mi.String),
-                ('count', 'Call count', mi.Integer, 'calls'),
+                ('count', 'Call count', mi.Number, 'calls'),
                 ('min_latency', 'Minimum call latency', mi.Duration),
                 ('avg_latency', 'Average call latency', mi.Duration),
                 ('max_latency', 'Maximum call latency', mi.Duration),
@@ -92,7 +92,7 @@ class IoAnalysisCommand(Command):
             _MI_TABLE_CLASS_PART_LATENCY_STATS,
             'Partition latency statistics', [
                 ('obj', 'Partition', mi.Disk),
-                ('count', 'Access count', mi.Integer, 'accesses'),
+                ('count', 'Access count', mi.Number, 'accesses'),
                 ('min_latency', 'Minimum access latency', mi.Duration),
                 ('avg_latency', 'Average access latency', mi.Duration),
                 ('max_latency', 'Maximum access latency', mi.Duration),
@@ -105,7 +105,7 @@ class IoAnalysisCommand(Command):
             'I/O request latency distribution', [
                 ('latency_lower', 'Latency (lower bound)', mi.Duration),
                 ('latency_upper', 'Latency (upper bound)', mi.Duration),
-                ('count', 'Request count', mi.Integer, 'requests'),
+                ('count', 'Request count', mi.Number, 'requests'),
             ]
         ),
         (
@@ -163,14 +163,14 @@ class IoAnalysisCommand(Command):
             _MI_TABLE_CLASS_PER_DISK_TOP_SECTOR,
             'Per-disk top sector I/O operations', [
                 ('disk', 'Disk', mi.Disk),
-                ('count', 'Sector count', mi.Integer, 'sectors'),
+                ('count', 'Sector count', mi.Number, 'sectors'),
             ]
         ),
         (
             _MI_TABLE_CLASS_PER_DISK_TOP_REQUEST,
             'Per-disk top I/O requests', [
                 ('disk', 'Disk', mi.Disk),
-                ('count', 'Request count', mi.Integer, 'I/O requests'),
+                ('count', 'Request count', mi.Number, 'I/O requests'),
             ]
         ),
         (
@@ -350,7 +350,7 @@ class IoAnalysisCommand(Command):
 
         result_table.append_row(
             disk=mi.Disk(disk_stats.disk_name),
-            count=mi.Integer(disk_stats.total_rq_sectors),
+            count=mi.Number(disk_stats.total_rq_sectors),
         )
 
         return True
@@ -361,7 +361,7 @@ class IoAnalysisCommand(Command):
 
         result_table.append_row(
             disk=mi.Disk(disk_stats.disk_name),
-            count=mi.Integer(disk_stats.rq_count),
+            count=mi.Number(disk_stats.rq_count),
         )
 
         return True
@@ -756,7 +756,7 @@ class IoAnalysisCommand(Command):
                 latency_lower=mi.Duration.from_us(index * step + min_duration),
                 latency_upper=mi.Duration.from_us((index + 1) * step +
                                                   min_duration),
-                count=mi.Integer(value),
+                count=mi.Number(value),
             )
 
     def _get_disk_freq_result_tables(self, begin, end):
@@ -914,8 +914,8 @@ class IoAnalysisCommand(Command):
     def _print_log_row(self, row):
         fmt = '{:<40} {:<16} {:>16} {:>11}  {:<24} {:<8} {:<14}'
         time_range_str = format_utils.format_time_range(
-            row.time_range.begin,
-            row.time_range.end,
+            row.time_range.begin.value,
+            row.time_range.end.value,
             self._args.multi_day,
             self._args.gmt
         )
@@ -1008,7 +1008,7 @@ class IoAnalysisCommand(Command):
 
         result_table.append_row(
             obj=obj,
-            count=mi.Integer(rq_count),
+            count=mi.Number(rq_count),
             min_latency=mi.Duration(min_duration),
             avg_latency=mi.Duration(avg),
             max_latency=mi.Duration(max_duration),
