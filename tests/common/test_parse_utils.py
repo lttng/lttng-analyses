@@ -23,6 +23,7 @@
 import datetime
 import unittest
 from lttnganalyses.common import parse_utils
+from .utils import TimezoneUtils
 
 # Mock of babeltrace's TraceCollection, used to test date methods
 class TraceCollection():
@@ -131,6 +132,13 @@ class TestParseDuration(unittest.TestCase):
 
 
 class TestParseDate(unittest.TestCase):
+    def setUp(self):
+        self.tz_utils = TimezoneUtils()
+        self.tz_utils.set_up_timezone()
+
+    def tearDown(self):
+        self.tz_utils.tear_down_timezone()
+
     def test_parse_full_date_nsec(self):
         date_expected = datetime.datetime(2014, 12, 12, 17, 29, 43)
         nsec_expected = 802588035
@@ -195,10 +203,13 @@ class TestParseTraceCollectionDate(unittest.TestCase):
             raise ValueError('Unrecognised date format: {}'.format(date))
 
     def setUp(self):
+        self.tz_utils = TimezoneUtils()
+        self.tz_utils.set_up_timezone()
         self._original_parse_date = parse_utils.parse_date
         parse_utils.parse_date = self._mock_parse_date
 
     def tearDown(self):
+        self.tz_utils.tear_down_timezone()
         parse_utils.parse_date = self._original_parse_date
 
     def test_invalid_date(self):
