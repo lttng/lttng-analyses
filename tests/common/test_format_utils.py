@@ -20,11 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
-import time
 import unittest
 from lttnganalyses.core import stats
 from lttnganalyses.common import format_utils
+from .utils import TimezoneUtils
 
 
 class TestFormatSize(unittest.TestCase):
@@ -99,24 +98,11 @@ class TestFormatTimestamp(unittest.TestCase):
     ARBITRARY_TIMESTAMP = 683153828123456789
 
     def setUp(self):
-        # Make sure that the local timezone as seen by the time module
-        # is the same regardless of where the test is actually
-        # run. US/Eastern was picked arbitrarily.
-        self.original_tz = os.environ.get('TZ')
-        os.environ['TZ'] = 'US/Eastern'
-        try:
-            time.tzset()
-        except AttributeError:
-            print('Warning: time.tzset() is unavailable on Windows.'
-                  'This may cause test failures.')
+        self.tz_utils = TimezoneUtils()
+        self.tz_utils.set_up_timezone()
 
     def tearDown(self):
-        # Restore the original value of TZ if any, else delete it from
-        # the environment variables.
-        if self.original_tz:
-            os.environ['TZ'] = self.original_tz
-        else:
-            del os.environ['TZ']
+        self.tz_utils.tear_down_timezone()
 
     def test_time(self):
         result = format_utils.format_timestamp(self.ARBITRARY_TIMESTAMP)
