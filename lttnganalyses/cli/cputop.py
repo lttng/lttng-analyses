@@ -45,7 +45,7 @@ class Cputop(Command):
             _MI_TABLE_CLASS_PER_PROC,
             'Per-TID top CPU usage', [
                 ('process', 'Process', mi.Process),
-                ('migrations', 'Migration count', mi.Integer, 'migrations'),
+                ('migrations', 'Migration count', mi.Number, 'migrations'),
                 ('prio_list', 'Chronological priorities', mi.String),
                 ('usage', 'CPU usage', mi.Ratio),
             ]
@@ -90,8 +90,8 @@ class Cputop(Command):
 
     def _create_summary_result_tables(self):
         total_tables = self._mi_get_result_tables(self._MI_TABLE_CLASS_TOTAL)
-        begin = total_tables[0].timerange.begin
-        end = total_tables[-1].timerange.end
+        begin = total_tables[0].timerange.begin.value
+        end = total_tables[-1].timerange.end.value
         summary_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_SUMMARY,
                                          begin, end)
@@ -119,7 +119,7 @@ class Cputop(Command):
 
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),
-                migrations=mi.Integer(tid.migrate_count),
+                migrations=mi.Number(tid.migrate_count),
                 prio_list=mi.String(prio_list),
                 usage=mi.Ratio.from_percentage(tid.usage_percent)
             )

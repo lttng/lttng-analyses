@@ -44,29 +44,29 @@ class Memtop(Command):
             _MI_TABLE_CLASS_ALLOCD,
             'Per-TID top allocated memory', [
                 ('process', 'Process', mi.Process),
-                ('pages', 'Allocated pages', mi.Integer, 'pages'),
+                ('pages', 'Allocated pages', mi.Number, 'pages'),
             ]
         ),
         (
             _MI_TABLE_CLASS_FREED,
             'Per-TID top freed memory', [
                 ('process', 'Process', mi.Process),
-                ('pages', 'Freed pages', mi.Integer, 'pages'),
+                ('pages', 'Freed pages', mi.Number, 'pages'),
             ]
         ),
         (
             _MI_TABLE_CLASS_TOTAL,
             'Total allocated/freed memory', [
-                ('allocd', 'Total allocated pages', mi.Integer, 'pages'),
-                ('freed', 'Total freed pages', mi.Integer, 'pages'),
+                ('allocd', 'Total allocated pages', mi.Number, 'pages'),
+                ('freed', 'Total freed pages', mi.Number, 'pages'),
             ]
         ),
         (
             _MI_TABLE_CLASS_SUMMARY,
             'Memory usage - summary', [
                 ('time_range', 'Time range', mi.TimeRange),
-                ('allocd', 'Total allocated pages', mi.Integer, 'pages'),
-                ('freed', 'Total freed pages', mi.Integer, 'pages'),
+                ('allocd', 'Total allocated pages', mi.Number, 'pages'),
+                ('freed', 'Total freed pages', mi.Number, 'pages'),
             ]
         ),
     ]
@@ -88,8 +88,8 @@ class Memtop(Command):
 
     def _create_summary_result_tables(self):
         total_tables = self._mi_get_result_tables(self._MI_TABLE_CLASS_TOTAL)
-        begin = total_tables[0].timerange.begin
-        end = total_tables[-1].timerange.end
+        begin = total_tables[0].timerange.begin.value
+        end = total_tables[-1].timerange.end.value
         summary_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_SUMMARY,
                                          begin, end)
@@ -117,7 +117,7 @@ class Memtop(Command):
                           reverse=True):
             result_table.append_row(
                 process=mi.Process(tid.comm, tid=tid.tid),
-                pages=mi.Integer(getattr(tid, attr)),
+                pages=mi.Number(getattr(tid, attr)),
             )
             count += 1
 
@@ -147,8 +147,8 @@ class Memtop(Command):
             freed += tid.freed_pages
 
         result_table.append_row(
-            allocd=mi.Integer(alloc),
-            freed=mi.Integer(freed),
+            allocd=mi.Number(alloc),
+            freed=mi.Number(freed),
         )
 
         return result_table
