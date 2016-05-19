@@ -36,10 +36,10 @@ def is_multi_day_trace_collection(collection):
         False otherwise.
     """
     date_begin = datetime.date.fromtimestamp(
-        collection.timestamp_begin / NSEC_PER_SEC
+        collection.timestamp_begin // NSEC_PER_SEC
     )
     date_end = datetime.date.fromtimestamp(
-        collection.timestamp_end / NSEC_PER_SEC
+        collection.timestamp_end // NSEC_PER_SEC
     )
 
     return date_begin != date_end
@@ -63,7 +63,7 @@ def get_trace_collection_date(collection):
         raise ValueError('Trace collection spans multiple days')
 
     trace_date = datetime.date.fromtimestamp(
-        collection.timestamp_begin / NSEC_PER_SEC
+        collection.timestamp_begin // NSEC_PER_SEC
     )
 
     return trace_date
