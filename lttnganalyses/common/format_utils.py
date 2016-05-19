@@ -60,7 +60,7 @@ def format_size(size, binary_prefix=True):
             # Don't try and use a unit above YiB/YB
             exponent = len(units) - 1
 
-        size /= math.pow(base, exponent)
+        size /= base ** exponent
 
     unit = units[exponent]
 
