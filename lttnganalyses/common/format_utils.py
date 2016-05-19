@@ -133,9 +133,9 @@ def format_timestamp(timestamp, print_date=False, gmt=False):
     time_fmt = '{:02}:{:02}:{:02}.{:09}'
 
     if gmt:
-        date = time.gmtime(timestamp / NSEC_PER_SEC)
+        date = time.gmtime(timestamp // NSEC_PER_SEC)
     else:
-        date = time.localtime(timestamp / NSEC_PER_SEC)
+        date = time.localtime(timestamp // NSEC_PER_SEC)
 
     formatted_ts = time_fmt.format(
         date.tm_hour, date.tm_min, date.tm_sec,
