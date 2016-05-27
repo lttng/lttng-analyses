@@ -592,7 +592,7 @@ class Command:
         def parse_date(date):
             try:
                 ts = parse_utils.parse_trace_collection_date(
-                    self._traces, date, self._args.gmt
+                    self._traces, self._handles, date, self._args.gmt
                 )
             except ValueError as e:
                 self._cmdline_error(str(e))
@@ -600,8 +600,7 @@ class Command:
             return ts
 
         self._args.multi_day = trace_utils.is_multi_day_trace_collection(
-            self._traces
-        )
+            self._traces, self._handles)
         begin_ts = None
         end_ts = None
 
@@ -609,8 +608,8 @@ class Command:
             try:
                 begin_ts, end_ts = (
                     parse_utils.parse_trace_collection_time_range(
-                        self._traces, self._args.timerange, self._args.gmt
-                    )
+                        self._traces, self._handles, self._args.timerange,
+                        self._args.gmt)
                 )
             except ValueError as e:
                 self._cmdline_error(str(e))
