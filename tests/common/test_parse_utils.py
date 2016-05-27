@@ -25,6 +25,7 @@ import unittest
 from lttnganalyses.common import parse_utils
 from .utils import TimezoneUtils
 
+
 # Mock of babeltrace's TraceCollection, used to test date methods
 class TraceCollection():
     def __init__(self, begin_ts, end_ts):
@@ -184,6 +185,7 @@ class TestParseDate(unittest.TestCase):
         self.assertRaises(ValueError, parse_utils.parse_date,
                           'ceci n\'est pas une date')
 
+
 class TestParseTraceCollectionDate(unittest.TestCase):
     DATE_FULL = '2014-12-12 17:29:43'
     DATE_TIME = '17:29:43'
@@ -261,7 +263,8 @@ class TestParseTraceCollectionTimeRange(unittest.TestCase):
     )
     TIME_RANGE_FMT = '[{}, {}]'
 
-    def _mock_parse_trace_collection_date(self, collection, date, gmt=False):
+    def _mock_parse_trace_collection_date(self, collection, date, gmt=False,
+                                          handles=None):
         if collection == self.SINGLE_DAY_COLLECTION:
             if date == self.DATE_FULL_BEGIN or date == self.DATE_TIME_BEGIN:
                 timestamp = 1418423383000000000

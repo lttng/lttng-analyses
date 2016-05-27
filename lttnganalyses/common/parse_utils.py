@@ -365,13 +365,15 @@ def parse_date(date):
     return date_time, nsec
 
 
-def parse_trace_collection_date(collection, date, gmt=False):
+def parse_trace_collection_date(collection, date, gmt=False, handles=None):
     """Parse a date string, using a trace collection to disambiguate
     incomplete dates.
 
     Args:
         collection (TraceCollection): a babeltrace TraceCollection
         instance.
+
+        handles (TraceHandle): a babeltrace TraceHandle instance.
 
         date (string): the date string to be parsed.
 
@@ -401,7 +403,8 @@ def parse_trace_collection_date(collection, date, gmt=False):
     # the trace collection's date.
     if isinstance(date_time, datetime.time):
         try:
-            collection_date = trace_utils.get_trace_collection_date(collection)
+            collection_date = trace_utils.get_trace_collection_date(collection,
+                                                                    handles)
         except ValueError:
             raise ValueError(
                 'Invalid date format for multi-day trace: {}'.format(date)
@@ -417,13 +420,16 @@ def parse_trace_collection_date(collection, date, gmt=False):
     return timestamp_ns
 
 
-def parse_trace_collection_time_range(collection, time_range, gmt=False):
+def parse_trace_collection_time_range(collection, time_range,
+                                      gmt=False, handles=None):
     """Parse a time range string, using a trace collection to
     disambiguate incomplete dates.
 
     Args:
         collection (TraceCollection): a babeltrace TraceCollection
         instance.
+
+        handles (TraceHandle): a babeltrace TraceHandle instance.
 
         time_range (string): the time range string to be parsed.
 
@@ -447,8 +453,9 @@ def parse_trace_collection_time_range(collection, time_range, gmt=False):
     end_str = pattern.search(time_range).group('end').strip()
 
     try:
-        begin = parse_trace_collection_date(collection, begin_str, gmt)
-        end = parse_trace_collection_date(collection, end_str, gmt)
+        begin = parse_trace_collection_date(collection, begin_str,
+                                            gmt, handles)
+        end = parse_trace_collection_date(collection, end_str, gmt, handles)
     except ValueError:
         # Either of the dates was in the wrong format, propagate the
         # exception to the caller.

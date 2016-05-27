@@ -21,20 +21,73 @@
 # SOFTWARE.
 
 import datetime
+import time
+import subprocess
+import sys
+from .version_utils import Version
 from .time_utils import NSEC_PER_SEC
 
 
-def is_multi_day_trace_collection(collection):
-    """Check whether a trace collection spans more than one day.
+BT_INTERSECT_VERSION = Version(1, 4, 0)
+
+
+def is_multi_day_trace_collection_bt_1_3_2(collection, handles=None):
+    """is_multi_day_trace_collection for BT < 1.3.3.
 
     Args:
         collection (TraceCollection): a babeltrace TraceCollection
         instance.
 
+        handles (TraceHandle): a babeltrace TraceHandle instance.
+
     Returns:
         True if the trace collection spans more than one day,
         False otherwise.
     """
+
+    time_begin = None
+
+    for handle in handles.values():
+        if time_begin is None:
+            time_begin = time.localtime(handle.timestamp_begin / NSEC_PER_SEC)
+            year_begin = time_begin.tm_year
+            month_begin = time_begin.tm_mon
+            day_begin = time_begin.tm_mday
+
+        time_end = time.localtime(handle.timestamp_end / NSEC_PER_SEC)
+        year_end = time_end.tm_year
+        month_end = time_end.tm_mon
+        day_end = time_end.tm_mday
+
+        if year_begin != year_end:
+            return True
+        elif month_begin != month_end:
+            return True
+        elif day_begin != day_end:
+            return True
+
+    return False
+
+
+def is_multi_day_trace_collection(collection, handles=None):
+    """Check whether a trace collection spans more than one day.
+
+    Args:
+        collection (TraceCollection): a babeltrace TraceCollection
+        instance.
+        handles (TraceHandle): a babeltrace TraceHandle instance.
+
+    Returns:
+        True if the trace collection spans more than one day,
+        False otherwise.
+    """
+
+    # Circumvent a bug in Babeltrace < 1.3.3
+    if collection.timestamp_begin is None or \
+            collection.timestamp_end is None:
+                return is_multi_day_trace_collection_bt_1_3_2(collection,
+                                                              handles)
+
     date_begin = datetime.date.fromtimestamp(
         collection.timestamp_begin // NSEC_PER_SEC
     )
@@ -45,21 +98,25 @@ def is_multi_day_trace_collection(collection):
     return date_begin != date_end
 
 
-def get_trace_collection_date(collection):
+def get_trace_collection_date(collection, handles=None):
     """Get a trace collection's date.
 
     Args:
         collection (TraceCollection): a babeltrace TraceCollection
         instance.
 
+        handles (TraceHandle): a babeltrace TraceHandle instance.
+
     Returns:
         A datetime.date object corresponding to the date at which the
         trace collection was recorded.
 
+        handles (TraceHandle): a babeltrace TraceHandle instance.
+
     Raises:
         ValueError: if the trace collection spans more than one day.
     """
-    if is_multi_day_trace_collection(collection):
+    if is_multi_day_trace_collection(collection, handles):
         raise ValueError('Trace collection spans multiple days')
 
     trace_date = datetime.date.fromtimestamp(
