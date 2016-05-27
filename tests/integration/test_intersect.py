@@ -21,6 +21,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import unittest
+from lttnganalyses.common import trace_utils
 from .analysis_test import AnalysisTest
 
 
@@ -37,6 +39,10 @@ class IntersectTest(AnalysisTest):
         self.trace_writer.write_softirq_exit(1010, 2, 7)
         self.trace_writer.flush()
 
+    @unittest.skipIf(trace_utils.read_babeltrace_version() <
+                     trace_utils.BT_INTERSECT_VERSION,
+                     "not supported by Babeltrace < %s" %
+                     trace_utils.BT_INTERSECT_VERSION,)
     def test_no_intersection(self):
         test_name = 'no_intersection'
         expected = self.get_expected_output(test_name)
