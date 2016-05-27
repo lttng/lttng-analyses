@@ -21,7 +21,6 @@
 # SOFTWARE.
 
 import datetime
-import time
 import subprocess
 import sys
 from .version_utils import Version
@@ -147,3 +146,16 @@ def get_syscall_name(event):
         return name[14:]
     else:
         raise ValueError('Not a syscall event')
+
+
+def read_babeltrace_version():
+    try:
+        output = subprocess.check_output('babeltrace')
+    except subprocess.CalledProcessError:
+        raise ValueError('Could not run babeltrace to verify version')
+
+    output = output.decode(sys.stdout.encoding)
+    first_line = output.splitlines()[0]
+    version_string = first_line.split()[-1]
+
+    return Version.new_from_string(version_string)
