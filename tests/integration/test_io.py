@@ -67,13 +67,15 @@ class IoTest(AnalysisTest):
     def test_iousagetop(self):
         test_name = 'iousagetop'
         expected = self.get_expected_output(test_name)
-        result = self.get_cmd_output('lttng-iousagetop')
+        result = self.get_cmd_output('lttng-iousagetop',
+                                     options='--no-intersection')
 
         self._assertMultiLineEqual(result, expected, test_name)
 
     def test_iolatencytop(self):
         test_name = 'iolatencytop'
         expected = self.get_expected_output(test_name)
-        result = self.get_cmd_output('lttng-iolatencytop')
+        result = self.get_cmd_output('lttng-iolatencytop',
+                                     options='--no-intersection')
 
         self._assertMultiLineEqual(result, expected, test_name)

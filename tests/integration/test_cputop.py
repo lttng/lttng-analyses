@@ -43,6 +43,7 @@ class CpuTest(AnalysisTest):
     def test_cputop(self):
         test_name = 'cputop'
         expected = self.get_expected_output(test_name)
-        result = self.get_cmd_output('lttng-cputop')
+        result = self.get_cmd_output('lttng-cputop',
+                                     options='--no-intersection')
 
         self._assertMultiLineEqual(result, expected, test_name)

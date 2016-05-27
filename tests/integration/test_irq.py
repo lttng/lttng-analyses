@@ -77,13 +77,15 @@ class IrqTest(AnalysisTest):
     def test_irqstats(self):
         test_name = 'irqstats'
         expected = self.get_expected_output(test_name)
-        result = self.get_cmd_output('lttng-irqstats')
+        result = self.get_cmd_output('lttng-irqstats',
+                                     options='--no-intersection')
 
         self._assertMultiLineEqual(result, expected, test_name)
 
     def test_irqlog(self):
         test_name = 'irqlog'
         expected = self.get_expected_output(test_name)
-        result = self.get_cmd_output('lttng-irqlog')
+        result = self.get_cmd_output('lttng-irqlog',
+                                     options='--no-intersection')
 
         self._assertMultiLineEqual(result, expected, test_name)
