@@ -185,14 +185,16 @@ class Command:
         pass
 
     def _open_trace(self):
-        self._read_babeltrace_version()
+        self._babeltrace_version = trace_utils.read_babeltrace_version()
         if self._babeltrace_version >= self._BT_INTERSECT_VERSION:
             traces = TraceCollection(intersect_mode=self._args.intersect_mode)
         else:
             if self._args.intersect_mode:
-                self._print('Warning: intersect mode not available - disabling')
-                self._print('         Use babeltrace {} or later to enable'.format(
-                    self._BT_INTERSECT_VERSION))
+                self._print('Warning: intersect mode not available - '
+                            'disabling')
+                self._print('         Use babeltrace {} or later to '
+                            'enable'.format(
+                                trace_utils.BT_INTERSECT_VERSION))
                 self._args.intersect_mode = False
             traces = TraceCollection()
         handles = traces.add_traces_recursive(self._args.path, 'ctf')
@@ -265,7 +267,7 @@ class Command:
         version_string = first_line.split()[-1]
 
         self._babeltrace_version = \
-                    version_utils.Version.new_from_string(version_string)
+            version_utils.Version.new_from_string(version_string)
 
     def _check_lost_events(self):
         msg = 'Checking the trace for lost events...'
@@ -506,8 +508,8 @@ class Command:
         ap.add_argument('-V', '--version', action='version',
                         version='LTTng Analyses v{}'.format(self._VERSION))
         ap.add_argument('--debug', action='store_true',
-                        help='Enable debug mode (or set {} environment variable)'.format(
-                            self._DEBUG_ENV_VAR))
+                        help='Enable debug mode (or set {} environment '
+                             'variable)'.format(self._DEBUG_ENV_VAR))
         ap.add_argument('--no-color', action='store_false', dest='color',
                         help='Disable colored output')
 
@@ -518,7 +520,8 @@ class Command:
             ap.add_argument('--metadata', action='store_true',
                             help='Print analysis\' metadata')
             ap.add_argument('--test-compatibility', action='store_true',
-                            help='Check if the provided trace is supported and exit')
+                            help='Check if the provided trace is supported '
+                                 'and exit')
             ap.add_argument('path', metavar='<path/to/trace>',
                             help='trace path', nargs='*')
             ap.add_argument('--output-progress', action='store_true',
@@ -604,7 +607,7 @@ class Command:
         def parse_date(date):
             try:
                 ts = parse_utils.parse_trace_collection_date(
-                    self._traces, date, self._args.gmt
+                    self._traces, self._handles, date, self._args.gmt
                 )
             except ValueError as e:
                 self._cmdline_error(str(e))
@@ -612,8 +615,7 @@ class Command:
             return ts
 
         self._args.multi_day = trace_utils.is_multi_day_trace_collection(
-            self._traces
-        )
+            self._traces, self._handles)
         begin_ts = None
         end_ts = None
 
@@ -621,8 +623,8 @@ class Command:
             try:
                 begin_ts, end_ts = (
                     parse_utils.parse_trace_collection_time_range(
-                        self._traces, self._args.timerange, self._args.gmt
-                    )
+                        self._traces, self._handles, self._args.timerange,
+                        self._args.gmt)
                 )
             except ValueError as e:
                 self._cmdline_error(str(e))
