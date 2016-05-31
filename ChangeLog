@@ -1,3 +1,6 @@
+2016-05-21 LTTng analyses 0.5.1
+	* Fix missing import
+
 2016-05-27 LTTng analyses 0.5.0
 	* Stream intersect mode
 	* MI (LAMI): versioning, progress status, more sections
