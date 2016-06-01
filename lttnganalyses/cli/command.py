@@ -607,7 +607,7 @@ class Command:
         def parse_date(date):
             try:
                 ts = parse_utils.parse_trace_collection_date(
-                    self._traces, self._handles, date, self._args.gmt
+                    self._traces, date, self._args.gmt, self._handles
                 )
             except ValueError as e:
                 self._cmdline_error(str(e))
