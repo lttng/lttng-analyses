@@ -81,16 +81,13 @@ def gen_define(event):
 
 
 def gen_write(event, fields):
-        f_list = None
+        f_list = ''
         for f in fields:
-            if f_list is None:
-                f_list = f
-            else:
-                f_list = f_list + ", %s" % (f)
+            f_list += ', {}'.format(f)
 
         event_name = sanitize(event.name)
-        print('    def write_%s(self, time_ms, cpu_id, %s):' % (event_name,
-                                                                f_list))
+        print('    def write_%s(self, time_ms, cpu_id%s):' % (event_name,
+                                                              f_list))
         print('        event = CTFWriter.Event(self.%s)' % (event_name))
         print('        self.clock.time = time_ms * 1000000')
         print('        self.set_int(event.payload("_cpu_id"), cpu_id)')
