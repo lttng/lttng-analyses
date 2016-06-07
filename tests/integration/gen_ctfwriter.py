@@ -33,21 +33,31 @@ import argparse
 
 from babeltrace import TraceCollection, CTFScope, CTFTypeId
 
+def sanitize(s):
+    """Replace special characters in s by underscores.
+
+    This makes s suitable to use in code as a function or variable name.
+    """
+    s = s.replace(':', '_')
+
+    return s
 
 def get_definition_type(field, event):
+    event_name = sanitize(event.name)
+
     if field.type == CTFTypeId.INTEGER:
         signed = ''
         if field.signedness == 0:
             signed = 'u'
         length = field.length
         print('        self.%s.add_field(self.%sint%s_type, "_%s")' %
-              (event.name, signed, length, field.name))
+              (event_name, signed, length, field.name))
     elif field.type == CTFTypeId.ARRAY:
         print('        self.%s.add_field(self.array%s_type, "_%s")' %
-              (event.name, field.length, field.name))
+              (event_name, field.length, field.name))
     elif field.type == CTFTypeId.STRING:
         print('        self.%s.add_field(self.string_type, "_%s")' %
-              (event.name, field.name))
+              (event_name, field.name))
     else:
         print('        # FIXME %s.%s: Unhandled type %d' % (event.name,
                                                             field.name,
@@ -56,29 +66,29 @@ def get_definition_type(field, event):
 
 def gen_define(event):
         fields = []
-        print('    def define_%s(self):' % (event.name))
+        event_name = sanitize(event.name)
+        print('    def define_%s(self):' % (event_name))
         print('        self.%s = CTFWriter.EventClass("%s")' %
-              (event.name, event.name))
+              (event_name, event.name))
         for field in event.fields:
             if field.scope == CTFScope.EVENT_FIELDS:
                 fname = field.name
                 fields.append(fname)
                 get_definition_type(field, event)
-        print('        self.add_event(self.%s)' % event.name)
+        print('        self.add_event(self.%s)' % event_name)
         print('')
         return fields
 
 
 def gen_write(event, fields):
-        f_list = None
+        f_list = ''
         for f in fields:
-            if f_list is None:
-                f_list = f
-            else:
-                f_list = f_list + ", %s" % (f)
-        print('    def write_%s(self, time_ms, cpu_id, %s):' % (event.name,
-                                                                f_list))
-        print('        event = CTFWriter.Event(self.%s)' % (event.name))
+            f_list += ', {}'.format(f)
+
+        event_name = sanitize(event.name)
+        print('    def write_%s(self, time_ms, cpu_id%s):' % (event_name,
+                                                              f_list))
+        print('        event = CTFWriter.Event(self.%s)' % (event_name))
         print('        self.clock.time = time_ms * 1000000')
         print('        self.set_int(event.payload("_cpu_id"), cpu_id)')
         for field in event.fields:
