@@ -57,19 +57,29 @@ class AnalysisTest(unittest.TestCase):
 
     def get_expected_output(self, test_name):
         expected_path = os.path.join(self.data_path, test_name + '.txt')
-        with open(expected_path, 'r') as expected_file:
+        with open(expected_path, 'r', encoding='utf-8') as expected_file:
             return expected_file.read()
 
     def get_cmd_output(self, exec_name, options=''):
         cmd_fmt = './{} {} {} {}'
         cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS,
                              options, self.trace_writer.trace_root)
+        test_env = os.environ.copy()
+        test_env['LC_ALL'] = 'C.UTF-8'
 
-        return subprocess.getoutput(cmd)
+        try:
+            output = subprocess.check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            output = e.output
+
+        if output[-1:] == '\n':
+            output = output[:-1]
+
+        return output
 
     def save_test_result(self, result, test_name):
         result_path = os.path.join(self.trace_writer.trace_root, test_name)
-        with open(result_path, 'w') as result_file:
+        with open(result_path, 'w', encoding='utf-8') as result_file:
             result_file.write(result)
             self.rm_trace = False
 
