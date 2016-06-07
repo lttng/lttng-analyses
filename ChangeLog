@@ -1,3 +1,9 @@
+2016-06-07 LTTng analyses 0.5.2
+	* Fix: tests when shell locale is not UTF-8
+	* Handle events without fields
+	* Sanitize event names when using them as variable/function name
+	* Fix: command.py: pass params in order to parse_trace_collection_date()
+
 2016-05-21 LTTng analyses 0.5.1
 	* Fix missing import
 
