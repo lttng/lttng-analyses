@@ -16,6 +16,8 @@ This README describes the implemented analyses as well as how to use them.
 
 |pypi|
 
+|travis|
+
 .. contents::
     :local:
     :depth: 2
@@ -608,3 +610,7 @@ progress; feedback, bug reports and improvement ideas are always welcome!
 .. |pypi| image:: https://img.shields.io/pypi/v/lttnganalyses.svg?style=flat-square&label=latest%20version
     :target: https://pypi.python.org/pypi/lttnganalyses
     :alt: Latest version released on PyPi
+
+.. |travis| image:: https://travis-ci.org/lttng/lttng-analyses.svg?branch=master
+    :target: https://travis-ci.org/lttng/lttng-analyses
+    :alt: Status of Travis CI
