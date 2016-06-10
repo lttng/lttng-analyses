@@ -64,13 +64,15 @@ class AnalysisTest(unittest.TestCase):
         cmd_fmt = './{} {} {} {}'
         cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS,
                              options, self.trace_writer.trace_root)
+
+        # Create an utf-8 test env
         test_env = os.environ.copy()
         test_env['LC_ALL'] = 'C.UTF-8'
 
-        try:
-            output = subprocess.check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            output = e.output
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, env=test_env)
+        output, unused_err = process.communicate()
+        output = output.decode('utf-8')
 
         if output[-1:] == '\n':
             output = output[:-1]

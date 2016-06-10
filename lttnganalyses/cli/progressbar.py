@@ -24,7 +24,6 @@ import os
 import sys
 import time
 from . import mi
-from collections import namedtuple
 from ..common import format_utils
 
 
@@ -103,7 +102,7 @@ class FancyProgressBar(_Progress):
                        Bar(marker='#', left='[', right=']'),
                        ' ', ETA(), ' ']  # see docs for other options
             self._pbar = ProgressBar(widgets=widgets,
-                                   maxval=self._maxval)
+                                     maxval=self._maxval)
             self._pbar.start()
         else:
             print('Warning: progressbar module not available, '
@@ -132,7 +131,8 @@ class MiProgress(_Progress):
             end = format_utils.format_timestamp(self._ts_end)
             msg = fmt.format(begin, end)
         else:
-            msg = 'Starting analysis: {} estimated events'.format(round(self._maxval))
+            msg = 'Starting analysis: {} estimated events'.format(round(
+                self._maxval))
 
         mi.print_progress(0, msg)
 
@@ -145,7 +145,8 @@ class MiProgress(_Progress):
             ts_at = self._at + self._ts_begin
             at_ts = format_utils.format_timestamp(ts_at)
             end = format_utils.format_timestamp(self._ts_end)
-            msg = '{}/{}; {} events processed'.format(at_ts, end, self._event_count)
+            msg = '{}/{}; {} events processed'.format(at_ts, end,
+                                                      self._event_count)
         else:
             msg = '{} events processed'.format(self._event_count)
 

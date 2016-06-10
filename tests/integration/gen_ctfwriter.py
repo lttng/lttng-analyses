@@ -33,6 +33,7 @@ import argparse
 
 from babeltrace import TraceCollection, CTFScope, CTFTypeId
 
+
 def sanitize(s):
     """Replace special characters in s by underscores.
 
@@ -41,6 +42,7 @@ def sanitize(s):
     s = s.replace(':', '_')
 
     return s
+
 
 def get_definition_type(field, event):
     event_name = sanitize(event.name)
