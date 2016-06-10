@@ -125,6 +125,19 @@ The only difference with the above commands is the tracing session's creation:
     lttng create -U net://<remote-host>
 
 
+=====
+Usage
+=====
+
+Each analysis has it's own script named in the form of *lttng-analysisname*.
+
+The LTTNG_ANALYSES_DEBUG environment variable can be used to enable debug output:
+
+.. code-block:: bash
+
+    LTTNG_ANALYSES_DEBUG=1 lttng-cputop <path/to/trace>
+
+
 ====================
 Implemented analyses
 ====================
