@@ -1,3 +1,9 @@
+2016-06-10 LTTng analyses 0.5.3
+	* Add travis CI support
+	* Doc: Add usage and debug to readme
+	* Fix: pep8 fixes
+	* Fix: tests when shell locale is not UTF-8 again
+
 2016-06-07 LTTng analyses 0.5.2
 	* Fix: tests when shell locale is not UTF-8
 	* Handle events without fields
