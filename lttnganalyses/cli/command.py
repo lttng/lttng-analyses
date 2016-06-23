@@ -28,14 +28,14 @@ import os
 import re
 import sys
 import subprocess
+import traceback
 from babeltrace import TraceCollection
-from . import mi
-from .. import _version
-from . import progressbar
+from . import mi, progressbar
 from .. import __version__
-from ..common import version_utils
 from ..core import analysis
-from ..linuxautomaton import common
+from ..common import (
+    format_utils, parse_utils, trace_utils, version_utils
+)
 from ..linuxautomaton import automaton
 
 
@@ -47,41 +47,66 @@ class Command:
         'Philippe Proulx',
     ]
     _MI_URL = 'https://github.com/lttng/lttng-analyses'
+    _VERSION = version_utils.Version.new_from_string(__version__)
+    _BT_INTERSECT_VERSION = version_utils.Version(1, 4, 0)
+    _DEBUG_ENV_VAR = 'LTTNG_ANALYSES_DEBUG'
 
     def __init__(self, mi_mode=False):
         self._analysis = None
         self._analysis_conf = None
         self._args = None
+        self._babeltrace_version = None
         self._handles = None
         self._traces = None
         self._ticks = 0
         self._mi_mode = mi_mode
-        self._create_automaton()
-        self._mi_setup()
+        self._debug_mode = os.environ.get(self._DEBUG_ENV_VAR)
+        self._run_step('create automaton', self._create_automaton)
+        self._run_step('setup MI', self._mi_setup)
 
     @property
     def mi_mode(self):
         return self._mi_mode
 
-    def run(self):
+    def _run_step(self, action_title, fn):
         try:
-            self._parse_args()
-            self._open_trace()
-            self._create_analysis()
-            self._run_analysis()
-            self._close_trace()
+            fn()
         except KeyboardInterrupt:
+            self._print('Cancelled by user')
             sys.exit(0)
+        except Exception as e:
+            if self._debug_mode:
+                traceback.print_exc()
 
-    def _error(self, msg, exit_code=1):
-        try:
-            import termcolor
+            self._gen_error('Cannot {}: {}'.format(action_title, e))
 
-            msg = termcolor.colored(msg, 'red', attrs=['bold'])
-        except ImportError:
-            pass
+    def run(self):
+        self._run_step('parse arguments', self._parse_args)
+        self._run_step('open trace', self._open_trace)
+        self._run_step('create analysis', self._create_analysis)
+        self._run_step('run analysis', self._run_analysis)
+        self._run_step('close trace', self._close_trace)
+
+    def _mi_error(self, msg, code=None):
+        print(json.dumps(mi.get_error(msg, code)))
+
+    def _non_mi_error(self, msg):
+        if self._args.color:
+            try:
+                import termcolor
+
+                msg = termcolor.colored(msg, 'red', attrs=['bold'])
+            except ImportError:
+                pass
 
         print(msg, file=sys.stderr)
+
+    def _error(self, msg, exit_code=1):
+        if self._mi_mode:
+            self._mi_error(msg)
+        else:
+            self._non_mi_error(msg)
+
         sys.exit(exit_code)
 
     def _gen_error(self, msg, exit_code=1):
@@ -110,7 +135,7 @@ class Command:
 
     def _mi_print_metadata(self):
         tags = self._MI_BASE_TAGS + self._MI_TAGS
-        infos = mi.get_metadata(version=self._MI_VERSION, title=self._MI_TITLE,
+        infos = mi.get_metadata(version=self._VERSION, title=self._MI_TITLE,
                                 description=self._MI_DESCRIPTION,
                                 authors=self._MI_AUTHORS, url=self._MI_URL,
                                 tags=tags,
@@ -157,12 +182,25 @@ class Command:
         pass
 
     def _open_trace(self):
-        traces = TraceCollection()
+        self._babeltrace_version = trace_utils.read_babeltrace_version()
+        if self._babeltrace_version >= self._BT_INTERSECT_VERSION:
+            traces = TraceCollection(intersect_mode=self._args.intersect_mode)
+        else:
+            if self._args.intersect_mode:
+                self._print('Warning: intersect mode not available - '
+                            'disabling')
+                self._print('         Use babeltrace {} or later to '
+                            'enable'.format(
+                                trace_utils.BT_INTERSECT_VERSION))
+                self._args.intersect_mode = False
+            traces = TraceCollection()
         handles = traces.add_traces_recursive(self._args.path, 'ctf')
         if handles == {}:
             self._gen_error('Failed to open ' + self._args.path, -1)
         self._handles = handles
         self._traces = traces
+        self._ts_begin = traces.timestamp_begin
+        self._ts_end = traces.timestamp_end
         self._process_date_args()
         self._read_tracer_version()
         if not self._args.skip_validation:
@@ -215,8 +253,26 @@ class Command:
             int(patch_match.group(1)),
         )
 
+    def _read_babeltrace_version(self):
+        try:
+            output = subprocess.check_output('babeltrace')
+        except subprocess.CalledProcessError:
+            self._gen_error('Could not run babeltrace to verify version')
+
+        output = output.decode(sys.stdout.encoding)
+        first_line = output.splitlines()[0]
+        version_string = first_line.split()[-1]
+
+        self._babeltrace_version = \
+            version_utils.Version.new_from_string(version_string)
+
     def _check_lost_events(self):
-        self._print('Checking the trace for lost events...')
+        msg = 'Checking the trace for lost events...'
+        self._print(msg)
+
+        if self._mi_mode and self._args.output_progress:
+            mi.print_progress(0, msg)
+
         try:
             subprocess.check_output('babeltrace "%s"' % self._args.path,
                                     shell=True)
@@ -236,28 +292,67 @@ class Command:
 
         self._mi_print()
 
+    def _pb_setup(self):
+        if self._args.no_progress:
+            return
+
+        ts_end = self._ts_end
+
+        if self._analysis_conf.end_ts is not None:
+            ts_end = self._analysis_conf.end_ts
+
+        if self._mi_mode:
+            cls = progressbar.MiProgress
+        else:
+            cls = progressbar.FancyProgressBar
+
+        self._progress = cls(self._ts_begin, ts_end, self._args.path,
+                             self._args.progress_use_size)
+
+    def _pb_update(self, event):
+        if self._args.no_progress:
+            return
+
+        self._progress.update(event)
+
+    def _pb_finish(self):
+        if self._args.no_progress:
+            return
+
+        self._progress.finalize()
+
     def _run_analysis(self):
         self._pre_analysis()
-        progressbar.progressbar_setup(self)
+        self._pb_setup()
+
+        if self._args.intersect_mode:
+            if not self._traces.has_intersection:
+                self._gen_error('Trace has no intersection. '
+                                'Use --no-intersection to override')
 
         for event in self._traces.events:
-            progressbar.progressbar_update(self)
+            self._pb_update(event)
             self._analysis.process_event(event)
             if self._analysis.ended:
                 break
             self._automaton.process_event(event)
 
-        progressbar.progressbar_finish(self)
+        self._pb_finish()
         self._analysis.end()
         self._post_analysis()
 
     def _print_date(self, begin_ns, end_ns):
-        date = 'Timerange: [%s, %s]' % (
-            common.ns_to_hour_nsec(begin_ns, gmt=self._args.gmt,
-                                   multi_day=True),
-            common.ns_to_hour_nsec(end_ns, gmt=self._args.gmt,
-                                   multi_day=True))
+        time_range_str = format_utils.format_time_range(
+            begin_ns, end_ns, print_date=True, gmt=self._args.gmt
+        )
+        date = 'Timerange: {}'.format(time_range_str)
+
         self._print(date)
+
+    def _format_timestamp(self, timestamp):
+        return format_utils.format_timestamp(
+            timestamp, print_date=self._args.multi_day, gmt=self._args.gmt
+        )
 
     def _get_uniform_freq_values(self, durations):
         if self._args.uniform_step is not None:
@@ -288,7 +383,7 @@ class Command:
         refresh_period_ns = None
         if args.refresh is not None:
             try:
-                refresh_period_ns = common.duration_str_to_ns(args.refresh)
+                refresh_period_ns = parse_utils.parse_duration(args.refresh)
             except ValueError as e:
                 self._cmdline_error(str(e))
 
@@ -314,6 +409,9 @@ class Command:
             self._analysis_conf.cpu_list = args.cpu.split(',')
             self._analysis_conf.cpu_list = [int(cpu) for cpu in
                                             self._analysis_conf.cpu_list]
+
+        if args.debug:
+            self._debug_mode = True
 
         # convert min/max args from µs to ns, if needed
         if hasattr(args, 'min') and args.min is not None:
@@ -343,9 +441,6 @@ class Command:
                 args.freq_uniform = True
 
         if self._mi_mode:
-            # force no progress in MI mode
-            args.no_progress = True
-
             # print MI metadata if required
             if args.metadata:
                 self._mi_print_metadata()
@@ -397,8 +492,18 @@ class Command:
                         'CPU IDs')
         ap.add_argument('--timerange', type=str, help='time range: '
                                                       '[begin,end]')
+        ap.add_argument('--progress-use-size', action='store_true',
+                        help='use trace size to approximate progress')
+        ap.add_argument('--no-intersection', action='store_false',
+                        dest='intersect_mode',
+                        help='disable stream intersection mode')
         ap.add_argument('-V', '--version', action='version',
-                        version='LTTng Analyses v' + __version__)
+                        version='LTTng Analyses v{}'.format(self._VERSION))
+        ap.add_argument('--debug', action='store_true',
+                        help='Enable debug mode (or set {} environment '
+                             'variable)'.format(self._DEBUG_ENV_VAR))
+        ap.add_argument('--no-color', action='store_false', dest='color',
+                        help='Disable colored output')
 
         # MI mode-dependent arguments
         if self._mi_mode:
@@ -406,6 +511,8 @@ class Command:
                             help='Show analysis\'s metadata')
             ap.add_argument('path', metavar='<path/to/trace>',
                             help='trace path', nargs='*')
+            ap.add_argument('--output-progress', action='store_true',
+                            help='Print progress indication lines')
         else:
             ap.add_argument('--no-progress', action='store_true',
                             help='Don\'t display the progress bar')
@@ -416,6 +523,13 @@ class Command:
         self._add_arguments(ap)
 
         args = ap.parse_args()
+
+        if self._mi_mode:
+            args.no_progress = True
+
+            if args.output_progress:
+                args.no_progress = False
+
         self._validate_transform_common_args(args)
         self._validate_transform_args(args)
         self._args = args
@@ -477,37 +591,42 @@ class Command:
         pass
 
     def _process_date_args(self):
-        def date_to_epoch_nsec(date):
-            ts = common.date_to_epoch_nsec(self._handles, date, self._args.gmt)
-            if ts is None:
-                self._cmdline_error('Invalid date format: "{}"'.format(date))
+        def parse_date(date):
+            try:
+                ts = parse_utils.parse_trace_collection_date(
+                    self._traces, date, self._args.gmt, self._handles
+                )
+            except ValueError as e:
+                self._cmdline_error(str(e))
 
             return ts
 
-        self._args.multi_day = common.is_multi_day_trace_collection(
-            self._handles)
+        self._args.multi_day = trace_utils.is_multi_day_trace_collection(
+            self._traces, self._handles)
         begin_ts = None
         end_ts = None
 
         if self._args.timerange:
-            begin_ts, end_ts = common.extract_timerange(self._handles,
-                                                        self._args.timerange,
-                                                        self._args.gmt)
-            if None in [begin_ts, end_ts]:
-                self._cmdline_error(
-                    'Invalid time format: "{}"'.format(self._args.timerange))
+            try:
+                begin_ts, end_ts = (
+                    parse_utils.parse_trace_collection_time_range(
+                        self._traces, self._handles, self._args.timerange,
+                        self._args.gmt)
+                )
+            except ValueError as e:
+                self._cmdline_error(str(e))
         else:
             if self._args.begin:
-                begin_ts = date_to_epoch_nsec(self._args.begin)
+                begin_ts = parse_date(self._args.begin)
             if self._args.end:
-                end_ts = date_to_epoch_nsec(self._args.end)
+                end_ts = parse_date(self._args.end)
 
                 # We have to check if timestamp_begin is None, which
                 # it always is in older versions of babeltrace. In
                 # that case, the test is simply skipped and an invalid
                 # --end value will cause an empty analysis
-                if self._traces.timestamp_begin is not None and \
-                   end_ts < self._traces.timestamp_begin:
+                if self._ts_begin is not None and \
+                   end_ts < self._ts_begin:
                     self._cmdline_error(
                         '--end timestamp before beginning of trace')
 
@@ -535,14 +654,3 @@ class Command:
 
     def _analysis_tick(self, begin_ns, end_ns):
         raise NotImplementedError()
-
-
-# create MI version
-_cmd_version = _version.get_versions()['version']
-_version_match = re.match(r'(\d+)\.(\d+)\.(\d+)(.*)', _cmd_version)
-Command._MI_VERSION = version_utils.Version(
-    int(_version_match.group(1)),
-    int(_version_match.group(2)),
-    int(_version_match.group(3)),
-    _version_match.group(4),
-)

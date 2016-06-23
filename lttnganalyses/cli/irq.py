@@ -30,7 +30,7 @@ from . import mi
 from . import termgraph
 from .command import Command
 from ..core import irq as core_irq
-from ..linuxautomaton import common, sv
+from ..linuxautomaton import sv
 
 
 class IrqAnalysisCommand(Command):
@@ -68,7 +68,7 @@ class IrqAnalysisCommand(Command):
         ),
         (
             _MI_TABLE_CLASS_SOFT_STATS,
-            'Hardware interrupt statistics', [
+            'Software interrupt statistics', [
                 ('irq', 'Interrupt', mi.Irq),
                 ('count', 'Interrupt count', mi.Integer, 'interrupts'),
                 ('min_duration', 'Minimum duration', mi.Duration),
@@ -420,9 +420,6 @@ class IrqAnalysisCommand(Command):
 
         return hard_stats_table, soft_stats_table, freq_tables
 
-    def _ns_to_hour_nsec(self, ts):
-        return common.ns_to_hour_nsec(ts, self._args.multi_day, self._args.gmt)
-
     def _print_log(self, result_table):
         fmt = '[{:<18}, {:<18}] {:>15} {:>4}  {:<9} {:>4}  {:<22}'
         title_fmt = '{:<20} {:<19} {:>15} {:>4}  {:<9} {:>4}  {:<22}'
@@ -434,9 +431,9 @@ class IrqAnalysisCommand(Command):
             end_ts = timerange.end
 
             if type(row.raised_ts) is mi.Timestamp:
-                raised_fmt = ' (raised at %s)'
-                raised_ts = \
-                    raised_fmt % self._ns_to_hour_nsec(row.raised_ts.value)
+                raised_ts = ' (raised at {})'.format(
+                    self._format_timestamp(row.raised_ts.value)
+                )
             else:
                 raised_ts = ''
 
@@ -448,8 +445,8 @@ class IrqAnalysisCommand(Command):
             else:
                 irqtype = 'SoftIRQ'
 
-            print(fmt.format(self._ns_to_hour_nsec(begin_ts),
-                             self._ns_to_hour_nsec(end_ts),
+            print(fmt.format(self._format_timestamp(begin_ts),
+                             self._format_timestamp(end_ts),
                              '%0.03f' % ((end_ts - begin_ts) / 1000),
                              '%d' % cpu_id, irqtype, irq_do.nr,
                              irq_do.name + raised_ts))

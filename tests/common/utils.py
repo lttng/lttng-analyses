@@ -20,5 +20,30 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from . import common
-from . import integration
+import os
+import time
+
+
+class TimezoneUtils():
+    def __init__(self):
+        self.original_tz = None
+
+    def set_up_timezone(self):
+        # Make sure that the local timezone as seen by the time module
+        # is the same regardless of where the test is actually
+        # run. US/Eastern was picked arbitrarily.
+        self.original_tz = os.environ.get('TZ')
+        os.environ['TZ'] = 'US/Eastern'
+        try:
+            time.tzset()
+        except AttributeError:
+            print('Warning: time.tzset() is unavailable on Windows.'
+                  'This may cause test failures.')
+
+    def tear_down_timezone(self):
+        # Restore the original value of TZ if any, else delete it from
+        # the environment variables.
+        if self.original_tz:
+            os.environ['TZ'] = self.original_tz
+        else:
+            del os.environ['TZ']

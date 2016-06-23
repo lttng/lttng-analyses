@@ -100,7 +100,7 @@ class IoAnalysis(Analysis):
         return self._get_io_requests(sv.IORequest.OP_READ_WRITE)
 
     def _get_io_requests(self, io_operation=None):
-        """Create a generator of syscall io requests by operation
+        """Create a generator of syscall io requests by operation.
 
         Args:
             io_operation (IORequest.OP_*, optional): The operation of
@@ -461,7 +461,7 @@ class ProcessIOStats(stats.Process):
 
     @staticmethod
     def _get_fd_by_timestamp(fd_list, timestamp):
-        """Return the FDStats object whose lifetime contains timestamp
+        """Return the FDStats object whose lifetime contains timestamp.
 
         This method performs a recursive binary search on the given
         fd_list argument, and will find the FDStats object for which
@@ -470,7 +470,7 @@ class ProcessIOStats(stats.Process):
 
         Args:
             fd_list (list): list of FDStats object, sorted
-            chronologically by open_ts
+            chronologically by open_ts.
 
             timestamp (int): timestamp in nanoseconds (ns) since unix
             epoch which should be contained in the FD's lifetime.

@@ -28,7 +28,7 @@ from .trace_writer import TraceWriter
 
 
 class AnalysisTest(unittest.TestCase):
-    COMMON_OPTIONS = '--no-progress --skip-validation --gmt'
+    COMMON_OPTIONS = '--no-color --no-progress --skip-validation --gmt'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -57,7 +57,7 @@ class AnalysisTest(unittest.TestCase):
 
     def get_expected_output(self, test_name):
         expected_path = os.path.join(self.data_path, test_name + '.txt')
-        with open(expected_path, 'r') as expected_file:
+        with open(expected_path, 'r', encoding='utf-8') as expected_file:
             return expected_file.read()
 
     def get_cmd_output(self, exec_name, options=''):
@@ -65,11 +65,23 @@ class AnalysisTest(unittest.TestCase):
         cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS,
                              options, self.trace_writer.trace_root)
 
-        return subprocess.getoutput(cmd)
+        # Create an utf-8 test env
+        test_env = os.environ.copy()
+        test_env['LC_ALL'] = 'C.UTF-8'
+
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, env=test_env)
+        output, unused_err = process.communicate()
+        output = output.decode('utf-8')
+
+        if output[-1:] == '\n':
+            output = output[:-1]
+
+        return output
 
     def save_test_result(self, result, test_name):
         result_path = os.path.join(self.trace_writer.trace_root, test_name)
-        with open(result_path, 'w') as result_file:
+        with open(result_path, 'w', encoding='utf-8') as result_file:
             result_file.write(result)
             self.rm_trace = False
 

@@ -1,179 +1,371 @@
+LTTng analyses
 **************
-LTTng-analyses
-**************
 
-This repository contains various scripts to extract monitoring data and metrics
-from LTTng kernel traces.
+.. image:: https://img.shields.io/pypi/v/lttnganalyses.svg?label=Latest%20version
+   :target: https://pypi.python.org/pypi/lttnganalyses
+   :alt: Latest version released on PyPi
 
-As opposed to other diagnostic or monitoring solutions, this approach is designed
-to allow users to record their system's activity with a low overhead, wait
-for a problem to occur and then diagnose its cause offline.
+.. image:: https://travis-ci.org/lttng/lttng-analyses.svg?branch=master&label=Travis%20CI%20build
+   :target: https://travis-ci.org/lttng/lttng-analyses
+   :alt: Status of Travis CI
 
-This solution allows the user to target hard to find problems and dig until the
-root cause is found.
+.. image:: https://img.shields.io/jenkins/s/https/ci.lttng.org/lttng-analyses_master_build.svg?label=LTTng%20CI%20build
+   :target: https://ci.lttng.org/job/barectf
+   :alt: Status of LTTng CI
 
-This README describes the implemented analyses as well as how to use them.
+The **LTTng analyses** are a set of various executable analyses to
+extract and visualize monitoring data and metrics from
+`LTTng <http://lttng.org/>`_ kernel traces on the command line.
 
-|pypi|
+As opposed to other "live" diagnostic or monitoring solutions, this
+approach is based on the following workflow:
+
+#. Record your system's activity with LTTng, a low-overhead tracer.
+#. Do whatever it takes for your problem to occur.
+#. Diagnose your problem's cause **offline** (when tracing is stopped).
+
+This solution allows you to target problems that are hard to find and
+to "dig" until the root cause is found.
 
 .. contents::
-    :local:
-    :depth: 2
-    :backlinks: none
-
-============
-Requirements
-============
-
-* LTTng >= 2.5
-* Babeltrace >= 1.2 (with python bindings built)
-* Python >= 3.4
+   :local:
+   :depth: 2
+   :backlinks: none
 
 
-============
-Installation
-============
+Install LTTng analyses
+======================
 
----------------
-Release version
----------------
+.. NOTE::
 
-On **Ubuntu** (12.04 and up) using the LTTng ppa:
+   The version 2.0 of `Trace Compass <http://tracecompass.org/>`_
+   requires LTTng analyses 0.4: Trace Compass 2.0 is not compatible
+   with LTTng analyses 0.5 and after.
 
-.. code-block:: bash
-
-    apt-get install -y software-properties-common (or python-software-properties on 12.04)
-    apt-add-repository -y ppa:lttng/ppa
-    apt-get update
-    apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar python3-lttnganalyses
-
-On **Debian Sid**:
-
-.. code-block:: bash
-
-    apt-get -y install lttng-tools babeltrace lttng-modules-dkms python3-babeltrace python3-progressbar python3-lttnganalyses
-
-On other distributions:
-
-Please refer to the `LTTng documentation <http://lttng.org/download/>`_ to
-install LTTng and the `Babeltrace README 
-<http://git.efficios.com/?p=babeltrace.git;a=blob_plain;f=README;hb=HEAD>`_
-to install ``babeltrace`` with the python bindings. Optionally install the
-``progressbar`` python module, and then:
-
-.. code-block:: bash
-
-    pip3 install lttnganalyses
+   In this case, we suggest that you install LTTng analyses from the
+   ``stable-0.4`` branch of the project's Git repository (see
+   `Install from the Git repository`_). You can also
+   `download <https://github.com/lttng/lttng-analyses/releases>`_ the
+   latest 0.4 release tarball and follow the
+   `Install from a release tarball`_ procedure.
 
 
--------------------
-Development version
--------------------
+Required dependencies
+---------------------
 
-The **latest development version** can be installed directly from GitHub:
-
-.. code-block:: bash
-
-    pip3 install --upgrade git+git://github.com/lttng/lttng-analyses.git
+- `Python <https://www.python.org/>`_ ≥ 3.4
+- `setuptools <https://pypi.python.org/pypi/setuptools>`_
+- `Babeltrace <http://diamon.org/babeltrace/>`_ ≥ 1.2 with Python
+  bindings (``--enable-python-bindings`` when building from source)
 
 
+Optional dependencies
+---------------------
+
+- `LTTng <http://lttng.org/>`_ ≥ 2.5: to use the
+  ``lttng-analyses-record`` script and to trace the system in
+  general
+- `termcolor <https://pypi.python.org/pypi/termcolor/>`_: color
+  support
+- `progressbar <https://pypi.python.org/pypi/progressbar/>`_:
+  terminal progress bar support (this is not required for the
+  machine interface's progress indication feature)
+
+
+Install from PyPI (online repository)
+-------------------------------------
+
+To install the latest LTTng analyses release on your system from
+`PyPI <https://pypi.python.org/pypi/lttnganalyses>`_:
+
+#. Install the required dependencies.
+#. **Optional**: Install the optional dependencies.
+#. Make sure ``pip`` for Python 3 is installed on your system. The
+   package is named ``python3-pip`` on most distributions
+   (``python-pip`` on Arch Linux).
+#. Use ``pip3`` to install LTTng analyses:
+
+   .. code-block:: bash
+
+      sudo pip3 install --upgrade lttnganalyses
+
+
+Install from a release tarball
+------------------------------
+
+To install a specific LTTng analyses release (tarball) on your system:
+
+#. Install the required dependencies.
+#. **Optional**: Install the optional dependencies.
+#. `Download <https://github.com/lttng/lttng-analyses/releases>`_ and
+   extract the desired release tarball.
+#. Use ``setup.py`` to install LTTng analyses:
+
+   .. code-block:: bash
+
+      sudo ./setup.py install lttnganalyses
+
+
+Install from the Git repository
+-------------------------------
+
+To install LTTng analyses from a specific branch or tag of the
+project's Git repository:
+
+#. Install the required dependencies.
+#. **Optional**: Install the optional dependencies.
+#. Make sure ``pip`` for Python 3 is installed on your system. The
+   package is named ``python3-pip`` on most distributions
+   (``python-pip`` on Arch Linux).
+#. Use ``pip3`` to install LTTng analyses:
+
+   .. code-block:: bash
+
+      sudo pip3 install git+git://github.com/lttng/lttng-analyses.git@master
+
+   Replace ``master`` with the desired branch or tag name to install
+   in the previous URL.
+
+
+Install on Ubuntu
+-----------------
+
+To install LTTng analyses on Ubuntu ≥ 12.04:
+
+#. Add the *LTTng Latest Stable* PPA repository:
+
+   .. code-block:: bash
+
+      sudo apt-get install -y software-properties-common
+      sudo apt-add-repository -y ppa:lttng/ppa
+      sudo apt-get update
+
+   Replace ``software-properties-common`` with
+   ``python-software-properties`` on Ubuntu 12.04.
+#. Install the required dependencies:
+
+   .. code-block:: bash
+
+      sudo apt-get install -y babeltrace
+      sudo apt-get install -y python3-babeltrace
+      sudo apt-get install -y python3-setuptools
+#. **Optional**: Install the optional dependencies:
+
+   .. code-block:: bash
+
+      sudo apt-get install -y lttng-tools
+      sudo apt-get install -y lttng-modules-dkms
+      sudo apt-get install -y python3-progressbar
+      sudo apt-get install -y python3-termcolor
+#. Install LTTng analyses:
+
+   .. code-block:: bash
+
+      sudo apt-get install -y python3-lttnganalyses
+
+
+Install on Debian "sid"
+-----------------------
+
+To install LTTng analyses on Debian "sid":
+
+#. Install the required dependencies:
+
+   .. code-block:: bash
+
+      sudo apt-get install -y babeltrace
+      sudo apt-get install -y python3-babeltrace
+      sudo apt-get install -y python3-setuptools
+#. **Optional**: Install the optional dependencies:
+
+   .. code-block:: bash
+
+      sudo apt-get install -y lttng-tools
+      sudo apt-get install -y lttng-modules-dkms
+      sudo apt-get install -y python3-progressbar
+      sudo apt-get install -y python3-termcolor
+#. Install LTTng analyses:
+
+   .. code-block:: bash
+
+      sudo apt-get install -y python3-lttnganalyses
+
+
+Record a trace
 ==============
-Trace creation
-==============
 
-Here are the basic commands to create a trace, for more information on the
-LTTng setup, please refer to the `LTTng documentation Getting started guide 
-<http://lttng.org/docs/#doc-getting-started>`_.
+This section is a quick reminder of how to record an LTTng kernel
+trace. See LTTng's `quick start guide
+<http://lttng.org/docs/v2.7/#doc-getting-started>`_ to familiarize
+with LTTng.
 
----------
+
 Automatic
 ---------
 
-From the cloned git tree:
+LTTng analyses ships with a handy (installed) script,
+``lttng-analyses-record``, which automates
+the steps to record a kernel trace with the events required by the
+analyses.
 
-.. code-block:: bash
+To use ``lttng-analyses-record``:
 
-    ./lttng-analyses-record
+#. Launch the script:
+
+   .. code-block:: bash
+
+      lttng-analyses-record
+#. Do whatever it takes for your problem to occur.
+#. When you are done recording, press Ctrl+C where the script is
+   running.
 
 
-------
 Manual
 ------
 
-.. code-block:: bash
+To record an LTTng kernel trace suitable for the LTTng analyses:
 
-    lttng create
-    lttng enable-channel -k bla --subbuf-size=4M
-    lttng enable-event -k sched_switch,block_rq_complete,block_rq_issue,block_bio_remap,block_bio_backmerge,netif_receive_skb,net_dev_xmit,sched_process_fork,sched_process_exec,lttng_statedump_process_state,lttng_statedump_file_descriptor,lttng_statedump_block_device,writeback_pages_written,mm_vmscan_wakeup_kswapd,mm_page_free,mm_page_alloc,block_dirty_buffer,irq_handler_entry,irq_handler_exit,softirq_entry,softirq_exit,softirq_raise -c bla
-    lttng enable-event -k --syscall -a -c bla
-    lttng start
-    ..do stuff...
-    lttng stop
-    lttng destroy
+#. Create a tracing session:
 
+   .. code-block:: bash
 
-------
-Remote
-------
+      sudo lttng create
+#. Create a channel with a large sub-buffer size:
 
-You can also create a trace on a server and send it to a remote host. The
-remote host only needs to run ``lttng-relayd -d`` and be reachable over the network.
-The only difference with the above commands is the tracing session's creation:
+   .. code-block:: bash
 
-.. code-block:: bash
+      sudo lttng enable-channel --kernel chan --subbuf-size=8M
+#. Create event rules to capture the needed events:
 
-    lttng create -U net://<remote-host>
+   .. code-block:: bash
 
+      sudo lttng enable-event --kernel --channel=chan block_bio_backmerge
+      sudo lttng enable-event --kernel --channel=chan block_bio_remap
+      sudo lttng enable-event --kernel --channel=chan block_dirty_buffer
+      sudo lttng enable-event --kernel --channel=chan block_rq_complete
+      sudo lttng enable-event --kernel --channel=chan block_rq_issue
+      sudo lttng enable-event --kernel --channel=chan irq_handler_entry
+      sudo lttng enable-event --kernel --channel=chan irq_handler_exit
+      sudo lttng enable-event --kernel --channel=chan lttng_statedump_block_device
+      sudo lttng enable-event --kernel --channel=chan lttng_statedump_file_descriptor
+      sudo lttng enable-event --kernel --channel=chan lttng_statedump_process_state
+      sudo lttng enable-event --kernel --channel=chan mm_page_alloc
+      sudo lttng enable-event --kernel --channel=chan mm_page_free
+      sudo lttng enable-event --kernel --channel=chan mm_vmscan_wakeup_kswapd
+      sudo lttng enable-event --kernel --channel=chan net_dev_xmit
+      sudo lttng enable-event --kernel --channel=chan netif_receive_skb
+      sudo lttng enable-event --kernel --channel=chan sched_process_exec
+      sudo lttng enable-event --kernel --channel=chan sched_process_fork
+      sudo lttng enable-event --kernel --channel=chan sched_switch
+      sudo lttng enable-event --kernel --channel=chan softirq_entry
+      sudo lttng enable-event --kernel --channel=chan softirq_exit
+      sudo lttng enable-event --kernel --channel=chan softirq_raise -c bla
+      sudo lttng enable-event --kernel --channel=chan writeback_pages_written
+      sudo lttng enable-event --kernel --channel=chan --syscall --all
+#. Start recording:
 
-====================
-Implemented analyses
-====================
+   .. code-block:: bash
 
-* CPU usage for the whole system
-* CPU usage per-process
-* Process CPU migration count
-* Memory usage per-process (as seen by the kernel)
-* Memory usage system-wide (as seen by the kernel)
-* I/O usage (syscalls, disk, network)
-* I/O operations log (with latency and usage)
-* I/O latency statistics (open, read, write, sync operations)
-* I/O latency frequency distribution
-* Interrupt handler duration statistics (count, min, max, average stdev)
-* Interrupt handler duration top
-* Interrupt handler duration log
-* Interrupt handler duration frequency distribution
-* SoftIRQ handler latency statistics
-* Syscalls usage statistics
+      sudo lttng start
+#. Do whatever it takes for your problem to occur.
+#. Stop recording and destroy the tracing session to free its
+   resources:
 
-All of the analyses share the same code architecture making it possible
-to filter by timerange, process name, PID, min and max values using the
-same command-line options. Also note that reported timestamps can
-optionally be expressed in the GMT timezone to allow easy sharing between
-teams.
+   .. code-block:: bash
 
-The project's architecture makes it easy to add new analyses or to reuse
-the analysis backend in external tools which may then present the results
-in their own format (as opposed to text).
+      sudo lttng stop
+      sudo lttng destroy
 
 
-========
+See the `LTTng Documentation <http://lttng.org/docs/>`_ for other
+use cases, like sending the trace data over the network instead of
+recording trace files on the target's file system.
+
+
+Analyze
+=======
+
+The **LTTng analyses** are a set of various command-line
+analyses. Each analysis accepts the path to a recorded trace
+(see `Record a trace`_) as its argument, as well as various command-line
+options to control the analysis and its output.
+
+Many command-line options are common to all the analyses, so that you
+can filter by timerange, process name, process ID, minimum and maximum
+values, and the rest. Also note that the reported timestamps can
+optionally be expressed in the GMT time zone.
+
+Each analysis is installed as an executable starting with the
+``lttng-`` prefix.
+
+.. list-table:: Available LTTng analyses
+   :header-rows: 1
+
+   * - Command
+     - Description
+   * - ``lttng-cputop``
+     - Per-TID, per-CPU, and total top CPU usage.
+   * - ``lttng-iolatencyfreq``
+     - I/O request latency distribution.
+   * - ``lttng-iolatencystats``
+     - Partition and system call latency statistics.
+   * - ``lttng-iolatencytop``
+     - Top system call latencies.
+   * - ``lttng-iolog``
+     - I/O operations log.
+   * - ``lttng-iousagetop``
+     - I/O usage top.
+   * - ``lttng-irqfreq``
+     - Interrupt handler duration frequency distribution.
+   * - ``lttng-irqlog``
+     - Interrupt log.
+   * - ``lttng-irqstats``
+     - Hardware and software interrupt statistics.
+   * - ``lttng-memtop``
+     - Per-TID top allocated/freed memory.
+   * - ``lttng-schedfreq``
+     - Scheduling latency frequency distribution.
+   * - ``lttng-schedlog``
+     - Scheduling top.
+   * - ``lttng-schedstats``
+     - Scheduling latency stats.
+   * - ``lttng-schedtop``
+     - Scheduling top.
+   * - ``lttng-syscallstats``
+     - Per-TID and global system call statistics.
+
+Each command also has its corresponding JSON-based machine interface
+version with the ``-mi`` suffix. For LTTng analyses 0.5 and after,
+this machine interface is specified by the
+`LTTng analyses machine interface (LAMI)
+<https://github.com/lttng/lami-spec/blob/master/lami.adoc>`_ document.
+
+Use the ``--help`` option of any command to list the descriptions
+of the possible command-line options.
+
+.. NOTE::
+
+   You can set the ``LTTNG_ANALYSES_DEBUG`` environment variable to
+   ``1`` when you launch an analysis to enable a debug output.
+
+
 Examples
 ========
 
-After having collected your trace, any script contained in this repository
-can be used to run an analysis. Read on for some examples!
+This section shows a few examples of using some LTTng analyses.
 
----
 I/O
 ---
 
-^^^^^^^^^^^^^^^^^
-I/O latency stats
-^^^^^^^^^^^^^^^^^
+Partition and system call latency statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ ./lttng-iolatencystats mytrace/
+   lttng-iolatencystats /path/to/trace
+
+::
+
     Timerange: [2015-01-06 10:58:26.140545481, 2015-01-06 10:58:27.229358936]
     Syscalls latency statistics (usec):
     Type                    Count            Min        Average            Max          Stdev
@@ -182,20 +374,22 @@ I/O latency stats
     Read                      109          0.316          5.774         62.569          9.277
     Write                     101          0.256          7.060         48.531          8.555
     Sync                      207         19.384         40.664        160.188         21.201
-    
+
     Disk latency statistics (usec):
     Name                    Count            Min        Average            Max          Stdev
     -----------------------------------------------------------------------------------------
     dm-0                      108          0.001          0.004          0.007          1.306
 
 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-I/O latency frequency distribution
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+I/O request latency distribution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ ./lttng-iolatencyfreq mytrace/
+   lttng-iolatencyfreq /path/to/trace
+
+::
+
     Timerange: [2015-01-06 10:58:26.140545481, 2015-01-06 10:58:27.229358936]
     Open latency distribution (usec)
     ###############################################################################
@@ -221,51 +415,55 @@ I/O latency frequency distribution
     74.077 █████                                                                 2
 
 
-^^^^^^^^^^^^^^^
-I/O latency top
-^^^^^^^^^^^^^^^
+Top system call latencies
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ ./lttng-iolatencytop analysis-20150115-120942/ --limit 3 --minsize 2
+   lttng-iolatencytop /path/to/trace --limit=3 --minsize=2
+
+::
+
     Checking the trace for lost events...
     Timerange: [2015-01-15 12:18:37.216484041, 2015-01-15 12:18:53.821580313]
     Top open syscall latencies (usec)
-    Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename      
+    Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename
     [12:18:50.432950815,12:18:50.870648568]  open                  437697.753          N/A  apache2                  31517    /var/lib/php5/sess_0ifir2hangm8ggaljdphl9o5b5 (fd=13)
     [12:18:52.946080165,12:18:52.946132278]  open                      52.113          N/A  apache2                  31588    /var/lib/php5/sess_mr9045p1k55vin1h0vg7rhgd63 (fd=13)
     [12:18:46.800846035,12:18:46.800874916]  open                      28.881          N/A  apache2                  31591    /var/lib/php5/sess_r7c12pccfvjtas15g3j69u14h0 (fd=13)
     [12:18:51.389797604,12:18:51.389824426]  open                      26.822          N/A  apache2                  31520    /var/lib/php5/sess_4sdb1rtjkhb78sabnoj8gpbl00 (fd=13)
-    
+
     Top read syscall latencies (usec)
-    Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename      
+    Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename
     [12:18:37.256073107,12:18:37.256555967]  read                     482.860       7.00 B  bash                     10237    unknown (origin not found) (fd=3)
     [12:18:52.000209798,12:18:52.000252304]  read                      42.506      1.00 KB  irqbalance               1337     /proc/interrupts (fd=3)
     [12:18:37.256559439,12:18:37.256601615]  read                      42.176       5.00 B  bash                     10237    unknown (origin not found) (fd=3)
     [12:18:42.000281918,12:18:42.000320016]  read                      38.098      1.00 KB  irqbalance               1337     /proc/interrupts (fd=3)
-    
+
     Top write syscall latencies (usec)
-    Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename      
+    Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename
     [12:18:49.913241516,12:18:49.915908862]  write                   2667.346      95.00 B  apache2                  31584    /var/log/apache2/access.log (fd=8)
     [12:18:37.472823631,12:18:37.472859836]  writev                    36.205     21.97 KB  apache2                  31544    unknown (origin not found) (fd=12)
     [12:18:37.991578372,12:18:37.991612724]  writev                    34.352     21.97 KB  apache2                  31589    unknown (origin not found) (fd=12)
     [12:18:39.547778549,12:18:39.547812515]  writev                    33.966     21.97 KB  apache2                  31584    unknown (origin not found) (fd=12)
-    
+
     Top sync syscall latencies (usec)
-    Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename      
+    Begin               End                  Name             Duration (usec)         Size  Proc                     PID      Filename
     [12:18:50.162776739,12:18:51.157522361]  sync                  994745.622          N/A  sync                     22791    None (fd=None)
     [12:18:37.227867532,12:18:37.232289687]  sync_file_range         4422.155          N/A  lttng-consumerd          19964    /home/julien/lttng-traces/analysis-20150115-120942/kernel/metadata (fd=32)
     [12:18:37.238076585,12:18:37.239012027]  sync_file_range          935.442          N/A  lttng-consumerd          19964    /home/julien/lttng-traces/analysis-20150115-120942/kernel/metadata (fd=32)
     [12:18:37.220974711,12:18:37.221647124]  sync_file_range          672.413          N/A  lttng-consumerd          19964    /home/julien/lttng-traces/analysis-20150115-120942/kernel/metadata (fd=32)
 
 
-^^^^^^^^^^^^^^^^^^
 I/O operations log
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ ./lttng-iolog mytrace/
+   lttng-iolog /path/to/trace
+
+::
+
     [10:58:26.221618530,10:58:26.221620659]  write                      2.129       8.00 B  /usr/bin/x-term          11793    anon_inode:[eventfd] (fd=5)
     [10:58:26.221623609,10:58:26.221628055]  read                       4.446      50.00 B  /usr/bin/x-term          11793    /dev/ptmx (fd=24)
     [10:58:26.221638929,10:58:26.221640008]  write                      1.079       8.00 B  /usr/bin/x-term          11793    anon_inode:[eventfd] (fd=5)
@@ -278,13 +476,15 @@ I/O operations log
     [10:58:26.231979636,10:58:26.231988446]  recvmsg                    8.810      16.00 B  Xorg                     1827     socket:[47480] (fd=38)
 
 
-^^^^^^^^^^^^^
 I/O usage top
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ ./lttng-iousagetop traces/pgread-writes
+   lttng-iousagetop /path/to/trace
+
+::
+
     Timerange: [2014-10-07 16:36:00.733214969, 2014-10-07 16:36:18.804584183]
     Per-process I/O Read
     ###############################################################################
@@ -355,17 +555,18 @@ I/O usage top
     ████████████████████████████████████████████████████████  9.36 MB eth0
 
 
---------
-Syscalls
+System calls
 --------
 
-^^^^^^^^^^
-Statistics
-^^^^^^^^^^
+Per-TID and global system call statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ ./lttng-syscallstats mytrace/
+   lttng-syscallstats /path/to/trace
+
+::
+
     Timerange: [2015-01-15 12:18:37.216484041, 2015-01-15 12:18:53.821580313]
     Per-TID syscalls statistics (usec)
     find (22785)                          Count            Min        Average          Max      Stdev  Return values
@@ -423,17 +624,18 @@ Statistics
     Total:                                 1131
 
 
----
-IRQ
----
+Interrupts
+----------
 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Handler duration and raise latency statistics
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Hardware and software interrupt statistics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ ./lttng-irqstats mytrace/
+   lttng-irqstats /path/to/trace
+
+::
+
     Timerange: [2014-03-11 16:05:41.314824752, 2014-03-11 16:05:45.041994298]
     Hard IRQ                                             Duration (us)
                            count          min          avg          max        stdev
@@ -442,7 +644,7 @@ Handler duration and raise latency statistics
     42: <ahci>               259        3.203        7.863       21.426        3.183  |
     43: <eth0>                 2        3.859        3.976        4.093        0.165  |
     44: <iwlwifi>             92        0.300        3.995        6.542        2.181  |
-    
+
     Soft IRQ                                             Duration (us)                                        Raise latency (us)
                            count          min          avg          max        stdev  |  count          min          avg          max        stdev
     ----------------------------------------------------------------------------------|------------------------------------------------------------
@@ -454,13 +656,15 @@ Handler duration and raise latency statistics
     9:  <RCU_SOFTIRQ>        338        0.592        3.387       13.745        1.356  |    147        2.480       29.299       64.453       14.286
 
 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Handler duration frequency distribution
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Interrupt handler duration frequency distribution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-    $ ./lttng-irqfreq --timerange [16:05:42,16:05:45] --irq 44 --stats mytrace/
+   lttng-irqfreq --timerange=[16:05:42,16:05:45] --irq=44 --stats /path/to/trace
+
+::
+
     Timerange: [2014-03-11 16:05:42.042034570, 2014-03-11 16:05:44.998914297]
     Hard IRQ                                             Duration (us)
                            count          min          avg          max        stdev
@@ -490,108 +694,45 @@ Handler duration frequency distribution
     6.230 ███████████████                                                       3.00
 
 
-------
-Others
-------
+Community
+=========
 
-There are a lot of other scripts, we encourage you to try them and read the
-``--help`` to see all the available options.
+LTTng analyses is part of the `LTTng <http://lttng.org/>`_ project
+and shares its community.
 
+We hope you have fun trying this project and please remember it is a
+work in progress; feedback, bug reports and improvement ideas are always
+welcome!
 
-================
-Work in progress
-================
+.. list-table:: LTTng analyses project's communication channels
+   :header-rows: 1
 
-Track the page cache and extract the latencies associated with pages flush to disk.
-In order to do that, we rely on the assumption that the pages are flushed in a FIFO
-order. It might not be 100% accurate, but it already gives great results :
-
-An example here when saving a file in vim::
-
-    [19:57:51.173332284 - 19:57:51.177794657] vim (31517) syscall_entry_fsync(fd = 4 <blabla>) = 0, 4.462 ms
-                                              1 dirty page(s) were flushed (assuming FIFO):
-                                                    vim (31517): 1 pages
-                                                     - blabla : 1 pages
-                                              13 active dirty filesystem page(s) (known):
-                                                    redis-server (2092): 2 pages
-                                                     - /var/log/redis/redis-server.log : 2 pages
-                                                    vim (31517): 2 pages
-                                                     - .blabla.swp : 2 pages
-                                                    lttng-consumerd (6750): 9 pages
-                                                     - unknown (origin not found) : 9 pages
-
-
-An other example when running the 'sync' command::
-
-    [19:57:53.046840755 - 19:57:53.072809609] sync (31554) syscall_entry_sync(fd =  <unknown>) = 0, 25.969 ms
-                                              23 dirty page(s) were flushed (assuming FIFO):
-                                                    redis-server (2092): 2 pages
-                                                     - /var/log/redis/redis-server.log : 2 pages
-                                                    vim (31517): 9 pages
-                                                     - /home/julien/.viminfo.tmp : 6 pages
-                                                     - .blabla.swp : 3 pages
-                                                    lttng-consumerd (6750): 12 pages
-                                                     - unknown (origin not found) : 12 pages
-
-
-PostgreSQL with 'sys_fdatasync'::
-
-    [13:49:39.908599447 - 13:49:39.915930730] postgres (1137) sys_fdatasync(fd = 7 </var/lib/postgresql/9.1/main/pg_xlog/000000010000000000000008>) = 0, 7.331 ms
-                                              2 pages allocated during the period
-                                              88 dirty page(s) were flushed (assuming FIFO):
-                                                    postgres (1137): 88 pages
-                                                     - /var/lib/postgresql/9.1/main/pg_xlog/000000010000000000000008 : 88 pages
-                                              68 last dirtied filesystem page(s):
-                                                    postgres (2419): 68 pages
-                                                     - base/11951/18410 : 46 pages
-                                                     - base/11951/18407 : 10 pages
-                                                     - base/11951/18407_fsm : 6 pages
-                                                     - base/11951/18410_fsm : 6 pages
-
-
-Detecting a fight for the I/O between a huge write and postgresql::
-
-    [13:49:47.242730583 - 13:49:47.442835037] python (2353) sys_write(fd = 3 </root/bla>, count = 102395904) = 102395904, 200.104 ms
-                                              34760 pages allocated during the period
-                                              woke up kswapd during the period
-                                              10046 pages written on disk
-                                              freed 33753 pages from the cache during the period
-                                              1397 last dirtied filesystem page(s):
-                                                    python (2353): 1325 pages
-                                                     - /root/bla : 1325 pages
-                                                    postgres (2419): 72 pages
-                                                     - base/11951/18419 : 72 pages
-
-
-===========
-Limitations
-===========
-
-The main limitation of this project is the fact that it can be quite slow to
-process a large trace. This project is a work in progress and we focus on the
-problem-solving aspect. Therefore, features have been prioritized over
-performance for now.
-
-One other aspect is the fact that the state is not persistent; the trace has
-to be re-processed if another analysis script is to be used on the same trace.
-Some scripts belonging to the same category allow the combination of multiple
-analyses into a single pass (see ``--freq``, ``--log``, ``--usage``,
-``--latencystats``, etc). We are planning to add a way to save the state
-and/or create an interactive environment to allow the user to run multiple
-analyses on the same trace without having to process the trace every time.
-
-
-==========
-Conclusion
-==========
-
-We hope you have fun trying this project and please remember it is a work in
-progress; feedback, bug reports and improvement ideas are always welcome!
-
-
-.. _pip: http://www.pip-installer.org/en/latest/index.html
-
-
-.. |pypi| image:: https://img.shields.io/pypi/v/lttnganalyses.svg?style=flat-square&label=latest%20version
-    :target: https://pypi.python.org/pypi/lttnganalyses
-    :alt: Latest version released on PyPi
+   * - Item
+     - Location
+     - Notes
+   * - Mailing list
+     - `lttng-dev <https://lists.lttng.org/cgi-bin/mailman/listinfo/lttng-dev>`_
+       (``lttng-dev@lists.lttng.org``)
+     - Preferably, use the ``[lttng-analyses]`` subject prefix
+   * - IRC
+     - ``#lttng`` on the OFTC network
+     -
+   * - Code contribution
+     - Create a new GitHub
+       `pull request <https://github.com/lttng/lttng-analyses/pulls>`_
+     -
+   * - Bug reporting
+     - Create a new GitHub
+       `issue <https://github.com/lttng/lttng-analyses/issues/new>`_
+     -
+   * - Continuous integration
+     - `lttng-analyses_master_build item
+       <https://ci.lttng.org/job/lttng-analyses_master_build/>`_ on
+       LTTng's CI and `lttng/lttng-analyses project
+       <https://travis-ci.org/lttng/lttng-analyses>`_
+       on Travis CI
+     -
+   * - Blog
+     - The `LTTng blog <http://lttng.org/blog/>`_ contains some posts
+       about LTTng analyses
+     -

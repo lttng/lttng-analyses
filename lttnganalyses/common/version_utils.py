@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import re
 from functools import total_ordering
 
 
@@ -57,3 +58,18 @@ class Version:
             version_str += self.extra
 
         return version_str
+
+    @classmethod
+    def new_from_string(cls, string):
+        version_match = re.match(r'(\d+)\.(\d+)\.(\d+)(.*)', string)
+
+        if version_match is None:
+            major = minor = patch = 0
+            extra = '+unknown'
+        else:
+            major = int(version_match.group(1))
+            minor = int(version_match.group(2))
+            patch = int(version_match.group(3))
+            extra = version_match.group(4)
+
+        return cls(major, minor, patch, extra)
