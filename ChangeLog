@@ -1,3 +1,9 @@
+2016-06-23 LTTng analyses 0.4.4
+	* Backport support for progress bar in MI from master
+	* Fix schedfreq in MI
+	* Travis CI integration
+	* Backport other minor fixes
+
 2016-06-10 LTTng analyses 0.5.3
 	* Add travis CI support
 	* Doc: Add usage and debug to readme
