@@ -68,7 +68,7 @@ class IrqAnalysisCommand(Command):
         ),
         (
             _MI_TABLE_CLASS_SOFT_STATS,
-            'Hardware interrupt statistics', [
+            'Software interrupt statistics', [
                 ('irq', 'Interrupt', mi.Irq),
                 ('count', 'Interrupt count', mi.Number, 'interrupts'),
                 ('min_duration', 'Minimum duration', mi.Duration),
