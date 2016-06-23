@@ -103,7 +103,7 @@ To install a specific LTTng analyses release (tarball) on your system:
 
    .. code-block:: bash
 
-      sudo ./setup.py install lttnganalyses
+      sudo ./setup.py install
 
 
 Install from the Git repository
