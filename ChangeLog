@@ -1,3 +1,32 @@
+2016-06-23 LTTng analyses 0.4.4
+	* Backport support for progress bar in MI from master
+	* Fix schedfreq in MI
+	* Travis CI integration
+	* Backport other minor fixes
+
+2016-06-10 LTTng analyses 0.5.3
+	* Add travis CI support
+	* Doc: Add usage and debug to readme
+	* Fix: pep8 fixes
+	* Fix: tests when shell locale is not UTF-8 again
+
+2016-06-07 LTTng analyses 0.5.2
+	* Fix: tests when shell locale is not UTF-8
+	* Handle events without fields
+	* Sanitize event names when using them as variable/function name
+	* Fix: command.py: pass params in order to parse_trace_collection_date()
+
+2016-05-21 LTTng analyses 0.5.1
+	* Fix missing import
+
+2016-05-27 LTTng analyses 0.5.0
+	* Stream intersect mode
+	* MI (LAMI): versioning, progress status, more sections
+	* Move LAMI specification to another repository
+	* Improved testing (unit and integration)
+	* Code cleanup and testing of common utils functions
+	* Various bugfixes
+
 2016-03-07 LTTng analyses 0.4.3
 	* Tests fixes (timezone issues)
 
