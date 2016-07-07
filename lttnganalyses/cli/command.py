@@ -208,6 +208,8 @@ class Command:
         self._read_tracer_version()
         if not self._args.skip_validation:
             self._check_lost_events()
+        if not self._check_period_args():
+            self._gen_error('Invalid period parameters')
 
     def _close_trace(self):
         for handle in self._handles.values():
@@ -381,6 +383,38 @@ class Command:
 
         return self._args.uniform_min, self._args.uniform_max, \
             self._args.uniform_step
+
+    def _check_period_args(self):
+        if self._analysis_conf.period_begin_ev_name is not None:
+            name = self._analysis_conf.period_begin_ev_name
+            if not trace_utils.check_event_exists(self._handles, name):
+                self._gen_error("Event %s not found in the trace" % name)
+                return False
+        if self._analysis_conf.period_end_ev_name is not None:
+            name = self._analysis_conf.period_end_ev_name
+            if not trace_utils.check_event_exists(self._handles, name):
+                self._gen_error("Event %s not found in the trace" % name)
+                return False
+
+        ev_name = self._analysis_conf.period_begin_ev_name
+        for field in self._analysis_conf.period_begin_key_fields:
+            if not ev_name:
+                break
+            if not trace_utils.check_field_exists(self._handles,
+                                                  ev_name, field):
+                self._gen_error("Field %s not found in event %s" %
+                                (field, ev_name))
+                return False
+        ev_name = self._analysis_conf.period_end_ev_name
+        for field in self._analysis_conf.period_end_key_fields:
+            if not ev_name:
+                break
+            if not trace_utils.check_field_exists(self._handles,
+                                                  ev_name, field):
+                self._gen_error("Field %s not found in event %s" %
+                                (field, ev_name))
+                return False
+        return True
 
     def _validate_transform_common_args(self, args):
         refresh_period_ns = None
