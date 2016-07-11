@@ -86,6 +86,7 @@ class IoAnalysisCommand(Command):
                 ('max_latency', 'Maximum call latency', mi.Duration),
                 ('stdev_latency', 'System call latency standard deviation',
                  mi.Duration),
+                ('total_latency', 'Total call latency', mi.Duration),
             ]
         ),
         (
@@ -98,6 +99,7 @@ class IoAnalysisCommand(Command):
                 ('max_latency', 'Maximum access latency', mi.Duration),
                 ('stdev_latency', 'System access latency standard deviation',
                  mi.Duration),
+                ('total_latency', 'Total call latency', mi.Duration),
             ]
         ),
         (
@@ -188,8 +190,8 @@ class IoAnalysisCommand(Command):
             ]
         ),
     ]
-    _LATENCY_STATS_FORMAT = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'
-    _SECTION_SEPARATOR_STRING = '-' * 89
+    _LATENCY_STATS_FORMAT = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14} {:>14}'
+    _SECTION_SEPARATOR_STRING = '-' * 104
 
     def _analysis_tick(self, period_data, end_ns):
         if period_data is None:
@@ -1059,6 +1061,7 @@ class IoAnalysisCommand(Command):
             avg_latency=mi.Duration(avg),
             max_latency=mi.Duration(max_duration),
             stdev_latency=stdev,
+            total_latency=mi.Duration(total_duration),
         )
 
     def _append_latency_stats_row_from_requests(self, obj, io_requests,
@@ -1114,17 +1117,18 @@ class IoAnalysisCommand(Command):
             stdev = '%0.03f' % row.stdev_latency.to_us()
 
         avg = '%0.03f' % row.avg_latency.to_us()
+        total_duration = '%0.03f' % row.total_latency.to_us()
         min_duration = '%0.03f' % row.min_latency.to_us()
         max_duration = '%0.03f' % row.max_latency.to_us()
 
         print(IoAnalysisCommand._LATENCY_STATS_FORMAT.format(
             str(row.obj), row.count.value, min_duration,
-            avg, max_duration, stdev))
+            avg, max_duration, stdev, total_duration))
 
     def _print_syscall_latency_stats(self, stats_table):
         print('\nSyscalls latency statistics (usec):')
         print(IoAnalysisCommand._LATENCY_STATS_FORMAT.format(
-            'Type', 'Count', 'Min', 'Average', 'Max', 'Stdev'))
+            'Type', 'Count', 'Min', 'Average', 'Max', 'Stdev', 'Total'))
         print(IoAnalysisCommand._SECTION_SEPARATOR_STRING)
 
         for row in stats_table.rows:
@@ -1136,7 +1140,7 @@ class IoAnalysisCommand(Command):
 
         print('\nDisk latency statistics (usec):')
         print(IoAnalysisCommand._LATENCY_STATS_FORMAT.format(
-            'Name', 'Count', 'Min', 'Average', 'Max', 'Stdev'))
+            'Name', 'Count', 'Min', 'Average', 'Max', 'Stdev', 'Total'))
         print(IoAnalysisCommand._SECTION_SEPARATOR_STRING)
 
         for row in stats_table.rows:
