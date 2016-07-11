@@ -623,8 +623,8 @@ class Command:
             try:
                 begin_ts, end_ts = (
                     parse_utils.parse_trace_collection_time_range(
-                        self._traces, self._handles, self._args.timerange,
-                        self._args.gmt)
+                        self._traces, self._args.timerange,
+                        self._args.gmt, self._handles)
                 )
             except ValueError as e:
                 self._cmdline_error(str(e))
