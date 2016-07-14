@@ -23,6 +23,7 @@
 import unittest
 from datetime import date
 from lttnganalyses.common import trace_utils
+from .utils import TimezoneUtils
 
 
 # Mock of babeltrace's TraceCollection, used to test date methods
@@ -41,6 +42,13 @@ class TraceCollection():
 
 
 class TestIsMultiDayTraceCollection(unittest.TestCase):
+    def setUp(self):
+        self.tz_utils = TimezoneUtils()
+        self.tz_utils.set_up_timezone()
+
+    def tearDown(self):
+        self.tz_utils.tear_down_timezone()
+
     def test_same_day(self):
         begin_ts = 683153828123456789
         # 1 hour later
@@ -61,6 +69,13 @@ class TestIsMultiDayTraceCollection(unittest.TestCase):
 
 
 class TestGetTraceCollectionDate(unittest.TestCase):
+    def setUp(self):
+        self.tz_utils = TimezoneUtils()
+        self.tz_utils.set_up_timezone()
+
+    def tearDown(self):
+        self.tz_utils.tear_down_timezone()
+
     def test_single_day(self):
         begin_ts = 683153828123456789
         # 1 hour later
