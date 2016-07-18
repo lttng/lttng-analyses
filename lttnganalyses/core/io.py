@@ -303,6 +303,8 @@ class IoAnalysis(Analysis):
 
         parent_stats = self.tids[tid]
         last_fd = parent_stats.get_fd(fd)
+        if last_fd is None:
+            return
         last_fd.close_ts = timestamp
 
     def _process_update_fd(self, **kwargs):
@@ -405,9 +407,11 @@ class ProcessIOStats(stats.Process):
         if req.errno is not None:
             return
 
-        if req.fd is not None:
-            self.get_fd(req.fd).update_stats(req)
-        elif isinstance(req, sv.ReadWriteIORequest):
+        if req.fd is None or self.get_fd(req.fd) is None:
+            return
+
+        self.get_fd(req.fd).update_stats(req)
+        if isinstance(req, sv.ReadWriteIORequest):
             if req.fd_in is not None:
                 self.get_fd(req.fd_in).update_stats(req)
 
