@@ -367,11 +367,17 @@ class Command:
         if self._args.min is not None:
             self._args.uniform_min = self._args.min
         else:
-            self._args.uniform_min = min(durations)
+            if len(durations) == 0:
+                self._args.uniform_min = 0
+            else:
+                self._args.uniform_min = min(durations)
         if self._args.max is not None:
             self._args.uniform_max = self._args.max
         else:
-            self._args.uniform_max = max(durations)
+            if len(durations) == 0:
+                self._args.uniform_max = 0
+            else:
+                self._args.uniform_max = max(durations)
 
         # ns to µs
         self._args.uniform_min /= 1000
