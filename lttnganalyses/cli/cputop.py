@@ -71,10 +71,15 @@ class Cputop(Command):
         ),
     ]
 
-    def _analysis_tick(self, begin_ns, end_ns):
-        per_tid_table = self._get_per_tid_usage_result_table(begin_ns, end_ns)
-        per_cpu_table = self._get_per_cpu_usage_result_table(begin_ns, end_ns)
-        total_table = self._get_total_usage_result_table(begin_ns, end_ns)
+    def _analysis_tick(self, period, begin_ns, end_ns):
+        if period is None:
+            return
+        per_tid_table = self._get_per_tid_usage_result_table(period, begin_ns,
+                                                             end_ns)
+        per_cpu_table = self._get_per_cpu_usage_result_table(period, begin_ns,
+                                                             end_ns)
+        total_table = self._get_total_usage_result_table(period, begin_ns,
+                                                         end_ns)
 
         if self._mi_mode:
             self._mi_append_result_table(per_tid_table)
@@ -106,13 +111,13 @@ class Cputop(Command):
         self._mi_clear_result_tables()
         self._mi_append_result_table(summary_table)
 
-    def _get_per_tid_usage_result_table(self, begin_ns, end_ns):
+    def _get_per_tid_usage_result_table(self, period, begin_ns, end_ns):
         result_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PROC,
                                          begin_ns, end_ns)
         count = 0
 
-        for tid in sorted(self._analysis.tids.values(),
+        for tid in sorted(period.tids.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
             prio_list = format_utils.format_prio_list(tid.prio_list)
@@ -130,12 +135,12 @@ class Cputop(Command):
 
         return result_table
 
-    def _get_per_cpu_usage_result_table(self, begin_ns, end_ns):
+    def _get_per_cpu_usage_result_table(self, period, begin_ns, end_ns):
         result_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_CPU,
                                          begin_ns, end_ns)
 
-        for cpu in sorted(self._analysis.cpus.values(),
+        for cpu in sorted(period.cpus.values(),
                           key=operator.attrgetter('cpu_id')):
             result_table.append_row(
                 cpu=mi.Cpu(cpu.cpu_id),
@@ -144,7 +149,7 @@ class Cputop(Command):
 
         return result_table
 
-    def _get_total_usage_result_table(self, begin_ns, end_ns):
+    def _get_total_usage_result_table(self, period, begin_ns, end_ns):
         result_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_TOTAL,
                                          begin_ns, end_ns)
@@ -155,7 +160,7 @@ class Cputop(Command):
         if not cpu_count:
             return
 
-        for cpu in sorted(self._analysis.cpus.values(),
+        for cpu in sorted(period.cpus.values(),
                           key=operator.attrgetter('usage_percent'),
                           reverse=True):
             usage_percent += cpu.usage_percent

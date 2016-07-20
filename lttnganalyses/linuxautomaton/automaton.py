@@ -43,17 +43,23 @@ class State:
         # version of tracer used, so keep track of it.
         self._tracer_version = None
 
-    def register_notification_cbs(self, cbs):
+    def register_notification_cbs(self, period, cbs):
         for name in cbs:
             if name not in self._notification_cbs:
                 self._notification_cbs[name] = []
-
-            self._notification_cbs[name].append(cbs[name])
+            # Store the callback in the form of (period, function)
+            self._notification_cbs[name].append((period, cbs[name]))
 
     def send_notification_cb(self, name, **kwargs):
         if name in self._notification_cbs:
+            for cb_tuple in self._notification_cbs[name]:
+                cb_tuple[1](cb_tuple[0], **kwargs)
+
+    def clear_period_notification_cbs(self, period):
+        for name in self._notification_cbs:
             for cb in self._notification_cbs[name]:
-                cb(**kwargs)
+                if cb[0] == period:
+                    self._notification_cbs[name].remove(cb)
 
 
 class Automaton:

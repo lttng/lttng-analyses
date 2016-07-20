@@ -20,15 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from . import period as core_period
+import enum
+
 
 class AnalysisConfig:
     def __init__(self):
         self.refresh_period = None
-        self.period_begin_ev_name = None
-        self.period_end_ev_name = None
-        self.period_begin_key_fields = None
-        self.period_end_key_fields = None
-        self.period_key_value = None
         self.begin_ts = None
         self.end_ts = None
         self.min_duration = None
@@ -36,27 +34,156 @@ class AnalysisConfig:
         self.proc_list = None
         self.tid_list = None
         self.cpu_list = None
+        self.period_def_registry = core_period.PeriodDefinitionRegistry()
+
+
+# base class for all specific period data classes in specific analyses
+class PeriodData:
+    def _set_period(self, period):
+        self._period = period
+
+    @property
+    def period(self):
+        return self._period
+
+
+@enum.unique
+class AnalysisCallbackType(enum.Enum):
+    TICK_CB = 'tick'
 
 
 class Analysis:
-    TICK_CB = 'tick'
-
-    def __init__(self, state, conf):
+    def __init__(self, state, conf, state_cbs):
         self._state = state
         self._conf = conf
+        self._state_cbs = state_cbs
         self._period_key = None
-        self._period_start_ts = None
+        self._first_event_ts = None
         self._last_event_ts = None
-        self._notification_cbs = {}
+        self._notification_cli_cbs = {}
         self._cbs = {}
+        period_cbs = {
+            core_period.PeriodEngineCallbackType.PERIOD_BEGIN:
+                self._on_period_begin,
+            core_period.PeriodEngineCallbackType.PERIOD_END:
+                self._on_period_end,
+        }
+        self._period_engine = core_period.PeriodEngine(
+            self._conf.period_def_registry, period_cbs)
+
+        # This dict maps period objects (from the period module) to
+        # period data objects. Period data objects are created by a
+        # specific analysis implementing _create_period_data().
+        self._period_data = {}
 
         self.started = False
         self.ended = False
 
+    @property
+    def first_event_ts(self):
+        return self._first_event_ts
+
+    @property
+    def last_event_ts(self):
+        return self._last_event_ts
+
+    # Returns the period data object associated with a given period.
+    def _get_period_data(self, period):
+        return self._period_data.get(period)
+
+    # Sets the period data object associated with a given period.
+    def _set_period_data(self, period, data):
+        self._period_data[period] = data
+
+    # Removes the period data object associated with a given period.
+    def _remove_period_data(self, period):
+        del self._period_data[period]
+
+    # Creates the unique "definition-less" period. This is used when
+    # there are no user-specified periods.
+    def _create_defless_period(self, evt):
+        period = core_period.Period(None, None, evt)
+        self._on_period_begin(period, evt)
+
+    # Returns the "definition-less" period.
+    def _get_defless_period(self):
+        if len(self._period_data.keys()) == 0:
+            return None
+        return next(iter(self._period_data.keys()))
+
+    # Removes the "definition-less" period.
+    def _remove_defless_period(self, completed, evt):
+        period = self._get_defless_period()
+        if period is None:
+            return
+        self._on_period_end(period, completed, evt)
+        assert(len(self._period_data) == 0)
+
+    # Creates a fresh specific period data object. This must be
+    # implemented by a specific analysis.
+    def _create_period_data(self):
+        raise NotImplementedError()
+
+    def _begin_period_cb(self, period_data, evt):
+        pass
+
+    def _end_period_cb(self, period_data, evt):
+        pass
+
+    # This is called back by the period engine when a new period is
+    # created. `period` is the created period, and `evt` is the event
+    # that triggered the beginning of this period (the original event,
+    # while `period.begin_evt` is a copy of this event).
+    def _on_period_begin(self, period, evt):
+        # create the specific analysis's period data object
+        period_data = self._create_period_data()
+
+        # associate the period data object to this period object
+        period_data._set_period(period)
+        self._set_period_data(period, period_data)
+
+        # register state notification callbacks with this period data object
+        self._state.register_notification_cbs(period_data, self._state_cbs)
+
+        # call specific analysis's beginning of period callback
+        self._begin_period_cb(period_data, evt)
+
+    # This is called back by the period engine when a period is finished,
+    # or closed.
+    #
+    # If `completed` is True, then the period finishes because
+    # its ending expression was satisfied by an event (`evt`). Otherwise,
+    # the period finishes because one of its ancestors finishes, or because
+    # the period engine user asked for it.
+    def _on_period_end(self, period, completed, evt):
+        # get the period data object associated with this period object
+        period_data = self._get_period_data(period)
+
+        # call specific analysis's end of period callback
+        self._end_period_cb(period_data, evt)
+
+        # send tick notification to owner (CLI)
+        self._send_notification_cb(AnalysisCallbackType.TICK_CB, period_data,
+                                   completed=completed,
+                                   begin_ns=period.begin_evt.timestamp,
+                                   end_ns=self.last_event_ts)
+
+        # clear registered state notification callbacks associated with
+        # this period
+        self._state.clear_period_notification_cbs(period_data)
+
+        # remove this period data object
+        self._remove_period_data(period)
+
+    # This is called by the owner of this analysis when an event must
+    # be processed (`ev`).
     def process_event(self, ev):
         self._check_analysis_end(ev)
         if self.ended:
             return
+
+        if self._first_event_ts is None:
+            self._first_event_ts = ev.timestamp
 
         self._last_event_ts = ev.timestamp
 
@@ -66,33 +193,58 @@ class Analysis:
                 if not self.started:
                     return
             else:
-                self._period_start_ts = ev.timestamp
                 self.started = True
 
-        # Prioritise period events over refresh period
-        if self._conf.period_begin_ev_name is not None:
-            self._handle_period_event(ev)
-        elif self._conf.refresh_period is not None:
-            self._check_refresh(ev)
+        # Run the period engine. This call has the effect of calling
+        # back _on_period_begin() or _on_period_end(), zero or more
+        # times, for each beginning and ending period according to the
+        # registered period definitions.
+        self._period_engine.process_event(ev)
 
-    def reset(self):
-        raise NotImplementedError()
+        # check the refresh period conditions
+        self._check_refresh(ev)
 
-    def end(self):
-        if self._period_start_ts:
-            self._end_period()
+    # Called by the owner of this analysis to indicate that this
+    # analysis is starting.
+    def begin_analysis(self, evt):
+        # If we do not have any period defined, create the
+        # "definition-less" period starting at the first event.
+        if (self._conf.period_def_registry.is_empty and
+                self._conf.begin_ts is None):
+            self._create_defless_period(evt)
+
+    def end_analysis(self):
+        # let the periods know that it is the last one
+        self.ended = True
+
+        # This is the end of the analysis, so we need to remove all
+        # the existing periods. This means either remove all the existing
+        # periods in the period engine, or remove the unique,
+        # "definition-less" period created here.
+        if self._conf.period_def_registry.is_empty:
+            self._remove_defless_period(False, None)
+        else:
+            self._period_engine.remove_all_periods()
+            self._period_data.clear()
+
+        # Send an empty TICK notification if the CLI needs to
+        # do something at the end even if there are no existing
+        # periods.
+        self._send_notification_cb(AnalysisCallbackType.TICK_CB, None,
+                                   completed=False, begin_ns=None,
+                                   end_ns=self._last_event_ts)
 
     def register_notification_cbs(self, cbs):
         for name in cbs:
-            if name not in self._notification_cbs:
-                self._notification_cbs[name] = []
+            if name not in self._notification_cli_cbs:
+                self._notification_cli_cbs[name] = []
 
-            self._notification_cbs[name].append(cbs[name])
+            self._notification_cli_cbs[name].append(cbs[name])
 
-    def _send_notification_cb(self, name, **kwargs):
-        if name in self._notification_cbs:
-            for cb in self._notification_cbs[name]:
-                cb(**kwargs)
+    def _send_notification_cb(self, name, period, **kwargs):
+        if name in self._notification_cli_cbs:
+            for cb in self._notification_cli_cbs[name]:
+                cb(period, **kwargs)
 
     def _register_cbs(self, cbs):
         self._cbs = cbs
@@ -112,89 +264,24 @@ class Analysis:
 
     def _check_analysis_begin(self, ev):
         if self._conf.begin_ts and ev.timestamp >= self._conf.begin_ts:
+            self._create_defless_period(ev)
             self.started = True
-            self._period_start_ts = ev.timestamp
-            self.reset()
 
     def _check_analysis_end(self, ev):
         if self._conf.end_ts and ev.timestamp > self._conf.end_ts:
             self.ended = True
 
-    def _check_refresh(self, ev):
-        if not self._period_start_ts:
-            self._period_start_ts = ev.timestamp
-        elif ev.timestamp >= (self._period_start_ts +
-                              self._conf.refresh_period):
-            self._end_period()
-            self._period_start_ts = ev.timestamp
-
-    def _handle_period_event(self, ev):
-        if ev.name != self._conf.period_begin_ev_name and \
-           ev.name != self._conf.period_end_ev_name:
+    def _check_refresh(self, evt):
+        if self._conf.refresh_period is None:
             return
 
-        if self._period_key:
-            period_key = Analysis._get_period_event_key(
-                ev, self._conf.period_end_key_fields)
+        period = self._get_defless_period()
 
-            if not period_key:
-                # There was an error caused by a missing field, ignore
-                # this period event
-                return
-
-            if period_key == self._period_key:
-                if self._conf.period_end_ev_name:
-                    if ev.name == self._conf.period_end_ev_name:
-                        self._end_period()
-                        self._period_key = None
-                        self._period_start_ts = None
-                elif ev.name == self._conf.period_begin_ev_name:
-                    self._end_period()
-                    self._begin_period(period_key, ev.timestamp)
-        elif ev.name == self._conf.period_begin_ev_name:
-            period_key = Analysis._get_period_event_key(
-                ev, self._conf.period_begin_key_fields)
-
-            if not period_key:
-                return
-
-            if self._conf.period_key_value:
-                # Must convert the period key to string for comparison
-                str_period_key = tuple(map(str, period_key))
-                if self._conf.period_key_value != str_period_key:
-                    return
-
-            self._begin_period(period_key, ev.timestamp)
-
-    def _begin_period(self, period_key, timestamp):
-        self._period_key = period_key
-        self._period_start_ts = timestamp
-        self.reset()
-
-    def _end_period(self):
-        self._end_period_cb()
-        self._send_notification_cb(Analysis.TICK_CB,
-                                   begin_ns=self._period_start_ts,
-                                   end_ns=self._last_event_ts)
-
-    def _end_period_cb(self):
-        pass
-
-    @staticmethod
-    def _get_period_event_key(ev, key_fields):
-        if not key_fields:
-            return None
-
-        key_values = []
-
-        for field in key_fields:
-            try:
-                key_values.append(ev[field])
-            except KeyError:
-                # Error: missing field
-                return None
-
-        return tuple(key_values)
+        if evt.timestamp >= (period.begin_evt.timestamp +
+                             self._conf.refresh_period):
+            # remove the current period and create a new one
+            self._remove_defless_period(True, evt)
+            self._create_defless_period(evt)
 
     def _filter_process(self, proc):
         if not proc:

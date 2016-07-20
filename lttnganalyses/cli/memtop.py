@@ -71,10 +71,14 @@ class Memtop(Command):
         ),
     ]
 
-    def _analysis_tick(self, begin_ns, end_ns):
-        allocd_table = self._get_per_tid_allocd_result_table(begin_ns, end_ns)
-        freed_table = self._get_per_tid_freed_result_table(begin_ns, end_ns)
-        total_table = self._get_total_result_table(begin_ns, end_ns)
+    def _analysis_tick(self, period, begin_ns, end_ns):
+        if period is None:
+            return
+        allocd_table = self._get_per_tid_allocd_result_table(period, begin_ns,
+                                                             end_ns)
+        freed_table = self._get_per_tid_freed_result_table(period, begin_ns,
+                                                           end_ns)
+        total_table = self._get_total_result_table(period, begin_ns, end_ns)
 
         if self._mi_mode:
             self._mi_append_result_table(allocd_table)
@@ -106,13 +110,13 @@ class Memtop(Command):
         self._mi_clear_result_tables()
         self._mi_append_result_table(summary_table)
 
-    def _get_per_tid_attr_result_table(self, table_class, attr,
+    def _get_per_tid_attr_result_table(self, period, table_class, attr,
                                        begin_ns, end_ns):
         result_table = self._mi_create_result_table(table_class,
                                                     begin_ns, end_ns)
         count = 0
 
-        for tid in sorted(self._analysis.tids.values(),
+        for tid in sorted(period.tids.values(),
                           key=operator.attrgetter(attr),
                           reverse=True):
             result_table.append_row(
@@ -126,23 +130,25 @@ class Memtop(Command):
 
         return result_table
 
-    def _get_per_tid_allocd_result_table(self, begin_ns, end_ns):
-        return self._get_per_tid_attr_result_table(self._MI_TABLE_CLASS_ALLOCD,
+    def _get_per_tid_allocd_result_table(self, period, begin_ns, end_ns):
+        return self._get_per_tid_attr_result_table(period,
+                                                   self._MI_TABLE_CLASS_ALLOCD,
                                                    'allocated_pages',
                                                    begin_ns, end_ns)
 
-    def _get_per_tid_freed_result_table(self, begin_ns, end_ns):
-        return self._get_per_tid_attr_result_table(self._MI_TABLE_CLASS_FREED,
+    def _get_per_tid_freed_result_table(self, period, begin_ns, end_ns):
+        return self._get_per_tid_attr_result_table(period,
+                                                   self._MI_TABLE_CLASS_FREED,
                                                    'freed_pages',
                                                    begin_ns, end_ns)
 
-    def _get_total_result_table(self, begin_ns, end_ns):
+    def _get_total_result_table(self, period, begin_ns, end_ns):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_TOTAL,
                                                     begin_ns, end_ns)
         alloc = 0
         freed = 0
 
-        for tid in self._analysis.tids.values():
+        for tid in period.tids.values():
             alloc += tid.allocated_pages
             freed += tid.freed_pages
 

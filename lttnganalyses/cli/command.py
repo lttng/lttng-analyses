@@ -1,7 +1,7 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2015 - Julien Desfossez <jdesfossez@efficios.com>
-#               2015 - Philippe Proulx <pproulx@efficios.com>
+#               2016 - Philippe Proulx <pproulx@efficios.com>
 #               2015 - Antoine Busque <abusque@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,9 +30,9 @@ import sys
 import subprocess
 import traceback
 from babeltrace import TraceCollection
-from . import mi, progressbar
+from . import mi, progressbar, period_parsing
 from .. import __version__
-from ..core import analysis
+from ..core import analysis, period as core_period
 from ..common import (
     format_utils, parse_utils, trace_utils, version_utils
 )
@@ -75,9 +75,6 @@ class Command:
             self._print('Cancelled by user')
             sys.exit(0)
         except Exception as e:
-            if self._debug_mode:
-                traceback.print_exc()
-
             self._gen_error('Cannot {}: {}'.format(action_title, e))
 
     def run(self):
@@ -93,24 +90,38 @@ class Command:
     def _mi_error(self, msg, code=None):
         print(json.dumps(mi.get_error(msg, code)))
 
-    def _non_mi_error(self, msg):
+    def _non_mi_msg(self, msg, color):
         if self._args.color:
             try:
                 import termcolor
 
-                msg = termcolor.colored(msg, 'red', attrs=['bold'])
+                msg = termcolor.colored(msg, color, attrs=['bold'])
             except ImportError:
                 pass
 
         print(msg, file=sys.stderr)
 
+    def _non_mi_error(self, msg):
+        self._non_mi_msg(msg, 'red')
+
+    def _non_mi_warn(self, msg):
+        self._non_mi_msg(msg, 'yellow')
+
     def _error(self, msg, exit_code=1):
+        if self._debug_mode:
+            traceback.print_exc()
+
         if self._mi_mode:
             self._mi_error(msg)
         else:
             self._non_mi_error(msg)
 
-        sys.exit(exit_code)
+        if exit_code is not None:
+            sys.exit(exit_code)
+
+    def _warn(self, msg):
+        if not self._mi_mode:
+            self._non_mi_warn(msg)
 
     def _gen_error(self, msg, exit_code=1):
         self._error('Error: {}'.format(msg), exit_code)
@@ -335,7 +346,11 @@ class Command:
                 self._gen_error('Trace has no intersection. '
                                 'Use --no-intersection to override')
 
+        first_event = True
         for event in self._traces.events:
+            if first_event is True:
+                self._analysis.begin_analysis(event)
+                first_event = False
             self._pb_update(event)
             self._analysis.process_event(event)
             if self._analysis.ended:
@@ -343,7 +358,7 @@ class Command:
             self._automaton.process_event(event)
 
         self._pb_finish()
-        self._analysis.end()
+        self._analysis.end_analysis()
         self._post_analysis()
 
     def _print_date(self, begin_ns, end_ns):
@@ -391,7 +406,10 @@ class Command:
             self._args.uniform_step
 
     def _check_period_args(self):
-        if self._analysis_conf.period_begin_ev_name is not None:
+        # FIXME
+        return True
+
+        if len(self._analysis_conf.period_defs) > 0:
             name = self._analysis_conf.period_begin_ev_name
             if not trace_utils.check_event_exists(self._handles, name):
                 self._gen_error("Event %s not found in the trace" % name)
@@ -422,7 +440,130 @@ class Command:
                 return False
         return True
 
-    def _validate_transform_common_args(self, args):
+    def _validate_transform_period_args(self, analysis_conf):
+        args = self._args
+
+        # validate period arguments
+        if (args.period_begin is not None or args.period_end is not None or
+           args.period_key_value is not None or
+           args.period_begin_key is not None or
+           args.period_end_key is not None) and args.period:
+            self._cmdline_error('Do not use another period option when using '
+                                'one or more --period options')
+
+        registry = self._analysis_conf.period_def_registry
+
+        # parse period definition expressions
+        if args.period:
+            for period_arg in args.period:
+                try:
+                    res = period_parsing.parse_period_arg(period_arg)
+                except period_parsing.MalformedExpression as e:
+                    self._cmdline_error('Malformed period definition '
+                                        'expression: {}'.format(e))
+                except Exception as e:
+                    self._cmdline_error('Cannot parse period definition '
+                                        'expression: {}'.format(e))
+
+                try:
+                    registry.add_period_def(res.parent_name, res.period_name,
+                                            res.begin_expr, res.end_expr)
+                except core_period.IllegalExpression as e:
+                    self._cmdline_error('Illegal period definition '
+                                        'expression: {}'.format(e))
+                except core_period.InvalidPeriodDefinition as e:
+                    self._cmdline_error('Cannot add period: {}'.format(e),
+                                        None)
+                    self._error('Period argument: {}'.format(period_arg))
+        elif (args.period_begin is not None or args.period_end is not None):
+            self._warn('''Warning: The following period options are deprecated:
+
+  --period-begin
+  --period-end
+  --period-begin-key
+  --period-end-key
+  --period-key-value
+
+Please consider using the --period option.''')
+
+            # create new-style expression from old-style arguments
+            if args.period_begin is None:
+                # ignore incomplete period definition
+                return
+
+            if not args.period_begin_key:
+                args.period_begin_key = 'cpu_id'
+
+            if not args.period_end:
+                args.period_end = args.period_begin
+
+            if not args.period_end_key:
+                args.period_end_key = args.period_begin_key
+
+            begin_exprs = []
+            end_exprs = []
+
+            # conditions for matching the event name
+            begin_event_name_expr = core_period.EventScope(
+                core_period.EventName())
+            begin_event_name_str_expr = core_period.String(args.period_begin)
+            end_event_name_expr = core_period.EventScope(
+                core_period.EventName())
+            end_event_name_str_expr = core_period.String(args.period_end)
+            begin_event_name_eq_expr = core_period.Eq(
+                begin_event_name_expr, begin_event_name_str_expr)
+            begin_exprs.append(begin_event_name_eq_expr)
+            end_event_name_eq_expr = core_period.Eq(end_event_name_expr,
+                                                    end_event_name_str_expr)
+            end_exprs.append(end_event_name_eq_expr)
+            begin_field_names = args.period_begin_key.split(',')
+            end_field_names = args.period_end_key.split(',')
+
+            # conditions for begin field values
+            if args.period_key_value:
+                parts = args.period_key_value.split(',')
+                value_exprs = []
+
+                for part in parts:
+                    try:
+                        value_exprs.append(core_period.Number(float(part)))
+                    except:
+                        value_exprs.append(core_period.String(part))
+
+                for field_name, value_expr in zip(begin_field_names,
+                                                  value_exprs):
+                    event_field_name = core_period.EventFieldName(field_name)
+                    dyn_scope = core_period.DynamicScope(
+                        core_period.DynScope.AUTO, event_field_name)
+                    evt_scope = core_period.EventScope(dyn_scope)
+                    begin_scope = core_period.BeginScope(evt_scope)
+                    eq_expr = core_period.Eq(begin_scope, value_expr)
+                    begin_exprs.append(eq_expr)
+
+            # conditions for equal end and begin fields
+            for begin_field_name, end_field_name in zip(begin_field_names,
+                                                        end_field_names):
+                # begin scope
+                event_field_name = core_period.EventFieldName(begin_field_name)
+                dyn_scope = core_period.DynamicScope(core_period.DynScope.AUTO,
+                                                     event_field_name)
+                evt_scope = core_period.EventScope(dyn_scope)
+                begin_scope = core_period.BeginScope(evt_scope)
+
+                # end event scope
+                event_field_name = core_period.EventFieldName(end_field_name)
+                dyn_scope = core_period.DynamicScope(core_period.DynScope.AUTO,
+                                                     event_field_name)
+                end_evt_scope = core_period.EventScope(dyn_scope)
+                eq_expr = core_period.Eq(end_evt_scope, begin_scope)
+                end_exprs.append(eq_expr)
+
+            begin_expr = core_period.create_conjunction_from_exprs(begin_exprs)
+            end_expr = core_period.create_conjunction_from_exprs(end_exprs)
+            registry.add_period_def(None, None, begin_expr, end_expr)
+
+    def _validate_transform_common_args(self):
+        args = self._args
         refresh_period_ns = None
         if args.refresh is not None:
             try:
@@ -432,21 +573,12 @@ class Command:
 
         self._analysis_conf = analysis.AnalysisConfig()
         self._analysis_conf.refresh_period = refresh_period_ns
-        self._analysis_conf.period_begin_ev_name = args.period_begin
-        self._analysis_conf.period_end_ev_name = args.period_end
-        self._analysis_conf.period_begin_key_fields = \
-            args.period_begin_key.split(',')
+        self._validate_transform_period_args(self._analysis_conf)
 
-        if args.period_end_key:
-            self._analysis_conf.period_end_key_fields = \
-                args.period_end_key.split(',')
-        else:
-            self._analysis_conf.period_end_key_fields = \
-                self._analysis_conf.period_begin_key_fields
-
-        if args.period_key_value:
-            self._analysis_conf.period_key_value = \
-                tuple(args.period_key_value.split(','))
+        if args.refresh is not None and not \
+                self._analysis_conf.period_def_registry.is_empty:
+            self._cmdline_error('Cannot specify --period* and --refresh '
+                                'arguments at the same time')
 
         if args.cpu:
             self._analysis_conf.cpu_list = args.cpu.split(',')
@@ -501,7 +633,7 @@ class Command:
         if type(args.path) is list:
             args.path = args.path[0]
 
-    def _validate_transform_args(self, args):
+    def _validate_transform_args(self):
         pass
 
     def _parse_args(self):
@@ -520,12 +652,13 @@ class Command:
                                                   'hh:mm:ss[.nnnnnnnnn]')
         ap.add_argument('--end', type=str, help='end time: '
                                                 'hh:mm:ss[.nnnnnnnnn]')
+        ap.add_argument('--period', action='append', help='Period definition')
         ap.add_argument('--period-begin', type=str,
                         help='Analysis period start marker event name')
         ap.add_argument('--period-end', type=str,
                         help='Analysis period end marker event name '
                         '(requires --period-begin)')
-        ap.add_argument('--period-begin-key', type=str, default='cpu_id',
+        ap.add_argument('--period-begin-key', type=str,
                         help='Optional, list of event field names used to '
                         'match period markers (default: cpu_id)')
         ap.add_argument('--period-end-key', type=str,
@@ -575,17 +708,16 @@ class Command:
         # Used to add command-specific args
         self._add_arguments(ap)
 
-        args = ap.parse_args()
+        self._args = ap.parse_args()
 
         if self._mi_mode:
-            args.no_progress = True
+            self._args.no_progress = True
 
-            if args.output_progress:
-                args.no_progress = False
+            if self._args.output_progress:
+                self._args.no_progress = False
 
-        self._validate_transform_common_args(args)
-        self._validate_transform_args(args)
-        self._args = args
+        self._validate_transform_common_args()
+        self._validate_transform_args()
 
     @staticmethod
     def _add_proc_filter_args(ap):
@@ -688,7 +820,7 @@ class Command:
 
     def _create_analysis(self):
         notification_cbs = {
-            analysis.Analysis.TICK_CB: self._analysis_tick_cb
+            analysis.AnalysisCallbackType.TICK_CB: self._analysis_tick_cb
         }
 
         self._analysis = self._ANALYSIS_CLASS(self.state, self._analysis_conf)
@@ -698,12 +830,12 @@ class Command:
         self._automaton = automaton.Automaton()
         self.state = self._automaton.state
 
-    def _analysis_tick_cb(self, **kwargs):
+    def _analysis_tick_cb(self, period, **kwargs):
         begin_ns = kwargs['begin_ns']
         end_ns = kwargs['end_ns']
 
-        self._analysis_tick(begin_ns, end_ns)
+        self._analysis_tick(period, begin_ns, end_ns)
         self._ticks += 1
 
-    def _analysis_tick(self, begin_ns, end_ns):
+    def _analysis_tick(self, period, begin_ns, end_ns):
         raise NotImplementedError()

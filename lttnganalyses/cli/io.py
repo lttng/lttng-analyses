@@ -191,7 +191,9 @@ class IoAnalysisCommand(Command):
     _LATENCY_STATS_FORMAT = '{:<14} {:>14} {:>14} {:>14} {:>14} {:>14}'
     _SECTION_SEPARATOR_STRING = '-' * 89
 
-    def _analysis_tick(self, begin_ns, end_ns):
+    def _analysis_tick(self, period, begin_ns, end_ns):
+        if period is None:
+            return
         syscall_latency_stats_table = None
         disk_latency_stats_table = None
         freq_tables = None
@@ -201,19 +203,21 @@ class IoAnalysisCommand(Command):
 
         if self._args.stats:
             syscall_latency_stats_table, disk_latency_stats_table = \
-                self._get_latency_stats_result_tables(begin_ns, end_ns)
+                self._get_latency_stats_result_tables(period, begin_ns, end_ns)
 
         if self._args.freq:
-            freq_tables = self._get_freq_result_tables(begin_ns, end_ns)
+            freq_tables = self._get_freq_result_tables(period, begin_ns,
+                                                       end_ns)
 
         if self._args.usage:
-            usage_tables = self._get_usage_result_tables(begin_ns, end_ns)
+            usage_tables = self._get_usage_result_tables(period, begin_ns,
+                                                         end_ns)
 
         if self._args.top:
-            top_tables = self._get_top_result_tables(begin_ns, end_ns)
+            top_tables = self._get_top_result_tables(period, begin_ns, end_ns)
 
         if self._args.log:
-            log_table = self._get_log_result_table(begin_ns, end_ns)
+            log_table = self._get_log_result_table(period, begin_ns, end_ns)
 
         if self._mi_mode:
             self._mi_append_result_tables([
@@ -286,7 +290,8 @@ class IoAnalysisCommand(Command):
             io_rq.end_ts > self._analysis_conf.end_ts
         )
 
-    def _append_per_proc_read_usage_row(self, proc_stats, result_table):
+    def _append_per_proc_read_usage_row(self, period, proc_stats,
+                                        result_table):
         result_table.append_row(
             process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                tid=proc_stats.tid),
@@ -298,7 +303,8 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _append_per_proc_write_usage_row(self, proc_stats, result_table):
+    def _append_per_proc_write_usage_row(self, period, proc_stats,
+                                         result_table):
         result_table.append_row(
             process=mi.Process(proc_stats.comm, pid=proc_stats.pid,
                                tid=proc_stats.tid),
@@ -310,7 +316,8 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _append_per_proc_block_read_usage_row(self, proc_stats, result_table):
+    def _append_per_proc_block_read_usage_row(self, period, proc_stats,
+                                              result_table):
         if proc_stats.block_io.read == 0:
             return False
 
@@ -327,7 +334,8 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _append_per_proc_block_write_usage_row(self, proc_stats, result_table):
+    def _append_per_proc_block_write_usage_row(self, period, proc_stats,
+                                               result_table):
         if proc_stats.block_io.write == 0:
             return False
 
@@ -344,41 +352,41 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _append_disk_sector_usage_row(self, disk_stats, result_table):
+    def _append_disk_sector_usage_row(self, period, disk_stats, result_table):
         if disk_stats.total_rq_sectors == 0:
             return None
 
         result_table.append_row(
-            disk=mi.Disk(disk_stats.disk_name),
+            disk=mi.Disk(disk_stats.diskname),
             count=mi.Number(disk_stats.total_rq_sectors),
         )
 
         return True
 
-    def _append_disk_request_usage_row(self, disk_stats, result_table):
+    def _append_disk_request_usage_row(self, period, disk_stats, result_table):
         if disk_stats.rq_count == 0:
             return False
 
         result_table.append_row(
-            disk=mi.Disk(disk_stats.disk_name),
+            disk=mi.Disk(disk_stats.diskname),
             count=mi.Number(disk_stats.rq_count),
         )
 
         return True
 
-    def _append_disk_rtps_usage_row(self, disk_stats, result_table):
+    def _append_disk_rtps_usage_row(self, period, disk_stats, result_table):
         if disk_stats.rq_count == 0:
             return False
 
         avg_latency = (disk_stats.total_rq_duration / disk_stats.rq_count)
         result_table.append_row(
-            disk=mi.Disk(disk_stats.disk_name),
+            disk=mi.Disk(disk_stats.diskname),
             rtps=mi.Duration(avg_latency),
         )
 
         return True
 
-    def _append_netif_recv_usage_row(self, netif_stats, result_table):
+    def _append_netif_recv_usage_row(self, period, netif_stats, result_table):
         result_table.append_row(
             netif=mi.NetIf(netif_stats.name),
             size=mi.Size(netif_stats.recv_bytes)
@@ -386,7 +394,7 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _append_netif_send_usage_row(self, netif_stats, result_table):
+    def _append_netif_send_usage_row(self, period, netif_stats, result_table):
         result_table.append_row(
             netif=mi.NetIf(netif_stats.name),
             size=mi.Size(netif_stats.sent_bytes)
@@ -394,20 +402,20 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _get_file_stats_fd_owners_str(self, file_stats):
+    def _get_file_stats_fd_owners_str(self, period, file_stats):
         fd_by_pid_str = ''
 
         for pid, fd in file_stats.fd_by_pid.items():
-            comm = self._analysis.tids[pid].comm
+            comm = period.tids[pid].comm
             fd_by_pid_str += 'fd %d in %s (%s) ' % (fd, comm, pid)
 
         return fd_by_pid_str
 
-    def _append_file_read_usage_row(self, file_stats, result_table):
+    def _append_file_read_usage_row(self, period, file_stats, result_table):
         if file_stats.io.read == 0:
             return False
 
-        fd_owners = self._get_file_stats_fd_owners_str(file_stats)
+        fd_owners = self._get_file_stats_fd_owners_str(period, file_stats)
         result_table.append_row(
             path=mi.Path(file_stats.filename),
             size=mi.Size(file_stats.io.read),
@@ -416,11 +424,11 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _append_file_write_usage_row(self, file_stats, result_table):
+    def _append_file_write_usage_row(self, period, file_stats, result_table):
         if file_stats.io.write == 0:
             return False
 
-        fd_owners = self._get_file_stats_fd_owners_str(file_stats)
+        fd_owners = self._get_file_stats_fd_owners_str(period, file_stats)
         result_table.append_row(
             path=mi.Path(file_stats.filename),
             size=mi.Size(file_stats.io.write),
@@ -429,110 +437,112 @@ class IoAnalysisCommand(Command):
 
         return True
 
-    def _fill_usage_result_table(self, input_list, append_row_cb,
+    def _fill_usage_result_table(self, period, input_list, append_row_cb,
                                  result_table):
         count = 0
         limit = self._args.limit
 
         for elem in input_list:
-            if append_row_cb(elem, result_table):
+            if append_row_cb(period, elem, result_table):
                 count += 1
 
                 if limit is not None and count >= limit:
                     break
 
-    def _fill_per_process_read_usage_result_table(self, result_table):
-        input_list = sorted(self._analysis.tids.values(),
+    def _fill_per_process_read_usage_result_table(self, period, result_table):
+        input_list = sorted(period.tids.values(),
                             key=operator.attrgetter('total_read'),
                             reverse=True)
-        self._fill_usage_result_table(input_list,
+        self._fill_usage_result_table(period, input_list,
                                       self._append_per_proc_read_usage_row,
                                       result_table)
 
-    def _fill_per_process_write_usage_result_table(self, result_table):
-        input_list = sorted(self._analysis.tids.values(),
+    def _fill_per_process_write_usage_result_table(self, period, result_table):
+        input_list = sorted(period.tids.values(),
                             key=operator.attrgetter('total_write'),
                             reverse=True)
-        self._fill_usage_result_table(input_list,
+        self._fill_usage_result_table(period, input_list,
                                       self._append_per_proc_write_usage_row,
                                       result_table)
 
-    def _fill_per_process_block_read_usage_result_table(self, result_table):
-        input_list = sorted(self._analysis.tids.values(),
+    def _fill_per_process_block_read_usage_result_table(self, period,
+                                                        result_table):
+        input_list = sorted(period.tids.values(),
                             key=operator.attrgetter('block_io.read'),
                             reverse=True)
         self._fill_usage_result_table(
-            input_list, self._append_per_proc_block_read_usage_row,
+            period, input_list, self._append_per_proc_block_read_usage_row,
             result_table)
 
-    def _fill_per_process_block_write_usage_result_table(self, result_table):
-        input_list = sorted(self._analysis.tids.values(),
+    def _fill_per_process_block_write_usage_result_table(self, period,
+                                                         result_table):
+        input_list = sorted(period.tids.values(),
                             key=operator.attrgetter('block_io.write'),
                             reverse=True)
         self._fill_usage_result_table(
-            input_list, self._append_per_proc_block_write_usage_row,
+            period, input_list, self._append_per_proc_block_write_usage_row,
             result_table)
 
-    def _fill_disk_sector_usage_result_table(self, result_table):
-        input_list = sorted(self._analysis.disks.values(),
+    def _fill_disk_sector_usage_result_table(self, period, result_table):
+        input_list = sorted(period.disks.values(),
                             key=operator.attrgetter('total_rq_sectors'),
                             reverse=True)
-        self._fill_usage_result_table(input_list,
+        self._fill_usage_result_table(period, input_list,
                                       self._append_disk_sector_usage_row,
                                       result_table)
 
-    def _fill_disk_request_usage_result_table(self, result_table):
-        input_list = sorted(self._analysis.disks.values(),
+    def _fill_disk_request_usage_result_table(self, period, result_table):
+        input_list = sorted(period.disks.values(),
                             key=operator.attrgetter('rq_count'),
                             reverse=True)
-        self._fill_usage_result_table(input_list,
+        self._fill_usage_result_table(period, input_list,
                                       self._append_disk_request_usage_row,
                                       result_table)
 
-    def _fill_disk_rtps_usage_result_table(self, result_table):
-        input_list = self._analysis.disks.values()
-        self._fill_usage_result_table(input_list,
+    def _fill_disk_rtps_usage_result_table(self, period, result_table):
+        input_list = period.disks.values()
+        self._fill_usage_result_table(period, input_list,
                                       self._append_disk_rtps_usage_row,
                                       result_table)
 
-    def _fill_netif_recv_usage_result_table(self, result_table):
-        input_list = sorted(self._analysis.ifaces.values(),
+    def _fill_netif_recv_usage_result_table(self, period, result_table):
+        input_list = sorted(period.ifaces.values(),
                             key=operator.attrgetter('recv_bytes'),
                             reverse=True)
-        self._fill_usage_result_table(input_list,
+        self._fill_usage_result_table(period, input_list,
                                       self._append_netif_recv_usage_row,
                                       result_table)
 
-    def _fill_netif_send_usage_result_table(self, result_table):
-        input_list = sorted(self._analysis.ifaces.values(),
+    def _fill_netif_send_usage_result_table(self, period, result_table):
+        input_list = sorted(period.ifaces.values(),
                             key=operator.attrgetter('sent_bytes'),
                             reverse=True)
-        self._fill_usage_result_table(input_list,
+        self._fill_usage_result_table(period, input_list,
                                       self._append_netif_send_usage_row,
                                       result_table)
 
-    def _fill_file_read_usage_result_table(self, files, result_table):
+    def _fill_file_read_usage_result_table(self, period, files, result_table):
         input_list = sorted(files.values(),
                             key=lambda file_stats: file_stats.io.read,
                             reverse=True)
-        self._fill_usage_result_table(input_list,
+        self._fill_usage_result_table(period, input_list,
                                       self._append_file_read_usage_row,
                                       result_table)
 
-    def _fill_file_write_usage_result_table(self, files, result_table):
+    def _fill_file_write_usage_result_table(self, period, files, result_table):
         input_list = sorted(files.values(),
                             key=lambda file_stats: file_stats.io.write,
                             reverse=True)
-        self._fill_usage_result_table(input_list,
+        self._fill_usage_result_table(period, input_list,
                                       self._append_file_write_usage_row,
                                       result_table)
 
-    def _fill_file_usage_result_tables(self, read_table, write_table):
-        files = self._analysis.get_files_stats()
-        self._fill_file_read_usage_result_table(files, read_table)
-        self._fill_file_write_usage_result_table(files, write_table)
+    def _fill_file_usage_result_tables(self, period, read_table, write_table):
+        files = self._analysis.get_files_stats(period)
+        self._fill_file_read_usage_result_table(period, files, read_table)
+        self._fill_file_write_usage_result_table(period, files, write_table)
 
-    def _get_usage_result_tables(self, begin, end):
+    def _get_usage_result_tables(self, period, begin, end):
         # create result tables
         per_proc_read_table = self._mi_create_result_table(
             self._MI_TABLE_CLASS_PER_PROCESS_TOP, begin, end, 'read')
@@ -558,19 +568,23 @@ class IoAnalysisCommand(Command):
             self._MI_TABLE_CLASS_PER_NETIF_TOP, begin, end, 'sent')
 
         # fill result tables
-        self._fill_per_process_read_usage_result_table(per_proc_read_table)
-        self._fill_per_process_write_usage_result_table(per_proc_write_table)
-        self._fill_file_usage_result_tables(per_file_read_table,
+        self._fill_per_process_read_usage_result_table(period,
+                                                       per_proc_read_table)
+        self._fill_per_process_write_usage_result_table(period,
+                                                        per_proc_write_table)
+        self._fill_file_usage_result_tables(period, per_file_read_table,
                                             per_file_write_table)
         self._fill_per_process_block_read_usage_result_table(
-            per_proc_block_read_table)
+            period, per_proc_block_read_table)
         self._fill_per_process_block_write_usage_result_table(
-            per_proc_block_write_table)
-        self._fill_disk_sector_usage_result_table(per_disk_sector_table)
-        self._fill_disk_request_usage_result_table(per_disk_request_table)
-        self._fill_disk_rtps_usage_result_table(per_disk_rtps_table)
-        self._fill_netif_recv_usage_result_table(per_netif_recv_table)
-        self._fill_netif_send_usage_result_table(per_netif_send_table)
+            period, per_proc_block_write_table)
+        self._fill_disk_sector_usage_result_table(period,
+                                                  per_disk_sector_table)
+        self._fill_disk_request_usage_result_table(period,
+                                                   per_disk_request_table)
+        self._fill_disk_rtps_usage_result_table(period, per_disk_rtps_table)
+        self._fill_netif_recv_usage_result_table(period, per_netif_recv_table)
+        self._fill_netif_send_usage_result_table(period, per_netif_send_table)
 
         return _UsageTables(
             per_proc_read=per_proc_read_table,
@@ -759,13 +773,13 @@ class IoAnalysisCommand(Command):
                 count=mi.Number(value),
             )
 
-    def _get_disk_freq_result_tables(self, begin, end):
+    def _get_disk_freq_result_tables(self, period, begin, end):
         result_tables = []
 
-        for disk in self._analysis.disks.values():
+        for disk in period.disks.values():
             rq_durations = [rq.duration for rq in disk.rq_list if
                             self._filter_io_request(rq)]
-            subtitle = 'disk: {}'.format(disk.disk_name)
+            subtitle = 'disk: {}'.format(disk.diskname)
             result_table = \
                 self._mi_create_result_table(self._MI_TABLE_CLASS_FREQ,
                                              begin, end, subtitle)
@@ -774,7 +788,7 @@ class IoAnalysisCommand(Command):
 
         return result_tables
 
-    def _get_syscall_freq_result_tables(self, begin, end):
+    def _get_syscall_freq_result_tables(self, period, begin, end):
         open_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_FREQ,
                                          begin, end, 'open')
@@ -788,27 +802,28 @@ class IoAnalysisCommand(Command):
             self._mi_create_result_table(self._MI_TABLE_CLASS_FREQ,
                                          begin, end, 'sync')
         self._fill_freq_result_table([io_rq.duration for io_rq in
-                                      self._analysis.open_io_requests if
-                                      self._filter_io_request(io_rq)],
+                                      self._analysis.open_io_requests(period)
+                                      if self._filter_io_request(io_rq)],
                                      open_table)
         self._fill_freq_result_table([io_rq.duration for io_rq in
-                                      self._analysis.read_io_requests if
-                                      self._filter_io_request(io_rq)],
+                                      self._analysis.read_io_requests(period)
+                                      if self._filter_io_request(io_rq)],
                                      read_table)
         self._fill_freq_result_table([io_rq.duration for io_rq in
-                                      self._analysis.write_io_requests if
-                                      self._filter_io_request(io_rq)],
+                                      self._analysis.write_io_requests(period)
+                                      if self._filter_io_request(io_rq)],
                                      write_table)
         self._fill_freq_result_table([io_rq.duration for io_rq in
-                                      self._analysis.sync_io_requests if
-                                      self._filter_io_request(io_rq)],
+                                      self._analysis.sync_io_requests(period)
+                                      if self._filter_io_request(io_rq)],
                                      sync_table)
 
         return [open_table, read_table, write_table, sync_table]
 
-    def _get_freq_result_tables(self, begin, end):
-        syscall_tables = self._get_syscall_freq_result_tables(begin, end)
-        disk_tables = self._get_disk_freq_result_tables(begin, end)
+    def _get_freq_result_tables(self, period, begin, end):
+        syscall_tables = self._get_syscall_freq_result_tables(period, begin,
+                                                              end)
+        disk_tables = self._get_disk_freq_result_tables(period, begin, end)
 
         return syscall_tables + disk_tables
 
@@ -827,14 +842,14 @@ class IoAnalysisCommand(Command):
         for freq_table in freq_tables:
             self._print_one_freq(freq_table)
 
-    def _append_log_row(self, io_rq, result_table):
+    def _append_log_row(self, period, io_rq, result_table):
         if io_rq.size is None:
             size = mi.Empty()
         else:
             size = mi.Size(io_rq.size)
 
         tid = io_rq.tid
-        proc_stats = self._analysis.tids[tid]
+        proc_stats = period.tids[tid]
         proc_name = proc_stats.comm
 
         # TODO: handle fd_in/fd_out for RW type operations
@@ -846,7 +861,7 @@ class IoAnalysisCommand(Command):
             parent_proc = proc_stats
 
             if parent_proc.pid is not None:
-                parent_proc = self._analysis.tids[parent_proc.pid]
+                parent_proc = period.tids[parent_proc.pid]
 
             fd_stats = parent_proc.get_fd(io_rq.fd, io_rq.end_ts)
 
@@ -866,7 +881,8 @@ class IoAnalysisCommand(Command):
             fd=fd,
         )
 
-    def _fill_log_result_table(self, rq_list, sort_key, is_top, result_table):
+    def _fill_log_result_table(self, period, rq_list, sort_key, is_top,
+                               result_table):
         if not rq_list:
             return
 
@@ -877,17 +893,18 @@ class IoAnalysisCommand(Command):
             if is_top and count > self._args.limit:
                 break
 
-            self._append_log_row(io_rq, result_table)
+            self._append_log_row(period, io_rq, result_table)
             count += 1
 
-    def _fill_log_result_table_from_io_requests(self, io_requests, sort_key,
-                                                is_top, result_table):
+    def _fill_log_result_table_from_io_requests(self, period, io_requests,
+                                                sort_key, is_top,
+                                                result_table):
         io_requests = [io_rq for io_rq in io_requests if
                        self._filter_io_request(io_rq)]
-        self._fill_log_result_table(io_requests, sort_key, is_top,
+        self._fill_log_result_table(period, io_requests, sort_key, is_top,
                                     result_table)
 
-    def _get_top_result_tables(self, begin, end):
+    def _get_top_result_tables(self, period, begin, end):
         open_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_TOP_SYSCALL,
                                          begin, end, 'open')
@@ -901,13 +918,17 @@ class IoAnalysisCommand(Command):
             self._mi_create_result_table(self._MI_TABLE_CLASS_TOP_SYSCALL,
                                          begin, end, 'sync')
         self._fill_log_result_table_from_io_requests(
-            self._analysis.open_io_requests, 'duration', True, open_table)
+            period, self._analysis.open_io_requests(period), 'duration', True,
+            open_table)
         self._fill_log_result_table_from_io_requests(
-            self._analysis.read_io_requests, 'duration', True, read_table)
+            period, self._analysis.read_io_requests(period), 'duration', True,
+            read_table)
         self._fill_log_result_table_from_io_requests(
-            self._analysis.write_io_requests, 'duration', True, write_table)
+            period, self._analysis.write_io_requests(period), 'duration', True,
+            write_table)
         self._fill_log_result_table_from_io_requests(
-            self._analysis.sync_io_requests, 'duration', True, sync_table)
+            period, self._analysis.sync_io_requests(period), 'duration', True,
+            sync_table)
 
         return [open_table, read_table, write_table, sync_table]
 
@@ -977,11 +998,12 @@ class IoAnalysisCommand(Command):
         for table in top_tables:
             self._print_log(table)
 
-    def _get_log_result_table(self, begin, end):
+    def _get_log_result_table(self, period, begin, end):
         log_table = self._mi_create_result_table(self._MI_TABLE_CLASS_LOG,
                                                  begin, end)
         self._fill_log_result_table_from_io_requests(
-            self._analysis.io_requests, 'begin_ts', False, log_table)
+            period, self._analysis.io_requests(period), 'begin_ts', False,
+            log_table)
 
         return log_table
 
@@ -1021,41 +1043,43 @@ class IoAnalysisCommand(Command):
                         self._filter_io_request(io_rq)]
         self._append_latency_stats_row(obj, rq_durations, result_table)
 
-    def _get_syscall_latency_stats_result_table(self, begin, end):
+    def _get_syscall_latency_stats_result_table(self, period, begin, end):
         result_table = self._mi_create_result_table(
             self._MI_TABLE_CLASS_SYSCALL_LATENCY_STATS, begin, end)
         append_fn = self._append_latency_stats_row_from_requests
-        append_fn(mi.String('Open'), self._analysis.open_io_requests,
+        append_fn(mi.String('Open'), self._analysis.open_io_requests(period),
                   result_table)
-        append_fn(mi.String('Read'), self._analysis.read_io_requests,
+        append_fn(mi.String('Read'), self._analysis.read_io_requests(period),
                   result_table)
-        append_fn(mi.String('Write'), self._analysis.write_io_requests,
+        append_fn(mi.String('Write'), self._analysis.write_io_requests(period),
                   result_table)
-        append_fn(mi.String('Sync'), self._analysis.sync_io_requests,
+        append_fn(mi.String('Sync'), self._analysis.sync_io_requests(period),
                   result_table)
 
         return result_table
 
-    def _get_disk_latency_stats_result_table(self, begin, end):
-        if not self._analysis.disks:
+    def _get_disk_latency_stats_result_table(self, period, begin, end):
+        if not period.disks:
             return
 
         result_table = self._mi_create_result_table(
             self._MI_TABLE_CLASS_PART_LATENCY_STATS, begin, end)
 
-        for disk in self._analysis.disks.values():
+        for disk in period.disks.values():
             if disk.rq_count:
                 rq_durations = [rq.duration for rq in disk.rq_list if
                                 self._filter_io_request(rq)]
-                disk = mi.Disk(disk.disk_name)
+                disk = mi.Disk(disk.diskname)
                 self._append_latency_stats_row(disk, rq_durations,
                                                result_table)
 
         return result_table
 
-    def _get_latency_stats_result_tables(self, begin, end):
-        syscall_tbl = self._get_syscall_latency_stats_result_table(begin, end)
-        disk_tbl = self._get_disk_latency_stats_result_table(begin, end)
+    def _get_latency_stats_result_tables(self, period, begin, end):
+        syscall_tbl = self._get_syscall_latency_stats_result_table(period,
+                                                                   begin, end)
+        disk_tbl = self._get_disk_latency_stats_result_table(period, begin,
+                                                             end)
 
         return syscall_tbl, disk_tbl
 
@@ -1083,7 +1107,7 @@ class IoAnalysisCommand(Command):
             self._print_latency_stats_row(row)
 
     def _print_disk_latency_stats(self, stats_table):
-        if not stats_table.rows:
+        if not stats_table or not stats_table.rows:
             return
 
         print('\nDisk latency statistics (usec):')
@@ -1100,7 +1124,6 @@ class IoAnalysisCommand(Command):
         self._print_disk_latency_stats(disk_latency_stats_table)
 
     def _add_arguments(self, ap):
-        Command._add_proc_filter_args(ap)
         Command._add_min_max_args(ap)
         Command._add_log_args(
             ap, help='Output the I/O requests in chronological order')

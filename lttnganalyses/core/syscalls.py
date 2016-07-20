@@ -21,7 +21,13 @@
 # SOFTWARE.
 
 from . import stats
-from .analysis import Analysis
+from .analysis import Analysis, PeriodData
+
+
+class _PeriodData(PeriodData):
+    def __init__(self):
+        self.tids = {}
+        self.total_syscalls = 0
 
 
 class SyscallsAnalysis(Analysis):
@@ -29,18 +35,12 @@ class SyscallsAnalysis(Analysis):
         notification_cbs = {
             'syscall_exit': self._process_syscall_exit
         }
+        super().__init__(state, conf, notification_cbs)
 
-        super().__init__(state, conf)
-        self._state.register_notification_cbs(notification_cbs)
+    def _create_period_data(self):
+        return _PeriodData()
 
-        self.tids = {}
-        self.total_syscalls = 0
-
-    def reset(self):
-        # FIXME why no reset?
-        pass
-
-    def _process_syscall_exit(self, **kwargs):
+    def _process_syscall_exit(self, period, **kwargs):
         cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
         tid = proc.tid
@@ -52,16 +52,16 @@ class SyscallsAnalysis(Analysis):
         if not self._filter_cpu(cpu_id):
             return
 
-        if tid not in self.tids:
-            self.tids[tid] = ProcessSyscallStats.new_from_process(proc)
+        if tid not in period.tids:
+            period.tids[tid] = ProcessSyscallStats.new_from_process(proc)
 
-        proc_stats = self.tids[tid]
+        proc_stats = period.tids[tid]
         if name not in proc_stats.syscalls:
             proc_stats.syscalls[name] = SyscallStats(name)
 
         proc_stats.syscalls[name].update_stats(current_syscall)
         proc_stats.total_syscalls += 1
-        self.total_syscalls += 1
+        period.total_syscalls += 1
 
 
 class ProcessSyscallStats(stats.Process):
