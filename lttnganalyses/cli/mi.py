@@ -38,6 +38,7 @@ class Tags:
     STATS = 'stats'
     FREQ = 'freq'
     LOG = 'log'
+    PERIOD = 'period'
 
 
 class ColumnDescription:
