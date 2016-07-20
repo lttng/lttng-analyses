@@ -160,10 +160,10 @@ class IoAnalysis(Analysis):
         proc = kwargs['proc']
         disk = kwargs['disk']
 
-        if req.dev not in period.disks:
-            period.disks[req.dev] = DiskStats.new_from_disk(disk)
+        if disk.dev not in period.disks:
+            period.disks[disk.dev] = DiskStats.new_from_disk(disk)
 
-        period.disks[req.dev].update_stats(req)
+        period.disks[disk.dev].update_stats(req)
 
         if proc is not None:
             if proc.tid not in period.tids:

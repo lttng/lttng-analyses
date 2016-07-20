@@ -44,7 +44,7 @@ class StatedumpStateProvider(sp.StateProvider):
 
         if dev not in self._state.disks:
             self._state.disks[dev] = sv.Disk(dev, diskname=diskname)
-        elif self._state.disks[dev] is None:
+        elif self._state.disks[dev].diskname is None:
             self._state.disks[dev].diskname = diskname
         self._state.send_notification_cb('lttng_statedump_block_device',
                                          dev=dev, diskname=diskname)
