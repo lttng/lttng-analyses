@@ -190,8 +190,14 @@ class IoAnalysis(Analysis):
         if io_rq.errno is None:
             if io_rq.operation == sv.IORequest.OP_READ or \
                io_rq.operation == sv.IORequest.OP_WRITE:
+                if parent_stats.get_fd(io_rq.fd) is None:
+                    return
                 fd_types['fd'] = parent_stats.get_fd(io_rq.fd).fd_type
             elif io_rq.operation == sv.IORequest.OP_READ_WRITE:
+                if parent_stats.get_fd(io_rq.fd_in) is None:
+                    return
+                if parent_stats.get_fd(io_rq.fd_out) is None:
+                    return
                 fd_types['fd_in'] = parent_stats.get_fd(io_rq.fd_in).fd_type
                 fd_types['fd_out'] = parent_stats.get_fd(io_rq.fd_out).fd_type
 
