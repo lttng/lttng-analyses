@@ -45,7 +45,7 @@ class Cputop(Analysis):
     def _create_period_data(self):
         return _PeriodData()
 
-    def _end_period_cb(self, period_data):
+    def _end_period_cb(self, period_data, begin_captures, end_captures):
         self._compute_stats(period_data)
 
     def _compute_stats(self, period_data):
@@ -121,7 +121,8 @@ class Cputop(Analysis):
             return
 
         if next_tid not in period_data.tids:
-            period_data.tids[next_tid] = ProcessCpuStats(None, next_tid, next_comm)
+            period_data.tids[next_tid] = ProcessCpuStats(None,
+                                                         next_tid, next_comm)
             period_data.tids[next_tid].update_prio(timestamp, wakee_proc.prio)
 
         next_proc = period_data.tids[next_tid]

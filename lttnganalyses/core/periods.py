@@ -88,15 +88,21 @@ class PeriodAnalysis(Analysis):
             self._all_period_stats[definition.name] = \
                 PeriodStats.new_from_period(period_data.period)
 
-    def _end_period_cb(self, period_data):
+    def _end_period_cb(self, period_data, completed,
+                       begin_captures, end_captures):
         period = period_data.period
 
         if period.definition is None:
             return
 
+        if completed is False:
+            return
+
         new_period_evt = PeriodEvent(period.begin_evt.timestamp,
                                      self.last_event_ts,
-                                     period.definition.name)
+                                     period.definition.name,
+                                     begin_captures,
+                                     end_captures)
         self._all_period_stats[period.definition.name].update_stats(
             new_period_evt)
         self.update_global_stats(new_period_evt)
@@ -131,10 +137,13 @@ class PeriodStats():
 
 
 class PeriodEvent():
-    def __init__(self, start_ts, end_ts, name):
+    def __init__(self, start_ts, end_ts, name, begin_captures,
+                 end_captures):
         self._start_ts = start_ts
         self._end_ts = end_ts
         self._name = name
+        self._begin_captures = begin_captures
+        self._end_captures = end_captures
 
     @property
     def start_ts(self):

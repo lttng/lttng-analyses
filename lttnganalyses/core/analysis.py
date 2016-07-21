@@ -102,7 +102,7 @@ class Analysis:
     # Creates the unique "definition-less" period. This is used when
     # there are no user-specified periods.
     def _create_defless_period(self, evt):
-        period = core_period.Period(None, None, evt)
+        period = core_period.Period(None, None, evt, None)
         self._on_period_begin(period)
 
     # Returns the "definition-less" period.
@@ -132,7 +132,8 @@ class Analysis:
     def _begin_period_cb(self, period_data):
         pass
 
-    def _end_period_cb(self, period_data):
+    def _end_period_cb(self, period_data, completed,
+                       begin_captures, end_captures):
         pass
 
     # This is called back by the period engine when a new period is
@@ -140,9 +141,6 @@ class Analysis:
     # that triggered the beginning of this period (the original event,
     # while `period.begin_evt` is a copy of this event).
     def _on_period_begin(self, period):
-        print('BEGIN CAPTURES')
-        print(period.begin_captures)
-
         # create the specific analysis's period data object
         period_data = self._create_period_data()
 
@@ -164,14 +162,12 @@ class Analysis:
     # Otherwise, the period finishes because one of its ancestors finishes,
     # or because the period engine user asked for it.
     def _on_period_end(self, period):
-        print('END CAPTURES')
-        print(period.end_captures)
-
         # get the period data object associated with this period object
         period_data = self._get_period_data(period)
 
         # call specific analysis's end of period callback
-        self._end_period_cb(period_data)
+        self._end_period_cb(period_data, period.completed,
+                            period.begin_captures, period.end_captures)
 
         # send tick notification to owner (CLI)
         self._send_notification_cb(AnalysisCallbackType.TICK_CB, period_data,

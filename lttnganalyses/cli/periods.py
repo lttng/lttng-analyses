@@ -119,7 +119,7 @@ class PeriodAnalysisCommand(Command):
     def _analysis_tick(self, period_data, end_ns):
         # We only output something at the end of the analysis
         # not when each period finishes
-        if not self._analysis.ended:
+        if period_data is not None:
             return
 
         # Override the timestamps since we are only interested in the
