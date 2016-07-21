@@ -159,12 +159,17 @@ class _UnaryExpression(_Expression):
 
 class LogicalNot(_UnaryExpression):
     def __repr__(self):
-        return '(!{})'.format(self.expr)
+        return '!({})'.format(self.expr)
 
 
 class LogicalAnd(_BinaryExpression):
     def __repr__(self):
         return '({} && {})'.format(self.lh_expr, self.rh_expr)
+
+
+class LogicalOr(_BinaryExpression):
+    def __repr__(self):
+        return '({} || {})'.format(self.lh_expr, self.rh_expr)
 
 
 class Eq(_BinaryExpression):
@@ -201,7 +206,7 @@ class Number(_Expression):
         return self._value
 
     def __repr__(self):
-        return '({})'.format(self.value)
+        return '{}'.format(self.value)
 
 
 class String(_Expression):
@@ -213,7 +218,7 @@ class String(_Expression):
         return self._value
 
     def __repr__(self):
-        return '("{}")'.format(self.value)
+        return '"{}"'.format(self.value)
 
 
 @enum.unique
@@ -292,8 +297,9 @@ class PeriodDefinitionValidator:
     def __init__(self, period_def):
         self._period_def = period_def
         self._validate_expr_cbs = {
-            LogicalNot: self._validate_not,
-            LogicalAnd: self._validate_and_expr,
+            LogicalNot: self._validate_unary_expr,
+            LogicalAnd: self._validate_binary_expr,
+            LogicalOr: self._validate_binary_expr,
             Eq: self._validate_comp,
             Lt: self._validate_comp,
             LtEq: self._validate_comp,
@@ -304,10 +310,10 @@ class PeriodDefinitionValidator:
         self._validate_expr(period_def.begin_expr)
         self._validate_expr(period_def.end_expr)
 
-    def _validate_not(self, not_expr):
+    def _validate_unary_expr(self, not_expr):
         self._validate_expr(not_expr.expr)
 
-    def _validate_and_expr(self, and_expr):
+    def _validate_binary_expr(self, and_expr):
         self._validate_expr(and_expr.lh_expr)
         self._validate_expr(and_expr.rh_expr)
 
@@ -429,6 +435,7 @@ class _Matcher:
         self._match_context = match_context
         self._expr_matchers = {
             LogicalAnd: self._and_expr_matches,
+            LogicalOr: self._or_expr_matches,
             LogicalNot: self._not_expr_matches,
             Eq: partial(self._comp_expr_matches, lambda lh, rh: lh == rh),
             Lt: partial(self._comp_expr_matches, lambda lh, rh: lh < rh),
@@ -440,6 +447,10 @@ class _Matcher:
 
     def _and_expr_matches(self, expr):
         return (self._expr_matches(expr.lh_expr) and
+                self._expr_matches(expr.rh_expr))
+
+    def _or_expr_matches(self, expr):
+        return (self._expr_matches(expr.lh_expr) or
                 self._expr_matches(expr.rh_expr))
 
     def _not_expr_matches(self, expr):

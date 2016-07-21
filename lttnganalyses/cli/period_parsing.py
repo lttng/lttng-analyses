@@ -90,10 +90,18 @@ _string_comp_expr = pp.Group(_event_field + _eqop +
 _field_comp_expr = (pp.Group(_event_field.setResultsName('lh') + _relop +
                              _event_field.setResultsName('rh'))
                     .setResultsName('field-comp-expr'))
-_conj_exprs = pp.delimitedList(_name_comp_expr |
-                               _number_comp_expr |
-                               _string_comp_expr |
-                               _field_comp_expr, '&&')
+_comp_expr = (_name_comp_expr |
+              _number_comp_expr |
+              _string_comp_expr |
+              _field_comp_expr)
+_not_op = pp.Literal('!').setResultsName('notop')
+_and_op = pp.Literal('&&').setResultsName('andop')
+_or_op = pp.Literal('||').setResultsName('orop')
+_expr = pp.infixNotation(_comp_expr,
+                         [(_not_op, 1, pp.opAssoc.RIGHT),
+                          (_and_op, 2, pp.opAssoc.LEFT),
+                          (_or_op, 2, pp.opAssoc.LEFT)
+                         ]).setResultsName('expr')
 
 # period definition grammar elements
 _parent_name = pp.Literal('(') + _identifier + ')'
@@ -102,9 +110,9 @@ _period_info = (pp.Group(_identifier.setResultsName('name') +
                           .setResultsName('parent-name')))
                 .setResultsName('period-info'))
 _period_def = (pp.Optional(_period_info) + ':' +
-               _conj_exprs.setResultsName('begin-expr') +
+               _expr.setResultsName('begin-expr') +
                pp.Optional(pp.Literal(':') +
-                           _conj_exprs.setResultsName('end-expr')))
+                           _expr.setResultsName('end-expr')))
 
 # period capture grammar elements
 _capture_ref = (pp.Group(pp.Optional(_identifier + '=').setResultsName('var') +
@@ -117,8 +125,8 @@ _captures_def = (_identifier.setResultsName('name') + ':' +
                              _capture_refs.setResultsName('end-exprs')))
 
 
-# relational operator string -> function which creates an expression
-_RELOP_TO_EXPR = {
+# operator string -> function which creates an expression
+_OP_TO_EXPR = {
     '==': lambda lh, rh: period.Eq(lh, rh),
     '!=': lambda lh, rh: period.LogicalNot(period.Eq(lh, rh)),
     '<': lambda lh, rh: period.Lt(lh, rh),
@@ -160,41 +168,58 @@ def _res_number_to_number_expression(res_number):
 
 
 def _create_binary_op(relop, lh, rh):
-    return _RELOP_TO_EXPR[relop[0]](lh, rh)
+    return _OP_TO_EXPR[relop[0]](lh, rh)
 
 
-def _conj_exprs_results_to_expression(res_conj_exprs):
-    exprs = []
+def _expr_results_to_expression(res_expr):
+    # check for logical op
+    if 'notop' in res_expr:
+        expr = _expr_results_to_expression(res_expr[1])
 
-    for res_expr in res_conj_exprs:
-        res_expr_name = res_expr.getName()
+        return period.LogicalNot(expr)
 
-        if res_expr_name == 'name-comp-expr':
-            ev_name_expr = _res_to_scope(res_expr['event-name'])
-            str_expr = _res_quoted_string_to_string_expression(
-                res_expr['quoted-string'])
-            expr = _create_binary_op(res_expr['eqop'], ev_name_expr, str_expr)
-        elif res_expr_name == 'number-comp-expr':
-            field_expr = _res_to_scope(res_expr['event-field'])
-            number_expr = _res_number_to_number_expression(res_expr['number'])
-            expr = _create_binary_op(res_expr['relop'], field_expr,
-                                     number_expr)
-        elif res_expr_name == 'string-comp-expr':
-            field_expr = _res_to_scope(res_expr['event-field'])
-            str_expr = _res_quoted_string_to_string_expression(
-                res_expr['quoted-string'])
-            expr = _create_binary_op(res_expr['eqop'], field_expr, str_expr)
-        elif res_expr_name == 'field-comp-expr':
-            lh_field_expr = _res_to_scope(res_expr['lh'])
-            rh_field_expr = _res_to_scope(res_expr['rh'])
-            expr = _create_binary_op(res_expr['relop'], lh_field_expr,
-                                     rh_field_expr)
-        else:
-            assert(False)
+    if 'andop' in res_expr:
+        lh_expr = _expr_results_to_expression(res_expr[0])
+        rh_expr = _expr_results_to_expression(res_expr[2])
 
-        exprs.append(expr)
+        return period.LogicalAnd(lh_expr, rh_expr)
 
-    return period.create_conjunction_from_exprs(exprs)
+    if 'orop' in res_expr:
+        lh_expr = _expr_results_to_expression(res_expr[0])
+        rh_expr = _expr_results_to_expression(res_expr[2])
+
+        return period.LogicalOr(lh_expr, rh_expr)
+
+    res_expr_name = res_expr.getName()
+
+    if res_expr_name == 'name-comp-expr':
+        ev_name_expr = _res_to_scope(res_expr['event-name'])
+        qstring = res_expr['quoted-string']
+        str_expr = _res_quoted_string_to_string_expression(qstring)
+
+        return _create_binary_op(res_expr['eqop'], ev_name_expr, str_expr)
+
+    if res_expr_name == 'number-comp-expr':
+        field_expr = _res_to_scope(res_expr['event-field'])
+        number_expr = _res_number_to_number_expression(res_expr['number'])
+
+        return _create_binary_op(res_expr['relop'], field_expr, number_expr)
+
+    if res_expr_name == 'string-comp-expr':
+        field_expr = _res_to_scope(res_expr['event-field'])
+        qstring = res_expr['quoted-string']
+        str_expr = _res_quoted_string_to_string_expression(qstring)
+
+        return _create_binary_op(res_expr['eqop'], field_expr, str_expr)
+
+    if res_expr_name == 'field-comp-expr':
+        lh_field_expr = _res_to_scope(res_expr['lh'])
+        rh_field_expr = _res_to_scope(res_expr['rh'])
+
+        return _create_binary_op(res_expr['relop'], lh_field_expr,
+                                 rh_field_expr)
+
+    assert(False)
 
 
 def _capture_refs_results_to_captures_exprs(res_capture_refs):
@@ -278,10 +303,10 @@ def parse_period_def_arg(arg):
         if 'parent-name' in period_info_res:
             parent_name = period_info_res['parent-name']['id']
 
-    begin_expr = _conj_exprs_results_to_expression(period_def_res['begin-expr'])
+    begin_expr = _expr_results_to_expression(period_def_res['begin-expr'])
 
     if 'end-expr' in period_def_res:
-        end_expr = _conj_exprs_results_to_expression(period_def_res['end-expr'])
+        end_expr = _expr_results_to_expression(period_def_res['end-expr'])
     else:
         end_expr = begin_expr
 
