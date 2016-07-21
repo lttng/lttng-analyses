@@ -60,6 +60,8 @@ class PeriodAnalysisCommand(Command):
                 ('end_ts', 'Period end timestamp', mi.Timestamp),
                 ('duration', 'Period duration', mi.Duration),
                 ('name', 'Period name', mi.String),
+                ('begin_captures', 'Begin captures', mi.String),
+                ('end_captures', 'End captures', mi.String),
             ]
         ),
         (
@@ -69,6 +71,8 @@ class PeriodAnalysisCommand(Command):
                 ('end_ts', 'Period end timestamp', mi.Timestamp),
                 ('duration', 'Period duration', mi.Duration),
                 ('name', 'Period name', mi.String),
+                ('begin_captures', 'Begin captures', mi.String),
+                ('end_captures', 'End captures', mi.String),
             ]
         ),
         (
@@ -257,6 +261,8 @@ class PeriodAnalysisCommand(Command):
                 end_ts=mi.Timestamp(period_event.end_ts),
                 duration=mi.Duration(period_event.duration),
                 name=mi.String(period_event.name),
+                begin_captures=mi.String(period_event.begin_captures),
+                end_captures=mi.String(period_event.end_captures),
             )
 
         return result_table
@@ -278,6 +284,8 @@ class PeriodAnalysisCommand(Command):
                 end_ts=mi.Timestamp(period_event.end_ts),
                 duration=mi.Duration(period_event.duration),
                 name=mi.String(period_event.name),
+                begin_captures=mi.String(period_event.begin_captures),
+                end_captures=mi.String(period_event.end_captures),
             )
         return result_table
 
@@ -550,20 +558,24 @@ class PeriodAnalysisCommand(Command):
         return statistics.stdev(period_durations)
 
     def _print_period_events(self, result_table):
-        fmt = '[{:<18}, {:<18}] {:>15} {:<25}'
-        title_fmt = '{:<20} {:<19} {:>15} {:<25}'
+        fmt = '[{:<18}, {:<18}] {:>15} {:<15} {:<45} {:<45}'
+        title_fmt = '{:<20} {:<19} {:>15} {:<15} {:<45} {:<45}'
         print()
         print(result_table.title)
-        print(title_fmt.format('Begin', 'End', 'Duration (us)', 'Name'))
+        print(title_fmt.format('Begin', 'End', 'Duration (us)', 'Name',
+                               'Begin capture', 'End capture'))
         for row in result_table.rows:
             begin_ts = row.begin_ts.value
             end_ts = row.end_ts.value
             duration = row.duration.value
             name = row.name.value
+            begin_captures = row.begin_captures.value
+            end_captures = row.end_captures.value
 
             print(fmt.format(self._format_timestamp(begin_ts),
                              self._format_timestamp(end_ts),
-                             '%0.03f' % (duration / 1000), name))
+                             '%0.03f' % (duration / 1000), name,
+                             begin_captures, end_captures))
 
     def _print_total_stats(self, stats_table):
         row_format = '{:<12} {:<12} {:<12} {:<12} {:<12}'

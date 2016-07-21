@@ -160,3 +160,11 @@ class PeriodEvent():
     @property
     def duration(self):
         return self._end_ts - self._start_ts
+
+    @property
+    def begin_captures(self):
+        return str(self._begin_captures)
+
+    @property
+    def end_captures(self):
+        return str(self._end_captures)
