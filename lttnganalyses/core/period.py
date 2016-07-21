@@ -626,7 +626,7 @@ class PeriodEngine:
         periods_to_add = set()
 
         for child_period_def in child_period_defs:
-            match_context = _MatchContext(evt, evt, None)
+            match_context = self._create_begin_match_context(parent_period, evt)
 
             if _expr_matches(child_period_def.begin_expr, match_context):
                 # match! add period
@@ -651,6 +651,14 @@ class PeriodEngine:
     def _process_event_begin(self, evt):
         defs = self._registry.root_period_defs
         self._process_event_add_periods(None, self._root_periods, defs, evt)
+
+    def _create_begin_match_context(self, parent_period, evt):
+        parent_begin_evt = None
+
+        if parent_period is not None:
+            parent_begin_evt = parent_period.begin_evt
+
+        return _MatchContext(evt, evt, parent_begin_evt)
 
     def _create_end_match_context(self, period, evt):
         parent_begin_evt = None
