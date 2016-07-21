@@ -172,6 +172,17 @@ def _create_binary_op(relop, lh, rh):
     return _OP_TO_EXPR[relop[0]](lh, rh)
 
 
+def _extract_exprs(res):
+    exprs = []
+
+    for res_child in res:
+        if res_child not in ('&&', '||'):
+            expr = _expr_results_to_expression(res_child)
+            exprs.append(expr)
+
+    return exprs
+
+
 def _expr_results_to_expression(res_expr):
     # check for logical op
     if 'notop' in res_expr:
@@ -180,16 +191,14 @@ def _expr_results_to_expression(res_expr):
         return period.LogicalNot(expr)
 
     if 'andop' in res_expr:
-        lh_expr = _expr_results_to_expression(res_expr[0])
-        rh_expr = _expr_results_to_expression(res_expr[2])
+        exprs = _extract_exprs(res_expr)
 
-        return period.LogicalAnd(lh_expr, rh_expr)
+        return period.create_conjunction_from_exprs(exprs)
 
     if 'orop' in res_expr:
-        lh_expr = _expr_results_to_expression(res_expr[0])
-        rh_expr = _expr_results_to_expression(res_expr[2])
+        exprs = _extract_exprs(res_expr)
 
-        return period.LogicalOr(lh_expr, rh_expr)
+        return period.create_disjunction_from_exprs(exprs)
 
     res_expr_name = res_expr.getName()
 

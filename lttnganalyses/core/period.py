@@ -527,6 +527,18 @@ def create_conjunction_from_exprs(exprs):
     return cur_expr
 
 
+def create_disjunction_from_exprs(exprs):
+    if len(exprs) == 0:
+        return
+
+    cur_expr = exprs[0]
+
+    for expr in exprs[1:]:
+        cur_expr = LogicalOr(cur_expr, expr)
+
+    return cur_expr
+
+
 @enum.unique
 class PeriodEngineCallbackType(enum.Enum):
     PERIOD_BEGIN = 1
