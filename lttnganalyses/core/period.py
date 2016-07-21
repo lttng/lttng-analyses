@@ -172,6 +172,27 @@ class LogicalOr(_BinaryExpression):
         return '({} || {})'.format(self.lh_expr, self.rh_expr)
 
 
+class GlobEq(_BinaryExpression):
+    def __init__(self, lh_expr, rh_expr):
+        super().__init__(lh_expr, rh_expr)
+        self._compile()
+
+    def _compile(self):
+        import fnmatch
+        import re
+
+        pattern = self.rh_expr.value
+        regex = fnmatch.translate(pattern)
+        self._regex = re.compile(regex)
+
+    @property
+    def regex(self):
+        return self._regex
+
+    def __repr__(self):
+        return '({} =* {})'.format(self.lh_expr, self.rh_expr)
+
+
 class Eq(_BinaryExpression):
     def __repr__(self):
         return '({} == {})'.format(self.lh_expr, self.rh_expr)
@@ -300,6 +321,7 @@ class PeriodDefinitionValidator:
             LogicalNot: self._validate_unary_expr,
             LogicalAnd: self._validate_binary_expr,
             LogicalOr: self._validate_binary_expr,
+            GlobEq: self._validate_comp,
             Eq: self._validate_comp,
             Lt: self._validate_comp,
             LtEq: self._validate_comp,
@@ -437,6 +459,7 @@ class _Matcher:
             LogicalAnd: self._and_expr_matches,
             LogicalOr: self._or_expr_matches,
             LogicalNot: self._not_expr_matches,
+            GlobEq: self._glob_eq_expr_matches,
             Eq: partial(self._comp_expr_matches, lambda lh, rh: lh == rh),
             Lt: partial(self._comp_expr_matches, lambda lh, rh: lh < rh),
             LtEq: partial(self._comp_expr_matches, lambda lh, rh: lh <= rh),
@@ -455,6 +478,11 @@ class _Matcher:
 
     def _not_expr_matches(self, expr):
         return not self._expr_matches(expr.expr)
+
+    def _glob_eq_expr_matches(self, expr):
+        compfn = lambda lh, rh: bool(expr.regex.match(lh))
+
+        return self._comp_expr_matches(compfn, expr)
 
     def _comp_expr_matches(self, compfn, expr):
         lh_value = _resolve_expr(expr.lh_expr, self._match_context)

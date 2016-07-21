@@ -80,7 +80,7 @@ _event_name = pp.Group(pp.Optional(_parent_scope_prefix) +
                        '$name').setResultsName('event-name')
 _relop = (pp.Group(pp.Literal('==') | '!=' | '<=' | '>=' | '<' | '>')
           .setResultsName('relop'))
-_eqop = pp.Group(pp.Literal('==') | '!=').setResultsName('eqop')
+_eqop = pp.Group(pp.Literal('=*') | '==' | '!=').setResultsName('eqop')
 _name_comp_expr = pp.Group(_event_name + _eqop +
                            _quoted_string).setResultsName('name-comp-expr')
 _number_comp_expr = pp.Group(_event_field + _relop +
@@ -127,6 +127,7 @@ _captures_def = (_identifier.setResultsName('name') + ':' +
 
 # operator string -> function which creates an expression
 _OP_TO_EXPR = {
+    '=*': lambda lh, rh: period.GlobEq(lh, rh),
     '==': lambda lh, rh: period.Eq(lh, rh),
     '!=': lambda lh, rh: period.LogicalNot(period.Eq(lh, rh)),
     '<': lambda lh, rh: period.Lt(lh, rh),
@@ -200,10 +201,11 @@ def _expr_results_to_expression(res_expr):
         return _create_binary_op(res_expr['eqop'], ev_name_expr, str_expr)
 
     if res_expr_name == 'number-comp-expr':
+        relop = res_expr['relop']
         field_expr = _res_to_scope(res_expr['event-field'])
         number_expr = _res_number_to_number_expression(res_expr['number'])
 
-        return _create_binary_op(res_expr['relop'], field_expr, number_expr)
+        return _create_binary_op(relop, field_expr, number_expr)
 
     if res_expr_name == 'string-comp-expr':
         field_expr = _res_to_scope(res_expr['event-field'])
@@ -317,6 +319,8 @@ def parse_period_def_arg(arg):
 def parse_period_captures_arg(arg):
     try:
         period_captures_res = _captures_def.parseString(arg, parseAll=True)
+    except MalformedExpression:
+        raise
     except Exception:
         raise MalformedExpression(arg)
 
