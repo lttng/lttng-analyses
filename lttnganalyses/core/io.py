@@ -244,7 +244,8 @@ class IoAnalysis(Analysis):
         fd = kwargs['fd']
 
         if tid not in period_data.tids:
-            period_data.tids[tid] = ProcessIOStats.new_from_process(parent_proc)
+            period_data.tids[tid] = ProcessIOStats.new_from_process(
+                    parent_proc)
 
         parent_stats = period_data.tids[tid]
         if fd not in parent_stats.fds:
@@ -265,9 +266,15 @@ class IoAnalysis(Analysis):
         last_fd.close_ts = timestamp
 
     def _process_update_fd(self, period_data, **kwargs):
+        timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
         fd = kwargs['fd']
+
+        if fd not in period_data.tids[tid].fds:
+            period_data.tids[tid].fds[fd] = []
+            period_data.tids[tid].fds[fd].append(
+                FDStats.new_from_fd(parent_proc.fds[fd], timestamp))
 
         new_filename = parent_proc.fds[fd].filename
         fd_list = period_data.tids[tid].fds[fd]
