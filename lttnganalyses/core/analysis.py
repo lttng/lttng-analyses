@@ -103,20 +103,25 @@ class Analysis:
     # there are no user-specified periods.
     def _create_defless_period(self, evt):
         period = core_period.Period(None, None, evt)
-        self._on_period_begin(period, evt)
+        self._on_period_begin(period)
 
     # Returns the "definition-less" period.
     def _get_defless_period(self):
-        if len(self._period_data.keys()) == 0:
-            return None
+        if len(self._period_data) == 0:
+            return
+
         return next(iter(self._period_data.keys()))
 
     # Removes the "definition-less" period.
     def _remove_defless_period(self, completed, evt):
         period = self._get_defless_period()
+
         if period is None:
             return
-        self._on_period_end(period, completed, evt)
+
+        period.end_evt = evt
+        period.completed = completed
+        self._on_period_end(period)
         assert(len(self._period_data) == 0)
 
     # Creates a fresh specific period data object. This must be
@@ -124,17 +129,17 @@ class Analysis:
     def _create_period_data(self):
         raise NotImplementedError()
 
-    def _begin_period_cb(self, period_data, evt):
+    def _begin_period_cb(self, period_data):
         pass
 
-    def _end_period_cb(self, period_data, evt):
+    def _end_period_cb(self, period_data):
         pass
 
     # This is called back by the period engine when a new period is
     # created. `period` is the created period, and `evt` is the event
     # that triggered the beginning of this period (the original event,
     # while `period.begin_evt` is a copy of this event).
-    def _on_period_begin(self, period, evt):
+    def _on_period_begin(self, period):
         # create the specific analysis's period data object
         period_data = self._create_period_data()
 
@@ -146,26 +151,24 @@ class Analysis:
         self._state.register_notification_cbs(period_data, self._state_cbs)
 
         # call specific analysis's beginning of period callback
-        self._begin_period_cb(period_data, evt)
+        self._begin_period_cb(period_data)
 
     # This is called back by the period engine when a period is finished,
     # or closed.
     #
-    # If `completed` is True, then the period finishes because
-    # its ending expression was satisfied by an event (`evt`). Otherwise,
-    # the period finishes because one of its ancestors finishes, or because
-    # the period engine user asked for it.
-    def _on_period_end(self, period, completed, evt):
+    # If `period.completed` is True, then the period finishes because
+    # its ending expression was satisfied by an event (`period.end_evt`).
+    # Otherwise, the period finishes because one of its ancestors finishes,
+    # or because the period engine user asked for it.
+    def _on_period_end(self, period):
         # get the period data object associated with this period object
         period_data = self._get_period_data(period)
 
         # call specific analysis's end of period callback
-        self._end_period_cb(period_data, evt)
+        self._end_period_cb(period_data)
 
         # send tick notification to owner (CLI)
         self._send_notification_cb(AnalysisCallbackType.TICK_CB, period_data,
-                                   completed=completed,
-                                   begin_ns=period.begin_evt.timestamp,
                                    end_ns=self.last_event_ts)
 
         # clear registered state notification callbacks associated with
@@ -231,7 +234,6 @@ class Analysis:
         # do something at the end even if there are no existing
         # periods.
         self._send_notification_cb(AnalysisCallbackType.TICK_CB, None,
-                                   completed=False, begin_ns=None,
                                    end_ns=self._last_event_ts)
 
     def register_notification_cbs(self, cbs):

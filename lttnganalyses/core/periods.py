@@ -78,7 +78,7 @@ class PeriodAnalysis(Analysis):
         self._all_period_list.append(period_event)
 
     # beginning of a new period
-    def _begin_period_cb(self, period_data, evt):
+    def _begin_period_cb(self, period_data):
         if period_data.period.definition is None:
             return
 
@@ -88,7 +88,7 @@ class PeriodAnalysis(Analysis):
             self._all_period_stats[definition.name] = \
                 PeriodStats.new_from_period(period_data.period)
 
-    def _end_period_cb(self, period_data, evt):
+    def _end_period_cb(self, period_data):
         period = period_data.period
 
         if period.definition is None:

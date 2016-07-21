@@ -116,7 +116,7 @@ class PeriodAnalysisCommand(Command):
             return False
         return True
 
-    def _analysis_tick(self, period, begin_ns, end_ns):
+    def _analysis_tick(self, period_data, end_ns):
         # We only output something at the end of the analysis
         # not when each period finishes
         if not self._analysis.ended:
@@ -126,8 +126,6 @@ class PeriodAnalysisCommand(Command):
         # whole analysis timestamps, not the ones from the last period.
         begin_ns = self._analysis.first_event_ts
         end_ns = self._analysis.last_event_ts
-        period = None
-
         log_table = None
         top_table = None
         total_stats_table = None
@@ -136,30 +134,28 @@ class PeriodAnalysisCommand(Command):
         per_period_freq_tables = None
 
         if self._args.log:
-            log_table = self._get_log_result_table(period, begin_ns, end_ns)
+            log_table = self._get_log_result_table(begin_ns, end_ns)
 
         if self._args.top:
-            top_table = self._get_top_result_table(period, begin_ns, end_ns)
+            top_table = self._get_top_result_table(begin_ns, end_ns)
 
         if self._args.stats:
             if self._args.total:
                 total_stats_table = self._get_total_stats_result_table(
-                    period, begin_ns, end_ns)
+                    begin_ns, end_ns)
 
             if self._args.per_period:
                 per_period_stats_table = \
-                    self._get_per_period_stats_result_table(
-                        period, begin_ns, end_ns)
+                    self._get_per_period_stats_result_table(begin_ns, end_ns)
 
         if self._args.freq:
             if self._args.total:
                 total_freq_tables = self._get_total_freq_result_tables(
-                    period, begin_ns, end_ns)
+                    begin_ns, end_ns)
 
             if self._args.per_period:
                 per_period_freq_tables = \
-                    self._get_per_period_freq_result_tables(
-                        period, begin_ns, end_ns)
+                    self._get_per_period_freq_result_tables(begin_ns, end_ns)
 
         if self._mi_mode:
             if log_table:
@@ -224,7 +220,7 @@ class PeriodAnalysisCommand(Command):
             avg = 0
         return min, max, count, avg, total, filter_list
 
-    def _get_total_period_lists_stats(self, period):
+    def _get_total_period_lists_stats(self):
         if self._args.min_duration is None and \
                 self._args.max_duration is None:
             total_list = self._analysis.all_period_list
@@ -250,7 +246,7 @@ class PeriodAnalysisCommand(Command):
 
         return [total_list], total_stats
 
-    def _get_log_result_table(self, period, begin_ns, end_ns):
+    def _get_log_result_table(self, begin_ns, end_ns):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_LOG,
                                                     begin_ns, end_ns)
         for period_event in self._analysis.all_period_list:
@@ -265,7 +261,7 @@ class PeriodAnalysisCommand(Command):
 
         return result_table
 
-    def _get_top_result_table(self, period, begin_ns, end_ns):
+    def _get_top_result_table(self, begin_ns, end_ns):
         result_table = self._mi_create_result_table(
             self._MI_TABLE_CLASS_TOP, begin_ns, end_ns)
 
@@ -285,7 +281,7 @@ class PeriodAnalysisCommand(Command):
             )
         return result_table
 
-    def _get_total_stats_result_table(self, period, begin_ns, end_ns):
+    def _get_total_stats_result_table(self, begin_ns, end_ns):
         stats_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_TOTAL_STATS,
                                          begin_ns, end_ns)
@@ -334,7 +330,7 @@ class PeriodAnalysisCommand(Command):
 
         return stats_table
 
-    def _get_per_period_stats_result_table(self, period, begin_ns, end_ns):
+    def _get_per_period_stats_result_table(self, begin_ns, end_ns):
         stats_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PERIOD_STATS,
                                          begin_ns, end_ns)
@@ -445,9 +441,9 @@ class PeriodAnalysisCommand(Command):
                 count=mi.Number(count),
             )
 
-    def _get_total_freq_result_tables(self, period, begin_ns, end_ns):
+    def _get_total_freq_result_tables(self, begin_ns, end_ns):
         freq_tables = []
-        period_lists, period_stats = self._get_total_period_lists_stats(period)
+        period_lists, period_stats = self._get_total_period_lists_stats()
         min_duration = None
         max_duration = None
         step = None
@@ -476,7 +472,7 @@ class PeriodAnalysisCommand(Command):
 
         return freq_tables
 
-    def _get_period_lists_stats(self, period):
+    def _get_period_lists_stats(self):
         period_lists = {}
         period_stats = {}
 
@@ -510,9 +506,9 @@ class PeriodAnalysisCommand(Command):
 
         return period_lists, period_stats
 
-    def _get_per_period_freq_result_tables(self, period, begin_ns, end_ns):
+    def _get_per_period_freq_result_tables(self, begin_ns, end_ns):
         freq_tables = []
-        period_lists, period_stats = self._get_period_lists_stats(period)
+        period_lists, period_stats = self._get_period_lists_stats()
         min_duration = None
         max_duration = None
         step = None

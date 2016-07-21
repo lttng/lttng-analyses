@@ -40,7 +40,7 @@ class SyscallsAnalysis(Analysis):
     def _create_period_data(self):
         return _PeriodData()
 
-    def _process_syscall_exit(self, period, **kwargs):
+    def _process_syscall_exit(self, period_data, **kwargs):
         cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
         tid = proc.tid
@@ -52,16 +52,16 @@ class SyscallsAnalysis(Analysis):
         if not self._filter_cpu(cpu_id):
             return
 
-        if tid not in period.tids:
-            period.tids[tid] = ProcessSyscallStats.new_from_process(proc)
+        if tid not in period_data.tids:
+            period_data.tids[tid] = ProcessSyscallStats.new_from_process(proc)
 
-        proc_stats = period.tids[tid]
+        proc_stats = period_data.tids[tid]
         if name not in proc_stats.syscalls:
             proc_stats.syscalls[name] = SyscallStats(name)
 
         proc_stats.syscalls[name].update_stats(current_syscall)
         proc_stats.total_syscalls += 1
-        period.total_syscalls += 1
+        period_data.total_syscalls += 1
 
 
 class ProcessSyscallStats(stats.Process):

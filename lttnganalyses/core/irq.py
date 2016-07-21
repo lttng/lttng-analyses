@@ -44,15 +44,15 @@ class IrqAnalysis(Analysis):
     def _create_period_data(self):
         return _PeriodData()
 
-    def _process_irq_handler_entry(self, period, **kwargs):
+    def _process_irq_handler_entry(self, period_data, **kwargs):
         id = kwargs['id']
         name = kwargs['irq_name']
-        if id not in period.hard_irq_stats:
-            period.hard_irq_stats[id] = HardIrqStats(name)
-        elif name not in period.hard_irq_stats[id].names:
-            period.hard_irq_stats[id].names.append(name)
+        if id not in period_data.hard_irq_stats:
+            period_data.hard_irq_stats[id] = HardIrqStats(name)
+        elif name not in period_data.hard_irq_stats[id].names:
+            period_data.hard_irq_stats[id].names.append(name)
 
-    def _process_irq_handler_exit(self, period, **kwargs):
+    def _process_irq_handler_exit(self, period_data, **kwargs):
         irq = kwargs['hard_irq']
 
         if not self._filter_cpu(irq.cpu_id):
@@ -65,13 +65,13 @@ class IrqAnalysis(Analysis):
            irq.duration > self._conf.max_duration:
             return
 
-        period.irq_list.append(irq)
-        if irq.id not in period.hard_irq_stats:
-            period.hard_irq_stats[irq.id] = HardIrqStats()
+        period_data.irq_list.append(irq)
+        if irq.id not in period_data.hard_irq_stats:
+            period_data.hard_irq_stats[irq.id] = HardIrqStats()
 
-        period.hard_irq_stats[irq.id].update_stats(irq)
+        period_data.hard_irq_stats[irq.id].update_stats(irq)
 
-    def _process_softirq_exit(self, period, **kwargs):
+    def _process_softirq_exit(self, period_data, **kwargs):
         irq = kwargs['softirq']
 
         if not self._filter_cpu(irq.cpu_id):
@@ -84,12 +84,12 @@ class IrqAnalysis(Analysis):
            irq.duration > self._conf.max_duration:
             return
 
-        period.irq_list.append(irq)
-        if irq.id not in period.softirq_stats:
+        period_data.irq_list.append(irq)
+        if irq.id not in period_data.softirq_stats:
             name = SoftIrqStats.names[irq.id]
-            period.softirq_stats[irq.id] = SoftIrqStats(name)
+            period_data.softirq_stats[irq.id] = SoftIrqStats(name)
 
-        period.softirq_stats[irq.id].update_stats(irq)
+        period_data.softirq_stats[irq.id].update_stats(irq)
 
 
 class IrqStats():

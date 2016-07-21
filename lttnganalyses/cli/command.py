@@ -830,12 +830,9 @@ Please consider using the --period option.''')
         self._automaton = automaton.Automaton()
         self.state = self._automaton.state
 
-    def _analysis_tick_cb(self, period, **kwargs):
-        begin_ns = kwargs['begin_ns']
-        end_ns = kwargs['end_ns']
-
-        self._analysis_tick(period, begin_ns, end_ns)
+    def _analysis_tick_cb(self, period, end_ns):
+        self._analysis_tick(period, end_ns)
         self._ticks += 1
 
-    def _analysis_tick(self, period, begin_ns, end_ns):
+    def _analysis_tick(self, period, end_ns):
         raise NotImplementedError()

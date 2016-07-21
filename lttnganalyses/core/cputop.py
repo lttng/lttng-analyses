@@ -45,10 +45,10 @@ class Cputop(Analysis):
     def _create_period_data(self):
         return _PeriodData()
 
-    def _end_period_cb(self, period_data, evt):
-        self._compute_stats(period_data, evt)
+    def _end_period_cb(self, period_data):
+        self._compute_stats(period_data)
 
-    def _compute_stats(self, period_data, evt):
+    def _compute_stats(self, period_data):
         """Compute usage stats relative to a certain time range
 
         For each CPU and process tracked by the analysis, we set its
@@ -78,7 +78,7 @@ class Cputop(Analysis):
 
             proc.compute_stats(duration)
 
-    def _process_sched_switch_per_cpu(self, period, **kwargs):
+    def _process_sched_switch_per_cpu(self, period_data, **kwargs):
         timestamp = kwargs['timestamp']
         cpu_id = kwargs['cpu_id']
         wakee_proc = kwargs['wakee_proc']
@@ -86,10 +86,10 @@ class Cputop(Analysis):
         if not self._filter_cpu(cpu_id):
             return
 
-        if cpu_id not in period.cpus:
-            period.cpus[cpu_id] = CpuUsageStats(cpu_id)
+        if cpu_id not in period_data.cpus:
+            period_data.cpus[cpu_id] = CpuUsageStats(cpu_id)
 
-        cpu = period.cpus[cpu_id]
+        cpu = period_data.cpus[cpu_id]
         if cpu.current_task_start_ts is not None:
             cpu.total_usage_time += timestamp - cpu.current_task_start_ts
 
@@ -98,7 +98,7 @@ class Cputop(Analysis):
         else:
             cpu.current_task_start_ts = timestamp
 
-    def _process_sched_switch_per_tid(self, period, **kwargs):
+    def _process_sched_switch_per_tid(self, period_data, **kwargs):
         cpu_id = kwargs['cpu_id']
         wakee_proc = kwargs['wakee_proc']
         timestamp = kwargs['timestamp']
@@ -109,8 +109,8 @@ class Cputop(Analysis):
         if not self._filter_cpu(cpu_id):
             return
 
-        if prev_tid in period.tids:
-            prev_proc = period.tids[prev_tid]
+        if prev_tid in period_data.tids:
+            prev_proc = period_data.tids[prev_tid]
             if prev_proc.last_sched_ts is not None:
                 prev_proc.total_cpu_time += timestamp - prev_proc.last_sched_ts
                 prev_proc.last_sched_ts = None
@@ -120,14 +120,14 @@ class Cputop(Analysis):
         if not self._filter_process(wakee_proc):
             return
 
-        if next_tid not in period.tids:
-            period.tids[next_tid] = ProcessCpuStats(None, next_tid, next_comm)
-            period.tids[next_tid].update_prio(timestamp, wakee_proc.prio)
+        if next_tid not in period_data.tids:
+            period_data.tids[next_tid] = ProcessCpuStats(None, next_tid, next_comm)
+            period_data.tids[next_tid].update_prio(timestamp, wakee_proc.prio)
 
-        next_proc = period.tids[next_tid]
+        next_proc = period_data.tids[next_tid]
         next_proc.last_sched_ts = timestamp
 
-    def _process_sched_migrate_task(self, period, **kwargs):
+    def _process_sched_migrate_task(self, period_data, **kwargs):
         cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
         tid = proc.tid
@@ -137,20 +137,20 @@ class Cputop(Analysis):
         if not self._filter_cpu(cpu_id):
             return
 
-        if tid not in period.tids:
-            period.tids[tid] = ProcessCpuStats.new_from_process(proc)
+        if tid not in period_data.tids:
+            period_data.tids[tid] = ProcessCpuStats.new_from_process(proc)
 
-        period.tids[tid].migrate_count += 1
+        period_data.tids[tid].migrate_count += 1
 
-    def _process_prio_changed(self, period, **kwargs):
+    def _process_prio_changed(self, period_data, **kwargs):
         timestamp = kwargs['timestamp']
         prio = kwargs['prio']
         tid = kwargs['tid']
 
-        if tid not in period.tids:
+        if tid not in period_data.tids:
             return
 
-        period.tids[tid].update_prio(timestamp, prio)
+        period_data.tids[tid].update_prio(timestamp, prio)
 
     def _filter_process(self, proc):
         # Exclude swapper

@@ -58,40 +58,40 @@ class IoAnalysis(Analysis):
         return _PeriodData()
 
     @property
-    def disk_io_requests(self, period):
-        for disk in period.disks.values():
+    def disk_io_requests(self, period_data):
+        for disk in period_data.disks.values():
             for io_rq in disk.rq_list:
                 yield io_rq
 
-    def io_requests(self, period):
-        return self._get_io_requests(period)
+    def io_requests(self, period_data):
+        return self._get_io_requests(period_data)
 
-    def open_io_requests(self, period):
-        return self._get_io_requests(period, sv.IORequest.OP_OPEN)
+    def open_io_requests(self, period_data):
+        return self._get_io_requests(period_data, sv.IORequest.OP_OPEN)
 
-    def read_io_requests(self, period):
-        return self._get_io_requests(period, sv.IORequest.OP_READ)
+    def read_io_requests(self, period_data):
+        return self._get_io_requests(period_data, sv.IORequest.OP_READ)
 
-    def write_io_requests(self, period):
-        return self._get_io_requests(period, sv.IORequest.OP_WRITE)
+    def write_io_requests(self, period_data):
+        return self._get_io_requests(period_data, sv.IORequest.OP_WRITE)
 
-    def close_io_requests(self, period):
-        return self._get_io_requests(period, sv.IORequest.OP_CLOSE)
+    def close_io_requests(self, period_data):
+        return self._get_io_requests(period_data, sv.IORequest.OP_CLOSE)
 
-    def sync_io_requests(self, period):
-        return self._get_io_requests(period, sv.IORequest.OP_SYNC)
+    def sync_io_requests(self, period_data):
+        return self._get_io_requests(period_data, sv.IORequest.OP_SYNC)
 
-    def read_write_io_requests(self, period):
-        return self._get_io_requests(period, sv.IORequest.OP_READ_WRITE)
+    def read_write_io_requests(self, period_data):
+        return self._get_io_requests(period_data, sv.IORequest.OP_READ_WRITE)
 
-    def _get_io_requests(self, period, io_operation=None):
+    def _get_io_requests(self, period_data, io_operation=None):
         """Create a generator of syscall io requests by operation.
 
         Args:
             io_operation (IORequest.OP_*, optional): The operation of
             the io_requests to return. Return all IO requests if None.
         """
-        for proc in period.tids.values():
+        for proc in period_data.tids.values():
             for io_rq in proc.rq_list:
                 if isinstance(io_rq, sv.BlockIORequest):
                     continue
@@ -101,10 +101,10 @@ class IoAnalysis(Analysis):
                                                         io_rq.operation):
                     yield io_rq
 
-    def get_files_stats(self, period):
+    def get_files_stats(self, period_data):
         files_stats = {}
 
-        for proc_stats in period.tids.values():
+        for proc_stats in period_data.tids.values():
             for fd_list in proc_stats.fds.values():
                 for fd_stats in fd_list:
                     filename = fd_stats.filename
@@ -135,56 +135,57 @@ class IoAnalysis(Analysis):
             for fd in toremove:
                 del proc.fds[fd]
 
-    def _process_net_dev_xmit(self, period, **kwargs):
+    def _process_net_dev_xmit(self, period_data, **kwargs):
         name = kwargs['iface_name']
         sent_bytes = kwargs['sent_bytes']
 
-        if name not in period.ifaces:
-            period.ifaces[name] = IfaceStats(name)
+        if name not in period_data.ifaces:
+            period_data.ifaces[name] = IfaceStats(name)
 
-        period.ifaces[name].sent_packets += 1
-        period.ifaces[name].sent_bytes += sent_bytes
+        period_data.ifaces[name].sent_packets += 1
+        period_data.ifaces[name].sent_bytes += sent_bytes
 
-    def _process_netif_receive_skb(self, period, **kwargs):
+    def _process_netif_receive_skb(self, period_data, **kwargs):
         name = kwargs['iface_name']
         recv_bytes = kwargs['recv_bytes']
 
-        if name not in period.ifaces:
-            period.ifaces[name] = IfaceStats(name)
+        if name not in period_data.ifaces:
+            period_data.ifaces[name] = IfaceStats(name)
 
-        period.ifaces[name].recv_packets += 1
-        period.ifaces[name].recv_bytes += recv_bytes
+        period_data.ifaces[name].recv_packets += 1
+        period_data.ifaces[name].recv_bytes += recv_bytes
 
-    def _process_block_rq_complete(self, period, **kwargs):
+    def _process_block_rq_complete(self, period_data, **kwargs):
         req = kwargs['req']
         proc = kwargs['proc']
         disk = kwargs['disk']
 
-        if disk.dev not in period.disks:
-            period.disks[disk.dev] = DiskStats.new_from_disk(disk)
+        if disk.dev not in period_data.disks:
+            period_data.disks[disk.dev] = DiskStats.new_from_disk(disk)
 
-        period.disks[disk.dev].update_stats(req)
+        period_data.disks[disk.dev].update_stats(req)
 
         if proc is not None:
-            if proc.tid not in period.tids:
-                period.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
+            if proc.tid not in period_data.tids:
+                period_data.tids[proc.tid] = ProcessIOStats.new_from_process(
+                    proc)
 
-            period.tids[proc.tid].update_block_stats(req)
+            period_data.tids[proc.tid].update_block_stats(req)
 
-    def _process_io_rq_exit(self, period, **kwargs):
+    def _process_io_rq_exit(self, period_data, **kwargs):
         proc = kwargs['proc']
         parent_proc = kwargs['parent_proc']
         io_rq = kwargs['io_rq']
 
-        if proc.tid not in period.tids:
-            period.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
+        if proc.tid not in period_data.tids:
+            period_data.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
 
-        if parent_proc.tid not in period.tids:
-            period.tids[parent_proc.tid] = (
+        if parent_proc.tid not in period_data.tids:
+            period_data.tids[parent_proc.tid] = (
                 ProcessIOStats.new_from_process(parent_proc))
 
-        proc_stats = period.tids[proc.tid]
-        parent_stats = period.tids[parent_proc.tid]
+        proc_stats = period_data.tids[proc.tid]
+        parent_stats = period_data.tids[parent_proc.tid]
 
         fd_types = {}
         if io_rq.errno is None:
@@ -211,65 +212,65 @@ class IoAnalysis(Analysis):
         if parent_stats.comm != parent_proc.comm:
             parent_stats.comm = parent_proc.comm
 
-    def _process_create_parent_proc(self, period, **kwargs):
+    def _process_create_parent_proc(self, period_data, **kwargs):
         proc = kwargs['proc']
         parent_proc = kwargs['parent_proc']
 
-        if proc.tid not in period.tids:
-            period.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
+        if proc.tid not in period_data.tids:
+            period_data.tids[proc.tid] = ProcessIOStats.new_from_process(proc)
 
-        if parent_proc.tid not in period.tids:
-            period.tids[parent_proc.tid] = (
+        if parent_proc.tid not in period_data.tids:
+            period_data.tids[parent_proc.tid] = (
                 ProcessIOStats.new_from_process(parent_proc))
 
-        proc_stats = period.tids[proc.tid]
-        parent_stats = period.tids[parent_proc.tid]
+        proc_stats = period_data.tids[proc.tid]
+        parent_stats = period_data.tids[parent_proc.tid]
 
         proc_stats.pid = parent_stats.tid
         IoAnalysis._assign_fds_to_parent(proc_stats, parent_stats)
 
-    def _process_statedump_block(self, period, **kwargs):
+    def _process_statedump_block(self, period_data, **kwargs):
         dev = kwargs['dev']
         diskname = kwargs['diskname']
-        if dev not in period.disks:
-            period.disks[dev] = DiskStats(dev, diskname)
+        if dev not in period_data.disks:
+            period_data.disks[dev] = DiskStats(dev, diskname)
         else:
-            period.disks[dev].diskname = diskname
+            period_data.disks[dev].diskname = diskname
 
-    def _process_create_fd(self, period, **kwargs):
+    def _process_create_fd(self, period_data, **kwargs):
         timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
         fd = kwargs['fd']
 
-        if tid not in period.tids:
-            period.tids[tid] = ProcessIOStats.new_from_process(parent_proc)
+        if tid not in period_data.tids:
+            period_data.tids[tid] = ProcessIOStats.new_from_process(parent_proc)
 
-        parent_stats = period.tids[tid]
+        parent_stats = period_data.tids[tid]
         if fd not in parent_stats.fds:
             parent_stats.fds[fd] = []
         parent_stats.fds[fd].append(FDStats.new_from_fd(parent_proc.fds[fd],
                                                         timestamp))
 
-    def _process_close_fd(self, period, **kwargs):
+    def _process_close_fd(self, period_data, **kwargs):
         timestamp = kwargs['timestamp']
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
         fd = kwargs['fd']
 
-        parent_stats = period.tids[tid]
+        parent_stats = period_data.tids[tid]
         last_fd = parent_stats.get_fd(fd)
         if last_fd is None:
             return
         last_fd.close_ts = timestamp
 
-    def _process_update_fd(self, period, **kwargs):
+    def _process_update_fd(self, period_data, **kwargs):
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
         fd = kwargs['fd']
 
         new_filename = parent_proc.fds[fd].filename
-        fd_list = period.tids[tid].fds[fd]
+        fd_list = period_data.tids[tid].fds[fd]
         fd_list[-1].filename = new_filename
 
 

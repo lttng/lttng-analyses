@@ -43,20 +43,20 @@ class SchedAnalysis(Analysis):
         }
         super().__init__(state, conf, notification_cbs)
 
-    def count(self, period):
-        return len(period.sched_list)
+    def count(self, period_data):
+        return len(period_data.sched_list)
 
     def _create_period_data(self):
         return _PeriodData()
 
-    def _process_sched_switch(self, period, **kwargs):
+    def _process_sched_switch(self, period_data, **kwargs):
         cpu_id = kwargs['cpu_id']
         switch_ts = kwargs['timestamp']
         wakee_proc = kwargs['wakee_proc']
         waker_proc = kwargs['waker_proc']
         next_tid = kwargs['next_tid']
         wakeup_ts = wakee_proc.last_wakeup
-#        print(period)
+#        print(period_data)
 
         if not self._filter_process(wakee_proc):
             return
@@ -74,42 +74,43 @@ class SchedAnalysis(Analysis):
            latency > self._conf.max_duration:
             return
 
-        if waker_proc is not None and waker_proc.tid not in period.tids:
-            period.tids[waker_proc.tid] = \
+        if waker_proc is not None and waker_proc.tid not in period_data.tids:
+            period_data.tids[waker_proc.tid] = \
                 ProcessSchedStats.new_from_process(waker_proc)
-            period.tids[waker_proc.tid].update_prio(switch_ts, waker_proc.prio)
+            period_data.tids[waker_proc.tid].update_prio(switch_ts,
+                waker_proc.prio)
 
-        if next_tid not in period.tids:
-            period.tids[next_tid] = \
+        if next_tid not in period_data.tids:
+            period_data.tids[next_tid] = \
                 ProcessSchedStats.new_from_process(wakee_proc)
-            period.tids[next_tid].update_prio(switch_ts, wakee_proc.prio)
+            period_data.tids[next_tid].update_prio(switch_ts, wakee_proc.prio)
 
         sched_event = SchedEvent(
             wakeup_ts, switch_ts, wakee_proc, waker_proc, cpu_id)
-        period.tids[next_tid].update_stats(sched_event)
-        self._update_stats(period, sched_event)
+        period_data.tids[next_tid].update_stats(sched_event)
+        self._update_stats(period_data, sched_event)
 
-    def _process_prio_changed(self, period, **kwargs):
+    def _process_prio_changed(self, period_data, **kwargs):
         timestamp = kwargs['timestamp']
         prio = kwargs['prio']
         tid = kwargs['tid']
 
-        if tid not in period.tids:
+        if tid not in period_data.tids:
             return
 
-        period.tids[tid].update_prio(timestamp, prio)
+        period_data.tids[tid].update_prio(timestamp, prio)
 
-    def _update_stats(self, period, sched_event):
-        if period.min_latency is None or \
-                sched_event.latency < period.min_latency:
-            period.min_latency = sched_event.latency
+    def _update_stats(self, period_data, sched_event):
+        if period_data.min_latency is None or \
+                sched_event.latency < period_data.min_latency:
+            period_data.min_latency = sched_event.latency
 
-        if period.max_latency is None or \
-                sched_event.latency > period.max_latency:
-            period.max_latency = sched_event.latency
+        if period_data.max_latency is None or \
+                sched_event.latency > period_data.max_latency:
+            period_data.max_latency = sched_event.latency
 
-        period.total_latency += sched_event.latency
-        period.sched_list.append(sched_event)
+        period_data.total_latency += sched_event.latency
+        period_data.sched_list.append(sched_event)
 
 
 class ProcessSchedStats(stats.Process):

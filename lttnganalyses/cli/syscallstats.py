@@ -70,10 +70,12 @@ class SyscallsAnalysis(Command):
         ),
     ]
 
-    def _analysis_tick(self, period, begin_ns, end_ns):
-        if period is None:
+    def _analysis_tick(self, period_data, end_ns):
+        if period_data is None:
             return
-        total_table, per_tid_tables = self._get_result_tables(period,
+
+        begin_ns = period_data.period.begin_evt.timestamp
+        total_table, per_tid_tables = self._get_result_tables(period_data,
                                                               begin_ns, end_ns)
 
         if self._mi_mode:
@@ -113,11 +115,11 @@ class SyscallsAnalysis(Command):
         self._mi_clear_result_tables()
         self._mi_append_result_table(summary_table)
 
-    def _get_result_tables(self, period, begin_ns, end_ns):
+    def _get_result_tables(self, period_data, begin_ns, end_ns):
         per_tid_tables = []
         total_table = self._mi_create_result_table(self._MI_TABLE_CLASS_TOTAL,
                                                    begin_ns, end_ns)
-        for proc_stats in sorted(period.tids.values(),
+        for proc_stats in sorted(period_data.tids.values(),
                                  key=operator.attrgetter('total_syscalls'),
                                  reverse=True):
             if proc_stats.total_syscalls == 0:

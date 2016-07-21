@@ -487,6 +487,8 @@ class Period:
     def __init__(self, definition, parent, begin_evt):
         begin_evt_copy = core_event.Event(begin_evt)
         self._begin_evt = begin_evt_copy
+        self._end_evt = None
+        self._completed = False
         self._definition = definition
         self._parent = parent
         self._children = set()
@@ -494,6 +496,14 @@ class Period:
     @property
     def begin_evt(self):
         return self._begin_evt
+
+    @property
+    def end_evt(self):
+        return self._end_evt
+
+    @end_evt.setter
+    def end_evt(self, evt):
+        self._end_evt = evt
 
     @property
     def definition(self):
@@ -507,6 +517,14 @@ class Period:
     def children(self):
         return self._children
 
+    @property
+    def completed(self):
+        return self._completed
+
+    @completed.setter
+    def completed(self, value):
+        self._completed = value
+
 
 class PeriodEngine:
     def __init__(self,  registry, cbs):
@@ -514,11 +532,11 @@ class PeriodEngine:
         self._cbs = cbs
         self._root_periods = set()
 
-    def _cb_period_end(self, period, completed, evt):
-        self._cbs[PeriodEngineCallbackType.PERIOD_END](period, completed, evt)
+    def _cb_period_end(self, period):
+        self._cbs[PeriodEngineCallbackType.PERIOD_END](period)
 
-    def _cb_period_begin(self, period, evt):
-        self._cbs[PeriodEngineCallbackType.PERIOD_BEGIN](period, evt)
+    def _cb_period_begin(self, period):
+        self._cbs[PeriodEngineCallbackType.PERIOD_BEGIN](period)
 
     def _create_period(self, definition, parent, begin_evt):
         return Period(definition, parent, begin_evt)
@@ -538,7 +556,7 @@ class PeriodEngine:
 
         # safe to add child periods now, outside the iteration
         for period_to_add in periods_to_add:
-            self._cb_period_begin(period_to_add, evt)
+            self._cb_period_begin(period_to_add)
             child_periods.add(period_to_add)
 
         for child_period in child_periods:
@@ -573,11 +591,15 @@ class PeriodEngine:
 
         # safe to remove child periods now, outside the iteration
         for child_period_to_remove in child_periods_to_remove:
+            # set period's ending event and completed property
+            child_period_to_remove.end_evt = evt
+            child_period_to_remove.completed = True
+
             # also remove its own remaining child periods
             self._remove_periods(child_period_to_remove.children, evt)
 
             # call end of period user callback (this period matched)
-            self._cb_period_end(child_period_to_remove, True, evt)
+            self._cb_period_end(child_period_to_remove)
 
             # remove period from set
             child_periods.remove(child_period_to_remove)
@@ -595,7 +617,12 @@ class PeriodEngine:
 
         # safe to remove child periods now, outside the iteration
         for child_period in child_periods:
-            self._cb_period_end(child_period, False, evt)
+            # set period's ending event and completed property
+            child_period.end_evt = evt
+            child_period.completed = False
+
+            # call end of period user callback
+            self._cb_period_end(child_period)
 
         child_periods.clear()
 
