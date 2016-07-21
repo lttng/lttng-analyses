@@ -447,17 +447,41 @@ class Command:
         if (args.period_begin is not None or args.period_end is not None or
            args.period_key_value is not None or
            args.period_begin_key is not None or
-           args.period_end_key is not None) and args.period:
+           args.period_end_key is not None) and (args.period or
+                                                 args.period_captures):
             self._cmdline_error('Do not use another period option when using '
-                                'one or more --period options')
+                                'one or more --period or --period-captures options')
 
         registry = self._analysis_conf.period_def_registry
+        name_to_begin_captures_exprs = {}
+        name_to_end_captures_exprs = {}
 
         # parse period definition expressions
         if args.period:
+            # period captures first
+            if args.period_captures:
+                for arg in args.period_captures:
+                    try:
+                        res = period_parsing.parse_period_captures_arg(arg)
+                    except period_parsing.MalformedExpression as e:
+                        self._cmdline_error('Malformed period captures '
+                                            'expression: {}'.format(e))
+                    except Exception as e:
+                        self._cmdline_error('Cannot parse period captures '
+                                            'expression: {}'.format(e))
+
+                    if res.name in name_to_begin_captures_exprs:
+                        fmt = 'Duplicate period name "{}" in --period-captures argument'
+                        self._cmdline_error(fmt.format(res.name))
+
+                    name_to_begin_captures_exprs[res.name] = \
+                        res.begin_captures_exprs
+                    name_to_end_captures_exprs[res.name] = \
+                        res.end_captures_exprs
+
             for period_arg in args.period:
                 try:
-                    res = period_parsing.parse_period_arg(period_arg)
+                    res = period_parsing.parse_period_def_arg(period_arg)
                 except period_parsing.MalformedExpression as e:
                     self._cmdline_error('Malformed period definition '
                                         'expression: {}'.format(e))
@@ -465,9 +489,20 @@ class Command:
                     self._cmdline_error('Cannot parse period definition '
                                         'expression: {}'.format(e))
 
+                begin_captures_exprs = {}
+                end_captures_exprs = {}
+
+                if res.period_name is not None:
+                    begin_captures_exprs = name_to_begin_captures_exprs.get(
+                        res.period_name, {})
+                    end_captures_exprs = name_to_end_captures_exprs.get(
+                        res.period_name, {})
+
                 try:
                     registry.add_period_def(res.parent_name, res.period_name,
-                                            res.begin_expr, res.end_expr)
+                                            res.begin_expr, res.end_expr,
+                                            begin_captures_exprs,
+                                            end_captures_exprs)
                 except core_period.IllegalExpression as e:
                     self._cmdline_error('Illegal period definition '
                                         'expression: {}'.format(e))
@@ -560,7 +595,13 @@ Please consider using the --period option.''')
 
             begin_expr = core_period.create_conjunction_from_exprs(begin_exprs)
             end_expr = core_period.create_conjunction_from_exprs(end_exprs)
-            registry.add_period_def(None, None, begin_expr, end_expr)
+            registry.add_period_def(None, None, begin_expr, end_expr, {}, {})
+
+        # check that --period-captures name existing periods
+        for name in name_to_begin_captures_exprs:
+            if not registry.has_period_def(name):
+                fmt = 'Cannot find period named "{}" for --period-captures argument'
+                self._cmdline_error(fmt.format(name))
 
     def _validate_transform_common_args(self):
         args = self._args
@@ -653,6 +694,8 @@ Please consider using the --period option.''')
         ap.add_argument('--end', type=str, help='end time: '
                                                 'hh:mm:ss[.nnnnnnnnn]')
         ap.add_argument('--period', action='append', help='Period definition')
+        ap.add_argument('--period-captures', action='append',
+                        help='Period captures definition')
         ap.add_argument('--period-begin', type=str,
                         help='Analysis period start marker event name')
         ap.add_argument('--period-end', type=str,

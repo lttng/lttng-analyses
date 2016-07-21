@@ -39,7 +39,8 @@ class PeriodDefinitionRegistry:
     def has_period_def(self, name):
         return name in self._named_period_defs
 
-    def add_period_def(self, parent_name, period_name, begin_expr, end_expr):
+    def add_period_def(self, parent_name, period_name, begin_expr, end_expr,
+                       begin_captures_exprs, end_captures_exprs):
         # validate unique period name (if named)
         if self.has_period_def(period_name):
             raise InvalidPeriodDefinition('Cannot redefine period "{}"'.format(
@@ -59,7 +60,8 @@ class PeriodDefinitionRegistry:
             parent = self.get_period_def(parent_name)
 
         period_def = PeriodDefinition(parent, period_name, begin_expr,
-                                      end_expr)
+                                      end_expr, begin_captures_exprs,
+                                      end_captures_exprs)
 
         if parent is not None:
             parent.children.add(period_def)
@@ -89,12 +91,15 @@ class PeriodDefinitionRegistry:
 
 # definition of a period
 class PeriodDefinition:
-    def __init__(self, parent, name, begin_expr, end_expr):
+    def __init__(self, parent, name, begin_expr, end_expr, begin_captures_exprs,
+                 end_captures_exprs):
         self._parent = parent
         self._children = set()
         self._name = name
         self._begin_expr = begin_expr
         self._end_expr = end_expr
+        self._begin_captures_exprs = begin_captures_exprs
+        self._end_captures_exprs = end_captures_exprs
 
     @property
     def name(self):
@@ -111,6 +116,14 @@ class PeriodDefinition:
     @property
     def end_expr(self):
         return self._end_expr
+
+    @property
+    def begin_captures_exprs(self):
+        return self._begin_captures_exprs
+
+    @property
+    def end_captures_exprs(self):
+        return self._end_captures_exprs
 
     @property
     def children(self):
@@ -347,6 +360,70 @@ _DYN_SCOPE_TO_BT_CTF_SCOPE = {
 }
 
 
+def _resolve_event_expr(event, expr):
+    # event not found
+    if event is None:
+        return
+
+    # event name
+    if type(expr.child) is EventName:
+        return event.name
+
+    # default, automatic dynamic scope
+    dyn_scope = DynScope.AUTO
+
+    if type(expr.child) is DynamicScope:
+        # select specific dynamic scope
+        expr = expr.child
+        dyn_scope = expr.dyn_scope
+
+    if type(expr.child) is EventFieldName:
+        expr = expr.child
+
+        if dyn_scope == DynScope.AUTO:
+            # automatic dynamic scope
+            if expr.name in event:
+                return event[expr.name]
+
+            # event field not found
+            return
+
+        # specific dynamic scope
+        bt_ctf_scope = _DYN_SCOPE_TO_BT_CTF_SCOPE[dyn_scope]
+
+        return event.field_with_scope(expr.name, bt_ctf_scope)
+
+    assert(False)
+
+# This exquisite function takes an expression and resolves it to
+# an actual value (Python's number/string) considering the current
+# matching context.
+def _resolve_expr(expr, match_context):
+    if type(expr) is ParentScope:
+        begin_scope = expr.child
+        event_scope = begin_scope.child
+
+        return _resolve_event_expr(match_context.parent_begin_evt, event_scope)
+
+    if type(expr) is BeginScope:
+        # event in the begin context
+        event_scope = expr.child
+
+        return _resolve_event_expr(match_context.begin_evt, event_scope)
+
+    if type(expr) is EventScope:
+        # current event
+        return _resolve_event_expr(match_context.evt, expr)
+
+    if type(expr) is Number:
+        return expr.value
+
+    if type(expr) is String:
+        return expr.value
+
+    assert(False)
+
+
 class _Matcher:
     def __init__(self, expr, match_context):
         self._match_context = match_context
@@ -368,75 +445,9 @@ class _Matcher:
     def _not_expr_matches(self, expr):
         return not self._expr_matches(expr.expr)
 
-    def _resolve_event_expr(self, event, expr):
-        # event not found
-        if event is None:
-            return
-
-        # event name
-        if type(expr.child) is EventName:
-            return event.name
-
-        # default, automatic dynamic scope
-        dyn_scope = DynScope.AUTO
-
-        if type(expr.child) is DynamicScope:
-            # select specific dynamic scope
-            expr = expr.child
-            dyn_scope = expr.dyn_scope
-
-        if type(expr.child) is EventFieldName:
-            expr = expr.child
-
-            if dyn_scope == DynScope.AUTO:
-                # automatic dynamic scope
-                if expr.name in event:
-                    return event[expr.name]
-
-                # event field not found
-                return
-
-            # specific dynamic scope
-            bt_ctf_scope = _DYN_SCOPE_TO_BT_CTF_SCOPE[dyn_scope]
-
-            return event.field_with_scope(expr.name, bt_ctf_scope)
-
-        assert(False)
-
-    # This exquisite method takes an expression and resolves it to
-    # an actual value (Python's number/string) considering the current
-    # matching context.
-    def _resolve_expr(self, expr):
-        if type(expr) is ParentScope:
-            begin_scope = expr.child
-            event_scope = begin_scope.child
-
-            return self._resolve_event_expr(
-                    self._match_context.parent_begin_evt,
-                    event_scope)
-
-        if type(expr) is BeginScope:
-            # event in the begin context
-            event_scope = expr.child
-
-            return self._resolve_event_expr(self._match_context.begin_evt,
-                                            event_scope)
-
-        if type(expr) is EventScope:
-            # current event
-            return self._resolve_event_expr(self._match_context.evt, expr)
-
-        if type(expr) is Number:
-            return expr.value
-
-        if type(expr) is String:
-            return expr.value
-
-        assert(False)
-
     def _comp_expr_matches(self, compfn, expr):
-        lh_value = self._resolve_expr(expr.lh_expr)
-        rh_value = self._resolve_expr(expr.rh_expr)
+        lh_value = _resolve_expr(expr.lh_expr, self._match_context)
+        rh_value = _resolve_expr(expr.rh_expr, self._match_context)
 
         # make sure both sides are found
         if lh_value is None or rh_value is None:
@@ -484,7 +495,7 @@ class PeriodEngineCallbackType(enum.Enum):
 
 
 class Period:
-    def __init__(self, definition, parent, begin_evt):
+    def __init__(self, definition, parent, begin_evt, begin_captures):
         begin_evt_copy = core_event.Event(begin_evt)
         self._begin_evt = begin_evt_copy
         self._end_evt = None
@@ -492,6 +503,8 @@ class Period:
         self._definition = definition
         self._parent = parent
         self._children = set()
+        self._begin_captures = begin_captures
+        self._end_captures = {}
 
     @property
     def begin_evt(self):
@@ -525,6 +538,14 @@ class Period:
     def completed(self, value):
         self._completed = value
 
+    @property
+    def begin_captures(self):
+        return self._begin_captures
+
+    @property
+    def end_captures(self):
+        return self._end_captures
+
 
 class PeriodEngine:
     def __init__(self,  registry, cbs):
@@ -538,8 +559,16 @@ class PeriodEngine:
     def _cb_period_begin(self, period):
         self._cbs[PeriodEngineCallbackType.PERIOD_BEGIN](period)
 
-    def _create_period(self, definition, parent, begin_evt):
-        return Period(definition, parent, begin_evt)
+    def _create_period(self, definition, parent, begin_evt, begin_captures):
+        return Period(definition, parent, begin_evt, begin_captures)
+
+    def _get_captures(self, captures_exprs, match_context):
+        captures = {}
+
+        for name, capture_expr in captures_exprs.items():
+            captures[name] = _resolve_expr(capture_expr, match_context)
+
+        return captures
 
     def _process_event_add_periods(self, parent_period,
                                    child_periods, child_period_defs, evt):
@@ -550,8 +579,11 @@ class PeriodEngine:
 
             if _expr_matches(child_period_def.begin_expr, match_context):
                 # match! add period
+                captures = self._get_captures(
+                    child_period_def.begin_captures_exprs,
+                    match_context)
                 period = self._create_period(child_period_def,
-                                             parent_period, evt)
+                                             parent_period, evt, captures)
                 periods_to_add.add(period)
 
         # safe to add child periods now, outside the iteration
@@ -587,6 +619,12 @@ class PeriodEngine:
             match_context = self._create_end_match_context(child_period, evt)
 
             if _expr_matches(child_period.definition.end_expr, match_context):
+                # set period's end captures
+                end_captures_exprs = child_period.definition.end_captures_exprs
+                captures = self._get_captures(end_captures_exprs, match_context)
+                child_period._end_captures = captures
+
+                # mark as to be removed
                 child_periods_to_remove.add(child_period)
 
         # safe to remove child periods now, outside the iteration

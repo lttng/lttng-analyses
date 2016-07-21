@@ -140,6 +140,9 @@ class Analysis:
     # that triggered the beginning of this period (the original event,
     # while `period.begin_evt` is a copy of this event).
     def _on_period_begin(self, period):
+        print('BEGIN CAPTURES')
+        print(period.begin_captures)
+
         # create the specific analysis's period data object
         period_data = self._create_period_data()
 
@@ -161,6 +164,9 @@ class Analysis:
     # Otherwise, the period finishes because one of its ancestors finishes,
     # or because the period engine user asked for it.
     def _on_period_end(self, period):
+        print('END CAPTURES')
+        print(period.end_captures)
+
         # get the period data object associated with this period object
         period_data = self._get_period_data(period)
 
