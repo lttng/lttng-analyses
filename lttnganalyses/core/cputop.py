@@ -45,7 +45,8 @@ class Cputop(Analysis):
     def _create_period_data(self):
         return _PeriodData()
 
-    def _end_period_cb(self, period_data, begin_captures, end_captures):
+    def _end_period_cb(self, period_data, completed, begin_captures,
+                       end_captures):
         self._compute_stats(period_data)
 
     def _compute_stats(self, period_data):
