@@ -21,6 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import locale
 import os
 import subprocess
 import unittest
@@ -64,18 +65,23 @@ class AnalysisTest(unittest.TestCase):
         cmd_fmt = './{} {} {} {}'
         cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS,
                              options, self.trace_writer.trace_root)
+        init_locale = locale.getlocale()
 
-        # Create an utf-8 test env
-        test_env = os.environ.copy()
-        test_env['LC_ALL'] = 'C.UTF-8'
+        try:
+            locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+        except locale.Error:
+            # Fallback to en_US.UTF_8
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT, env=test_env)
+                                   stderr=subprocess.STDOUT)
         output, unused_err = process.communicate()
         output = output.decode('utf-8')
 
         if output[-1:] == '\n':
             output = output[:-1]
+
+        locale.setlocale(locale.LC_ALL, init_locale)
 
         return output
 
