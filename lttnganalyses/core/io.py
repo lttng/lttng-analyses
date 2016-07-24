@@ -308,7 +308,13 @@ class IoAnalysis(Analysis):
     def _process_update_fd(self, **kwargs):
         parent_proc = kwargs['parent_proc']
         tid = parent_proc.tid
+        cpu = kwargs['cpu_id']
         fd = kwargs['fd']
+
+        if not self._filter_process(parent_proc):
+            return
+        if not self._filter_cpu(cpu):
+            return
 
         new_filename = parent_proc.fds[fd].filename
         fd_list = self.tids[tid].fds[fd]
