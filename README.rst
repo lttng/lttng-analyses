@@ -259,7 +259,7 @@ To record an LTTng kernel trace suitable for the LTTng analyses:
       sudo lttng enable-event --kernel --channel=chan sched_switch
       sudo lttng enable-event --kernel --channel=chan softirq_entry
       sudo lttng enable-event --kernel --channel=chan softirq_exit
-      sudo lttng enable-event --kernel --channel=chan softirq_raise -c bla
+      sudo lttng enable-event --kernel --channel=chan softirq_raise
       sudo lttng enable-event --kernel --channel=chan writeback_pages_written
       sudo lttng enable-event --kernel --channel=chan --syscall --all
 #. Start recording:
