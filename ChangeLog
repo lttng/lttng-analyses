@@ -1,8 +1,8 @@
-2016-06-23 LTTng analyses 0.4.4
-	* Backport support for progress bar in MI from master
-	* Fix schedfreq in MI
-	* Travis CI integration
-	* Backport other minor fixes
+2016-07-25 LTTng analyses 0.5.4
+	* fix: namespace softirq events
+	* Fix: schedfreq: append freq result tables in MI mode
+	* Fix argument order passed to parse_trace_collection_time_range.
+	* Fix: tests trace utils with UTC+1400 TZ
 
 2016-06-10 LTTng analyses 0.5.3
 	* Add travis CI support
