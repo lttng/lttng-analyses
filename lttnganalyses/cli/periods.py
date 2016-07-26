@@ -50,7 +50,7 @@ class PeriodAnalysisCommand(Command):
     _MI_TABLE_CLASS_LOG = 'log'
     _MI_TABLE_CLASS_TOP = 'top'
     _MI_TABLE_CLASS_TOTAL_STATS = 'total_stats'
-    _MI_TABLE_CLASS_PER_PERIOD_STATS = 'per_perio_stats'
+    _MI_TABLE_CLASS_PER_PERIOD_STATS = 'per_period_stats'
     _MI_TABLE_CLASS_FREQ = 'freq'
     _MI_TABLE_CLASSES = [
         (
@@ -569,6 +569,8 @@ class PeriodAnalysisCommand(Command):
             end_ts = row.end_ts.value
             duration = row.duration.value
             name = row.name.value
+            if name is None:
+                name = ''
             begin_captures = row.begin_captures.value
             end_captures = row.end_captures.value
 
