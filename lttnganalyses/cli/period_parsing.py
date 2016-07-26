@@ -98,9 +98,10 @@ _not_op = pp.Literal('!').setResultsName('notop')
 _and_op = pp.Literal('&&').setResultsName('andop')
 _or_op = pp.Literal('||').setResultsName('orop')
 _expr = pp.infixNotation(_comp_expr,
-                         [(_not_op, 1, pp.opAssoc.RIGHT),
-                          (_and_op, 2, pp.opAssoc.LEFT),
-                          (_or_op, 2, pp.opAssoc.LEFT)
+                         [
+                            (_not_op, 1, pp.opAssoc.RIGHT),
+                            (_and_op, 2, pp.opAssoc.LEFT),
+                            (_or_op, 2, pp.opAssoc.LEFT)
                          ]).setResultsName('expr')
 
 # period definition grammar elements
@@ -333,7 +334,6 @@ def parse_period_captures_arg(arg):
     except Exception:
         raise MalformedExpression(arg)
 
-
     if 'begin-exprs' in period_captures_res:
         begin_captures_exprs = _capture_refs_results_to_captures_exprs(
             period_captures_res['begin-exprs'])
@@ -347,4 +347,5 @@ def parse_period_captures_arg(arg):
         end_captures_exprs = {}
 
     return PeriodCapturesDefArgResults(period_captures_res['name'],
-                                       begin_captures_exprs, end_captures_exprs)
+                                       begin_captures_exprs,
+                                       end_captures_exprs)

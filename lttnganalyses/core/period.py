@@ -91,8 +91,8 @@ class PeriodDefinitionRegistry:
 
 # definition of a period
 class PeriodDefinition:
-    def __init__(self, parent, name, begin_expr, end_expr, begin_captures_exprs,
-                 end_captures_exprs):
+    def __init__(self, parent, name, begin_expr, end_expr,
+                 begin_captures_exprs, end_captures_exprs):
         self._parent = parent
         self._children = set()
         self._name = name
@@ -423,6 +423,7 @@ def _resolve_event_expr(event, expr):
 
     assert(False)
 
+
 # This exquisite function takes an expression and resolves it to
 # an actual value (Python's number/string) considering the current
 # matching context.
@@ -480,7 +481,7 @@ class _Matcher:
         return not self._expr_matches(expr.expr)
 
     def _glob_eq_expr_matches(self, expr):
-        compfn = lambda lh, rh: bool(expr.regex.match(lh))
+        def compfn(lh, rh): return bool(expr.regex.match(lh))
 
         return self._comp_expr_matches(compfn, expr)
 
@@ -626,7 +627,8 @@ class PeriodEngine:
         periods_to_add = set()
 
         for child_period_def in child_period_defs:
-            match_context = self._create_begin_match_context(parent_period, evt)
+            match_context = self._create_begin_match_context(parent_period,
+                                                             evt)
 
             if _expr_matches(child_period_def.begin_expr, match_context):
                 # match! add period
@@ -679,8 +681,10 @@ class PeriodEngine:
 
             if _expr_matches(child_period.definition.end_expr, match_context):
                 # set period's end captures
-                end_captures_exprs = child_period.definition.end_captures_exprs
-                captures = self._get_captures(end_captures_exprs, match_context)
+                end_captures_exprs = \
+                    child_period.definition.end_captures_exprs
+                captures = self._get_captures(end_captures_exprs,
+                                              match_context)
                 child_period._end_captures = captures
 
                 # mark as to be removed

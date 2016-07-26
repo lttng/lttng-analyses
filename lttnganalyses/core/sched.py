@@ -78,7 +78,7 @@ class SchedAnalysis(Analysis):
             period_data.tids[waker_proc.tid] = \
                 ProcessSchedStats.new_from_process(waker_proc)
             period_data.tids[waker_proc.tid].update_prio(switch_ts,
-                waker_proc.prio)
+                                                         waker_proc.prio)
 
         if next_tid not in period_data.tids:
             period_data.tids[next_tid] = \

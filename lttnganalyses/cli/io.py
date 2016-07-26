@@ -485,7 +485,8 @@ class IoAnalysisCommand(Command):
                             key=operator.attrgetter('block_io.read'),
                             reverse=True)
         self._fill_usage_result_table(
-            period_data, input_list, self._append_per_proc_block_read_usage_row,
+            period_data, input_list,
+            self._append_per_proc_block_read_usage_row,
             result_table)
 
     def _fill_per_process_block_write_usage_result_table(self, period_data,
@@ -845,7 +846,8 @@ class IoAnalysisCommand(Command):
     def _get_freq_result_tables(self, period_data, begin, end):
         syscall_tables = self._get_syscall_freq_result_tables(period_data,
                                                               begin, end)
-        disk_tables = self._get_disk_freq_result_tables(period_data, begin, end)
+        disk_tables = self._get_disk_freq_result_tables(period_data,
+                                                        begin, end)
 
         return syscall_tables + disk_tables
 
@@ -1100,8 +1102,8 @@ class IoAnalysisCommand(Command):
     def _get_latency_stats_result_tables(self, period_data, begin, end):
         syscall_tbl = self._get_syscall_latency_stats_result_table(period_data,
                                                                    begin, end)
-        disk_tbl = self._get_disk_latency_stats_result_table(period_data, begin,
-                                                             end)
+        disk_tbl = self._get_disk_latency_stats_result_table(period_data,
+                                                             begin, end)
 
         return syscall_tbl, disk_tbl
 
