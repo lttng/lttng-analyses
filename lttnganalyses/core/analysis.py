@@ -76,6 +76,9 @@ class Analysis:
         # specific analysis implementing _create_period_data().
         self._period_data = {}
 
+        # Mapping between a period name and it's nesting level (0 = root).
+        self._period_nesting = {}
+
         self.started = False
         self.ended = False
 
@@ -86,6 +89,11 @@ class Analysis:
     @property
     def last_event_ts(self):
         return self._last_event_ts
+
+    def period_nesting_level(self, period_name):
+        if self._conf.period_def_registry.is_empty or period_name is None:
+            return 0
+        return self._period_nesting[period_name]
 
     # Returns the period data object associated with a given period.
     def _get_period_data(self, period):
@@ -209,6 +217,19 @@ class Analysis:
         # check the refresh period conditions
         self._check_refresh(ev)
 
+    # Create the mapping between a period name and its nesting level.
+    # Recursively iterate over all children.
+    def _get_period_nesting_level(self, period_def, level):
+        for child in period_def.children:
+            self._get_period_nesting_level(child, level + 1)
+        self._period_nesting[period_def.name] = level
+
+    # Iterate over all root period definitions to create the map between
+    # a period name and it's nesting level.
+    def _create_period_nesting_map(self):
+        for period_def in self._conf.period_def_registry._root_period_defs:
+            self._get_period_nesting_level(period_def, 0)
+
     # Called by the owner of this analysis to indicate that this
     # analysis is starting.
     def begin_analysis(self, evt):
@@ -217,6 +238,7 @@ class Analysis:
         if (self._conf.period_def_registry.is_empty and
                 self._conf.begin_ts is None):
             self._create_defless_period(evt)
+        self._create_period_nesting_map()
 
     def end_analysis(self):
         # let the periods know that it is the last one
