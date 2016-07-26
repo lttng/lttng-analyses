@@ -67,7 +67,7 @@ class AnalysisTest(unittest.TestCase):
 
         # Create an utf-8 test env
         test_env = os.environ.copy()
-        test_env['LC_ALL'] = 'C.UTF-8'
+        test_env['LC_ALL'] = 'en_US.UTF-8'
 
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, env=test_env)
