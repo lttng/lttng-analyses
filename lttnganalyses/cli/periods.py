@@ -25,6 +25,7 @@ import math
 import operator
 import statistics
 import collections
+import ast
 from . import mi, termgraph
 from ..core import periods
 from .command import Command
@@ -557,9 +558,25 @@ class PeriodAnalysisCommand(Command):
             return float('nan')
         return statistics.stdev(period_durations)
 
+    def _pop_next_capture_string(self, begin_captures, end_captures):
+        if len(begin_captures.keys()) > 0:
+            b_key, b_value = begin_captures.popitem()
+            b_string = '%s = %s' % (b_key, b_value)
+        else:
+            b_string = ''
+
+        if len(end_captures.keys()) > 0:
+            e_key, e_value = end_captures.popitem()
+            e_string = '%s = %s' % (e_key, e_value)
+        else:
+            e_string = ''
+
+        return b_string, e_string
+
     def _print_period_events(self, result_table):
-        fmt = '[{:<18}, {:<18}] {:>15} {:<15} {:<45} {:<45}'
-        title_fmt = '{:<20} {:<19} {:>15} {:<15} {:<45} {:<45}'
+        fmt = '[{:<18}, {:<18}] {:>15} {:<15} {:<35} {:<35}'
+        fmt_captures = '{:<18} {:<18} {:>18} {:<15} {:<35} {:<35}'
+        title_fmt = '{:<20} {:<19} {:>15} {:<15} {:<35} {:<35}'
         print()
         print(result_table.title)
         print(title_fmt.format('Begin', 'End', 'Duration (us)', 'Name',
@@ -571,13 +588,30 @@ class PeriodAnalysisCommand(Command):
             name = row.name.value
             if name is None:
                 name = ''
-            begin_captures = row.begin_captures.value
-            end_captures = row.end_captures.value
+
+            # Convert back the string to dict
+            begin_captures = ast.literal_eval(row.begin_captures.value)
+            # Order the dict based on keys to always get the same output
+            begin_captures = collections.OrderedDict(
+                    sorted(begin_captures.items()))
+            end_captures = ast.literal_eval(row.end_captures.value)
+            end_captures = collections.OrderedDict(
+                    sorted(end_captures.items()))
+
+            b_string, e_string = self._pop_next_capture_string(begin_captures,
+                                                               end_captures)
 
             print(fmt.format(self._format_timestamp(begin_ts),
                              self._format_timestamp(end_ts),
                              '%0.03f' % (duration / 1000), name,
-                             begin_captures, end_captures))
+                             b_string, e_string))
+
+            nr_lines = max(len(begin_captures.keys()),
+                           len(end_captures.keys()))
+            for i in range(nr_lines):
+                b_string, e_string = self._pop_next_capture_string(
+                    begin_captures, end_captures)
+                print(fmt_captures.format('', '', '', '', b_string, e_string))
 
     def _print_total_stats(self, stats_table):
         row_format = '{:<12} {:<12} {:<12} {:<12} {:<12}'
