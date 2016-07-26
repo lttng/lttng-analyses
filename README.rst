@@ -10,7 +10,7 @@ LTTng analyses
    :alt: Status of Travis CI
 
 .. image:: https://img.shields.io/jenkins/s/https/ci.lttng.org/lttng-analyses_master_build.svg?label=LTTng%20CI%20build
-   :target: https://ci.lttng.org/job/barectf
+   :target: https://ci.lttng.org/job/lttng-analyses_master_build
    :alt: Status of LTTng CI
 
 The **LTTng analyses** are a set of various executable analyses to
