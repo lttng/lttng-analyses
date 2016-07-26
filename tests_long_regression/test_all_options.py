@@ -106,7 +106,7 @@ class TestAllOptions(unittest.TestCase):
         self._traces["picotrace"] = _RefTrace(
                 self._traces_repo_path, "picotrace",
                 "1970-01-01 00:00:01.004000000",
-                "1970-01-01 i00:00:01.022000000")
+                "1970-01-01 00:00:01.022000000")
         self._traces["16-cores-rt"] = _RefTrace(
                 self._traces_repo_path, "16-cores-rt",
                 "2016-07-20 18:02:05.196332110",
@@ -125,7 +125,6 @@ class TestAllOptions(unittest.TestCase):
             options = options.replace('$END_TS$', trace.end_ts)
             cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS, options,
                                  trace.path)
-            print(cmd)
             process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT, env=test_env)
             output, unused_err = process.communicate()
