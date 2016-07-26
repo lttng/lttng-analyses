@@ -27,9 +27,21 @@ approach is based on the following workflow:
 This solution allows you to target problems that are hard to find and
 to "dig" until the root cause is found.
 
+**Current limitations**:
+
+- The LTTng analyses can be quite slow to execute. There are a number of
+  places where they could be optimized, but using the Python interpreter
+  seems to be an important impediment.
+
+  This project is regarded by its authors as a testing ground to
+  experiment analysis features, user interfaces, and usability in
+  general. It is not considered ready to analyze long traces.
+
+**Contents**:
+
 .. contents::
    :local:
-   :depth: 2
+   :depth: 3
    :backlinks: none
 
 
@@ -55,6 +67,7 @@ Required dependencies
 
 - `Python <https://www.python.org/>`_ ≥ 3.4
 - `setuptools <https://pypi.python.org/pypi/setuptools>`_
+- `pyparsing <http://pyparsing.wikispaces.com/>`_ ≥ 2.0.0
 - `Babeltrace <http://diamon.org/babeltrace/>`_ ≥ 1.2 with Python
   bindings (``--enable-python-bindings`` when building from source)
 
@@ -89,6 +102,17 @@ To install the latest LTTng analyses release on your system from
 
       sudo pip3 install --upgrade lttnganalyses
 
+   Note that you can also install LTTng analyses locally, only for
+   your user:
+
+   .. code-block:: bash
+
+      pip3 install --user --upgrade lttnganalyses
+
+   Files are installed in ``~/.local``, therefore ``~/.local/bin`` must
+   be part of your ``PATH`` environment variable for the LTTng analyses
+   to be launchable.
+
 
 Install from a release tarball
 ------------------------------
@@ -121,10 +145,21 @@ project's Git repository:
 
    .. code-block:: bash
 
-      sudo pip3 install git+git://github.com/lttng/lttng-analyses.git@master
+      sudo pip3 install --upgrade git+git://github.com/lttng/lttng-analyses.git@master
 
    Replace ``master`` with the desired branch or tag name to install
    in the previous URL.
+
+   Note that you can also install LTTng analyses locally, only for
+   your user:
+
+   .. code-block:: bash
+
+      sudo pip3 install --user --upgrade git+git://github.com/lttng/lttng-analyses.git@master
+
+   Files are installed in ``~/.local``, therefore ``~/.local/bin`` must
+   be part of your ``PATH`` environment variable for the LTTng analyses
+   to be launchable.
 
 
 Install on Ubuntu
@@ -149,6 +184,18 @@ To install LTTng analyses on Ubuntu ≥ 12.04:
       sudo apt-get install -y babeltrace
       sudo apt-get install -y python3-babeltrace
       sudo apt-get install -y python3-setuptools
+
+   On Ubuntu > 12.04:
+
+   .. code-block:: bash
+
+      sudo apt-get install -y python3-pyparsing
+
+   On Ubuntu 12.04:
+
+   .. code-block:: bash
+
+      sudo pip3 install --upgrade pyparsing
 #. **Optional**: Install the optional dependencies:
 
    .. code-block:: bash
@@ -176,6 +223,7 @@ To install LTTng analyses on Debian "sid":
       sudo apt-get install -y babeltrace
       sudo apt-get install -y python3-babeltrace
       sudo apt-get install -y python3-setuptools
+      sudo apt-get install -y python3-pyparsing
 #. **Optional**: Install the optional dependencies:
 
    .. code-block:: bash
@@ -210,7 +258,7 @@ analyses.
 
 To use ``lttng-analyses-record``:
 
-#. Launch the script:
+#. Launch the installed script:
 
    .. code-block:: bash
 
@@ -282,8 +330,8 @@ use cases, like sending the trace data over the network instead of
 recording trace files on the target's file system.
 
 
-Analyze
-=======
+Run an LTTng analysis
+=====================
 
 The **LTTng analyses** are a set of various command-line
 analyses. Each analysis accepts the path to a recorded trace
@@ -331,14 +379,16 @@ Each analysis is installed as an executable starting with the
      - Scheduling latency stats.
    * - ``lttng-schedtop``
      - Scheduling top.
+   * - ``lttng-periodlog``
+     - Period log.
+   * - ``lttng-periodstats``
+     - Period duration stats.
+   * - ``lttng-periodtop``
+     - Period duration top.
+   * - ``lttng-periodfreq``
+     - Period duration frequency distribution.
    * - ``lttng-syscallstats``
      - Per-TID and global system call statistics.
-
-Each command also has its corresponding JSON-based machine interface
-version with the ``-mi`` suffix. For LTTng analyses 0.5 and after,
-this machine interface is specified by the
-`LTTng analyses machine interface (LAMI)
-<https://github.com/lttng/lami-spec/blob/master/lami.adoc>`_ document.
 
 Use the ``--help`` option of any command to list the descriptions
 of the possible command-line options.
@@ -346,7 +396,473 @@ of the possible command-line options.
 .. NOTE::
 
    You can set the ``LTTNG_ANALYSES_DEBUG`` environment variable to
-   ``1`` when you launch an analysis to enable a debug output.
+   ``1`` when you launch an analysis to enable a debug output. You can
+   also use the general ``--debug`` option.
+
+
+Filtering options
+-----------------
+
+Depending on the analysis, filter options are available. The complete
+list of filter options is:
+
+.. list-table:: Available filtering command-line options
+   :header-rows: 1
+
+   * - Command-line option
+     - Description
+   * - ``--begin``
+     - Trace time at which to begin the analysis.
+
+       Format: ``HH:MM:SS[.NNNNNNNNN]``.
+   * - ``--cpu``
+     - Comma-delimited list of CPU IDs for which to display the
+       results.
+   * - ``--end``
+     - Trace time at which to end the analysis.
+
+       Format: ``HH:MM:SS[.NNNNNNNNN]``.
+   * - ``--irq``
+     - List of hardware IRQ numbers for which to display the results.
+   * - ``--limit``
+     - Maximum number of output rows per table. This option is useful
+       for "top" analyses, like ``lttng-cputop``.
+   * - ``--min``
+     - Minimum duration (µs) to keep in results.
+   * - ``--minsize``
+     - Minimum I/O operation size (B) to keep in results.
+   * - ``--max``
+     - Maximum duration (µs) to keep in results.
+   * - ``--maxsize``
+     - Maximum I/O operation size (B) to keep in results.
+   * - ``--procname``
+     - Comma-delimited list of process names for which to display
+       the results.
+   * - ``--softirq``
+     - List of software IRQ numbers for which to display the results.
+   * - ``--tid``
+     - Comma-delimited list of thread IDs for which to display the
+       results.
+
+
+Period options
+--------------
+
+LTTng analyses feature a powerful "period engine". A *period* is an
+interval which begins and ends under specific conditions. When the
+analysis results are displayed, they are isolated for the periods
+that were opened and closed during the process.
+
+A period can have a parent. If it's the case, then its parent needs
+to exist for the period to begin at all. This tree structure of
+periods is useful to keep a form of custom user state during the
+generic kernel analysis.
+
+.. ATTENTION::
+
+   The ``--period`` and ``--period-captures`` options's arguments
+   include characters that are considered special by most shells,
+   like ``$``, ``*``, and ``&``.
+
+   Make sure to always **single-quote** those arguments when running
+   the LTTng analyses on the command line.
+
+
+Period definition
+~~~~~~~~~~~~~~~~~
+
+You can define one or more periods on the command line, when launching
+an analysis, with the ``--period`` option. This option's argument
+accepts the following form (content within square brackets is optional)::
+
+    [ NAME [ (PARENT) ] ] : BEGINEXPR [ : ENDEXPR ]
+
+``NAME``
+  Optional name of the period definition. All periods opened from this
+  definition have this name.
+
+  The syntax of this name is the same as a C identifier.
+
+``PARENT``
+  Optional name of a *previously defined* period which acts as the
+  parent period definition of this definition.
+
+  ``NAME`` must be set for ``PARENT`` to be set.
+
+``BEGINEXPR``
+  Matching expression which a given event must match in order for an
+  actual period to be instantiated by this definition.
+
+``ENDEXPR``
+  Matching expression which a given event must match in order for an
+  instance of this definition to be closed.
+
+  If this part is omitted, ``BEGINEXPR`` is used for the ending
+  expression too.
+
+
+Matching expression
+...................
+
+A matching expression is a C-like logical expression. It supports
+nesting expressions with ``(`` and ``)``, as well as the ``&&`` (logical
+*AND*), ``||`` (logical *OR*), and ``!`` (logical *NOT*) operators. The
+precedence of those operators is the same as in the C language.
+
+The atomic operands in those logical expressions are comparisons. For
+the following comparison syntaxes, consider that:
+
+- ``EVT`` indicates an event source. The available event sources are:
+
+  ``$evt``
+    Current event.
+
+  ``$begin.$evt``
+    In ``BEGINEXPR``: current event (same as ``$evt``).
+
+    In ``ENDEXPR``: event which, for this period instance, was matched
+    when ``BEGINEXPR`` was evaluated.
+
+  ``$parent.$begin.$evt``
+    Event which, for the parent period instance of this period instance,
+    was matched when ``BEGINEXPR`` of the parent was evaluated.
+- ``FIELD`` indicates an event field source. The available event field
+  sources are:
+
+  ``NAME`` (direct field name)
+    Automatic scope: try to find the field named ``NAME`` in the dynamic
+    scopes in this order:
+
+    #. Event payload
+    #. Event context
+    #. Event header
+    #. Stream event context
+    #. Packet context
+    #. Packet header
+
+  ``$payload.NAME``
+    Event payload field named ``NAME``.
+
+  ``$ctx.NAME``
+    Event context field named ``NAME``.
+
+  ``$header.NAME``
+    Event header field named ``NAME``.
+
+  ``$stream_ctx.NAME``
+    Stream event context field named ``NAME``.
+
+  ``$pkt_ctx.NAME``
+    Packet context field named ``NAME``.
+
+  ``$pkt_header.NAME``
+    Packet header field named ``NAME``.
+- ``VALUE`` indicates one of:
+
+  - A constant, decimal number. This can be an integer or a real
+    number, positive or negative, and supports the ``e`` scientific
+    notation.
+
+    Examples: ``23``, ``-18.28``, ``7.2e9``.
+  - A double-quoted literal string. ``"`` and ``\`` can be escaped
+    with ``\``.
+
+    Examples: ``"hello, world!"``, ``"here's another \"quoted\" string"``.
+  - An event field, that is, ``EVT.FIELD``, considering the replacements
+    described above.
+
+- ``NUMVALUE`` indicates one of:
+
+  - A constant, decimal number. This can be an integer or a real
+    number, positive or negative, and supports the ``e`` scientific
+    notation.
+
+    Examples: ``23``, ``-18.28``, ``7.2e9``.
+  - An event field, that is, ``EVT.FIELD``, considering the replacements
+    described above.
+
+.. list-table:: Available comparison syntaxes for matching expressions
+   :header-rows: 1
+
+   * - Comparison syntax
+     - Description
+   * - #. ``EVT.$name == "NAME"``
+       #. ``EVT.$name != "NAME"``
+       #. ``EVT.$name =* "PATTERN"``
+     - Name matching:
+
+       #. Name of event source ``EVT`` is equal to ``NAME``.
+       #. Name of event source ``EVT`` is not equal to ``NAME``.
+       #. Name of event source ``EVT`` satisfies the globbing pattern
+          ``PATTERN``
+          (see `fnmatch <https://docs.python.org/3/library/fnmatch.html>`_).
+   * - #. ``EVT.FIELD == VALUE``
+       #. ``EVT.FIELD != VALUE``
+       #. ``EVT.FIELD < NUMVALUE``
+       #. ``EVT.FIELD <= NUMVALUE``
+       #. ``EVT.FIELD > NUMVALUE``
+       #. ``EVT.FIELD >= NUMVALUE``
+       #. ``EVT.FIELD =* "PATTERN"``
+     - Value matching:
+
+       #. The value of the field ``EVT.FIELD`` is equal
+          to the value ``VALUE``.
+       #. The value of the field ``EVT.FIELD`` is not
+          equal to the value ``VALUE``.
+       #. The value of the field ``EVT.FIELD`` is lesser
+          than the value ``NUMVALUE``.
+       #. The value of the field ``EVT.FIELD`` is lesser
+          than or equal to the value ``NUMVALUE``.
+       #. The value of the field ``EVT.FIELD`` is greater
+          than the value ``NUMVALUE``.
+       #. The value of the field ``EVT.FIELD`` is greater
+          than or equal to the value ``NUMVALUE``.
+       #. The value of the field ``EVT.FIELD`` satisfies
+          the globbing pattern ``PATTERN``
+          (see `fnmatch <https://docs.python.org/3/library/fnmatch.html>`_).
+
+In any case, if ``EVT.FIELD`` does not target an existing field, the
+comparison including it fails. Also, string fields cannot be compared to
+number values (constant or fields).
+
+
+Examples
+........
+
+- Create a period instance named ``switch`` when:
+
+  - The current event name is ``sched_switch``.
+
+  End this period instance when:
+
+  - The current event name is ``sched_switch``.
+
+  Period definition::
+
+      switch : $evt.$name == "sched_switch"
+
+- Create a period instance named ``switch`` when:
+
+  - The current event name is ``sched_switch`` *AND*
+  - The current event's ``next_tid`` field is *NOT* equal to 0.
+
+  End this period instance when:
+
+  - The current event name is ``sched_switch`` *AND*
+  - The current event's ``prev_tid`` field is equal to
+    the ``next_tid`` field of the matched event in the begin expression *AND*
+  - The current event's ``cpu_id`` field is equal to
+    the ``cpu_id`` field of the matched event in the begin expression.
+
+  Period definition::
+
+      switch
+      : $evt.$name == "sched_switch" &&
+        $evt.next_tid != 0
+      : $evt.$name == "sched_switch" &&
+        $evt.prev_tid == $begin.$evt.next_tid &&
+        $evt.cpu_id == $begin.$evt.cpu_id
+
+- Create a period instance named ``irq`` when:
+
+  - A parent period instance named ``switch`` is currently opened.
+  - The current event name satisfies the ``irq_*_entry`` globbing
+    pattern *AND*
+  - The current event's ``cpu_id`` field is equal to the ``cpu_id``
+    field of the matched event in the begin expression of the parent
+    period instance.
+
+  End this period instance when:
+
+  - The current event name is ``irq_handler_exit`` *AND*
+  - The current event's ``cpu_id`` field is equal to
+    the ``cpu_id`` field of the matched event in the begin expression.
+
+  Period definition::
+
+      irq(switch)
+      : $evt.$name =* "irq_*_entry" &&
+        $evt.cpu_id == $parent.$begin.$evt.cpu_id
+      : $evt.$name == "irq_handler_exit" &&
+        $evt.cpu_id == $begin.$evt.cpu_id
+
+- Create a period instance named ``hello`` when:
+
+  - The current event name satisfies the ``hello*`` globbing pattern,
+    but excludes ``hello world``.
+
+  End this period instance when:
+
+  - The current event name is the same as the name of the matched event
+    in the begin expression *AND*
+  - The current event's ``theid`` header field is lesser than or equal
+    to 231.
+
+  Period definition::
+
+      hello
+      : $evt.$name =* "hello*" &&
+        $evt.$name != "hello world"
+      : $evt.$name == $begin.$evt.$name &&
+        $evt.$header.theid <= 231
+
+
+Period captures
+~~~~~~~~~~~~~~~
+
+When a period instance begins or ends, the analysis can capture the
+current values of specific event fields and display them in its
+results.
+
+You can set period captures with the ``--period-captures`` command-line
+option. This option's argument accepts the following form
+(content within square brackets is optional)::
+
+    NAME : BEGINCAPTURES [ : ENDCAPTURES ]
+
+``NAME``
+  Name of period instances on which to apply those captures.
+
+  A ``--period`` option in the same command line must define this name.
+
+``BEGINCAPTURES``
+  Comma-delimited list of event fields to capture when the beginning
+  expression of the period definition named ``NAME`` is matched.
+
+``ENDCAPTURES``
+  Comma-delimited list of event fields to capture when the ending
+  expression of the period definition named ``NAME`` is matched.
+
+  If this part is omitted, there are no end captures.
+
+The format of ``BEGINCAPTURES`` and ``ENDCAPTURES`` is a comma-delimited
+list of tokens having this format::
+
+    [ CAPTURENAME = ] EVT.FIELD
+
+or::
+
+    [ CAPTURENAME = ] EVT.$name
+
+``CAPTURENAME``
+  Custom name for this capture. The syntax of this name is the same as
+  a C identifier.
+
+  If this part is omitted, the literal expression used for ``EVT.FIELD``
+  is used.
+
+``EVT`` and ``FIELD``
+  See `Matching expression`_.
+
+
+Examples
+........
+
+Begin captures only::
+
+    switch
+    : $evt.next_tid,
+      name = $evt.$name,
+      msg_id = $parent.$begin.$evt.id
+
+Begin and end captures::
+
+    hello
+    : beginning = $evt.$ctx.begin_ts,
+      $evt.received_bytes
+    : $evt.send_bytes,
+      $evt.$name,
+      begin = $begin.$evt.$ctx.begin_ts
+      end = $evt.$ctx.end_ts
+
+Top scheduling latency (delay between ``sched_waking(tid=$TID)`` and ``sched_switch(next_tid=$TID)``)
+with recording of the procname of the waker (dependant of the ``procname`` context in the trace),
+priority and target CPU:
+
+.. code-block:: bash
+
+   lttng-periodtop /path/to/trace \
+       --period 'wake : $evt.$name == "sched_waking" : $evt.$name == "sched_switch" && $evt.next_tid == $begin.$evt.$payload.tid' \
+       --period-capture 'wake : waker = $evt.procname, prio = $evt.prio : wakee = $evt.next_comm, cpu = $evt.cpu_id'
+
+::
+
+    Timerange: [2016-07-21 17:07:47.832234248, 2016-07-21 17:07:48.948152659]
+    Period top
+    Begin                End                   Duration (us) Name            Begin capture                       End capture
+    [17:07:47.835338581, 17:07:47.946834976]      111496.395 wake            waker = lttng-consumerd             wakee = kworker/0:2
+                                                                             prio = 20                           cpu = 0
+    [17:07:47.850409057, 17:07:47.946829256]       96420.199 wake            waker = swapper/2                   wakee = migration/0
+                                                                             prio = -100                         cpu = 0
+    [17:07:48.300313282, 17:07:48.300993892]         680.610 wake            waker = Xorg                        wakee = ibus-ui-gtk3
+                                                                             prio = 20                           cpu = 3
+    [17:07:48.300330060, 17:07:48.300920648]         590.588 wake            waker = Xorg                        wakee = ibus-x11
+                                                                             prio = 20                           cpu = 3
+
+
+Log of all the IRQ handled while a user-space process was running, capture the procname of the process interrupted, the name and number of the IRQ:
+
+.. code-block:: bash
+
+    lttng-periodlog /path/to/trace \
+        --period 'switch : $evt.$name == "sched_switch" && $evt.next_tid != 0 : $evt.$name == "sched_switch" && $evt.prev_tid == $begin.$evt.next_tid && $evt.cpu_id == $begin.$evt.cpu_id' \
+        --period 'irq(switch) : $evt.$name == "irq_handler_entry" && $evt.cpu_id == $parent.$begin.$evt.cpu_id : $evt.$name == "irq_handler_exit" && $evt.cpu_id == $begin.$evt.cpu_id' \
+        --period-capture 'irq : name = $evt.name, irq = $evt.irq, current = $parent.$begin.$evt.next_comm'
+
+::
+
+    Period log
+    Begin                End                   Duration (us) Name            Begin capture                       End capture
+    [10:58:26.169238875, 10:58:26.169244920]           6.045 switch
+    [10:58:26.169598385, 10:58:26.169602967]           4.582 irq             name = ahci
+                                                                             irq = 41
+                                                                             current = lttng-consumerd
+    [10:58:26.169811553, 10:58:26.169816218]           4.665 irq             name = ahci
+                                                                             irq = 41
+                                                                             current = lttng-consumerd
+    [10:58:26.170025600, 10:58:26.170030197]           4.597 irq             name = ahci
+                                                                             irq = 41
+                                                                             current = lttng-consumerd
+    [10:58:26.169236842, 10:58:26.170105711]         868.869 switch
+
+
+Progress options
+----------------
+
+If the `progressbar <https://pypi.python.org/pypi/progressbar/>`_
+optional dependency is installed, a progress bar is available to
+indicate the progress of the analysis.
+
+By default, the progress bar is based on the current event's timestamp.
+
+Progress options are:
+
+.. list-table:: Available progress command-line options
+   :header-rows: 1
+
+   * - Command-line option
+     - Description
+   * - ``--no-progress``
+     - Disable the progress bar.
+   * - ``--progress-use-size``
+     - Use the approximate event size instead of the current event's
+       timestamp to estimate the progress value.
+
+
+Machine interface
+-----------------
+
+If you want to display LTTng analyses results in a custom viewer,
+you can use the JSON-based LTTng analyses machine interface (LAMI).
+Each command in the previous table has its corresponding LAMI version
+with the ``-mi`` suffix. For example, the LAMI version of
+``lttng-cputop`` is ``lttng-cputop-mi``.
+
+This version of LTTng analyses conforms to
+`LAMI 1.0 <http://lttng.org/files/lami/lami-1.0.1.html>`_.
+
+
+
 
 
 Examples

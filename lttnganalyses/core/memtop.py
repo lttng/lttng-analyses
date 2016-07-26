@@ -21,7 +21,12 @@
 # SOFTWARE.
 
 from . import stats
-from .analysis import Analysis
+from .analysis import Analysis, PeriodData
+
+
+class _PeriodData(PeriodData):
+    def __init__(self):
+        self.tids = {}
 
 
 class Memtop(Analysis):
@@ -30,17 +35,12 @@ class Memtop(Analysis):
             'tid_page_alloc': self._process_tid_page_alloc,
             'tid_page_free': self._process_tid_page_free
         }
+        super().__init__(state, conf, notification_cbs)
 
-        super().__init__(state, conf)
-        self._state.register_notification_cbs(notification_cbs)
+    def _create_period_data_data(self):
+        return _PeriodData()
 
-        self.tids = {}
-
-    def reset(self):
-        for tid in self.tids:
-            self.tids[tid].reset()
-
-    def _process_tid_page_alloc(self, **kwargs):
+    def _process_tid_page_alloc(self, period_data, **kwargs):
         cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
 
@@ -50,12 +50,12 @@ class Memtop(Analysis):
             return
 
         tid = proc.tid
-        if tid not in self.tids:
-            self.tids[tid] = ProcessMemStats.new_from_process(proc)
+        if tid not in period_data.tids:
+            period_data.tids[tid] = ProcessMemStats.new_from_process(proc)
 
-        self.tids[tid].allocated_pages += 1
+        period_data.tids[tid].allocated_pages += 1
 
-    def _process_tid_page_free(self, **kwargs):
+    def _process_tid_page_free(self, period_data, **kwargs):
         cpu_id = kwargs['cpu_id']
         proc = kwargs['proc']
 
@@ -65,10 +65,10 @@ class Memtop(Analysis):
             return
 
         tid = proc.tid
-        if tid not in self.tids:
-            self.tids[tid] = ProcessMemStats.new_from_process(proc)
+        if tid not in period_data.tids:
+            period_data.tids[tid] = ProcessMemStats.new_from_process(proc)
 
-        self.tids[tid].freed_pages += 1
+        period_data.tids[tid].freed_pages += 1
 
 
 class ProcessMemStats(stats.Process):

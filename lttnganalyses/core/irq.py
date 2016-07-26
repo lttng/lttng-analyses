@@ -20,7 +20,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .analysis import Analysis
+from .analysis import Analysis, PeriodData
+
+
+class _PeriodData(PeriodData):
+    def __init__(self):
+        # Indexed by irq 'id' (irq or vec)
+        self.hard_irq_stats = {}
+        self.softirq_stats = {}
+        # Log of individual interrupts
+        self.irq_list = []
 
 
 class IrqAnalysis(Analysis):
@@ -30,32 +39,20 @@ class IrqAnalysis(Analysis):
             'irq_handler_exit': self._process_irq_handler_exit,
             'softirq_exit': self._process_softirq_exit
         }
+        super().__init__(state, conf, notification_cbs)
 
-        super().__init__(state, conf)
-        self._state.register_notification_cbs(notification_cbs)
+    def _create_period_data(self):
+        return _PeriodData()
 
-        # Indexed by irq 'id' (irq or vec)
-        self.hard_irq_stats = {}
-        self.softirq_stats = {}
-        # Log of individual interrupts
-        self.irq_list = []
-
-    def reset(self):
-        self.irq_list = []
-        for id in self.hard_irq_stats:
-            self.hard_irq_stats[id].reset()
-        for id in self.softirq_stats:
-            self.softirq_stats[id].reset()
-
-    def _process_irq_handler_entry(self, **kwargs):
+    def _process_irq_handler_entry(self, period_data, **kwargs):
         id = kwargs['id']
         name = kwargs['irq_name']
-        if id not in self.hard_irq_stats:
-            self.hard_irq_stats[id] = HardIrqStats(name)
-        elif name not in self.hard_irq_stats[id].names:
-            self.hard_irq_stats[id].names.append(name)
+        if id not in period_data.hard_irq_stats:
+            period_data.hard_irq_stats[id] = HardIrqStats(name)
+        elif name not in period_data.hard_irq_stats[id].names:
+            period_data.hard_irq_stats[id].names.append(name)
 
-    def _process_irq_handler_exit(self, **kwargs):
+    def _process_irq_handler_exit(self, period_data, **kwargs):
         irq = kwargs['hard_irq']
 
         if not self._filter_cpu(irq.cpu_id):
@@ -68,13 +65,13 @@ class IrqAnalysis(Analysis):
            irq.duration > self._conf.max_duration:
             return
 
-        self.irq_list.append(irq)
-        if irq.id not in self.hard_irq_stats:
-            self.hard_irq_stats[irq.id] = HardIrqStats()
+        period_data.irq_list.append(irq)
+        if irq.id not in period_data.hard_irq_stats:
+            period_data.hard_irq_stats[irq.id] = HardIrqStats()
 
-        self.hard_irq_stats[irq.id].update_stats(irq)
+        period_data.hard_irq_stats[irq.id].update_stats(irq)
 
-    def _process_softirq_exit(self, **kwargs):
+    def _process_softirq_exit(self, period_data, **kwargs):
         irq = kwargs['softirq']
 
         if not self._filter_cpu(irq.cpu_id):
@@ -87,12 +84,12 @@ class IrqAnalysis(Analysis):
            irq.duration > self._conf.max_duration:
             return
 
-        self.irq_list.append(irq)
-        if irq.id not in self.softirq_stats:
+        period_data.irq_list.append(irq)
+        if irq.id not in period_data.softirq_stats:
             name = SoftIrqStats.names[irq.id]
-            self.softirq_stats[irq.id] = SoftIrqStats(name)
+            period_data.softirq_stats[irq.id] = SoftIrqStats(name)
 
-        self.softirq_stats[irq.id].update_stats(irq)
+        period_data.softirq_stats[irq.id].update_stats(irq)
 
 
 class IrqStats():

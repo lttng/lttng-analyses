@@ -31,10 +31,23 @@ class StatedumpStateProvider(sp.StateProvider):
             'lttng_statedump_process_state':
             self._process_lttng_statedump_process_state,
             'lttng_statedump_file_descriptor':
-            self._process_lttng_statedump_file_descriptor
+            self._process_lttng_statedump_file_descriptor,
+            'lttng_statedump_block_device':
+            self._process_lttng_statedump_block_device
         }
 
         super().__init__(state, cbs)
+
+    def _process_lttng_statedump_block_device(self, event):
+        dev = event['dev']
+        diskname = event['diskname']
+
+        if dev not in self._state.disks:
+            self._state.disks[dev] = sv.Disk(dev, diskname=diskname)
+        elif self._state.disks[dev].diskname is None:
+            self._state.disks[dev].diskname = diskname
+        self._state.send_notification_cb('lttng_statedump_block_device',
+                                         dev=dev, diskname=diskname)
 
     def _process_lttng_statedump_process_state(self, event):
         tid = event['tid']

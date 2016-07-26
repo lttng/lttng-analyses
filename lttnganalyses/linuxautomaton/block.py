@@ -77,7 +77,7 @@ class BlockStateProvider(sp.StateProvider):
                 break
 
         if dev not in self._state.disks:
-            self._state.disks[dev] = sv.Disk()
+            self._state.disks[dev] = sv.Disk(dev)
 
         self._state.disks[dev].pending_requests[sector] = req
 
@@ -96,7 +96,7 @@ class BlockStateProvider(sp.StateProvider):
                 break
 
         if dev not in self._state.disks:
-            self._state.disks[dev] = sv.Disk()
+            self._state.disks[dev] = sv.Disk(dev)
 
         disk = self._state.disks[dev]
 
@@ -115,5 +115,6 @@ class BlockStateProvider(sp.StateProvider):
         else:
             proc = None
         self._state.send_notification_cb('block_rq_complete', req=req,
-                                         proc=proc, cpu_id=event['cpu_id'])
+                                         proc=proc, cpu_id=event['cpu_id'],
+                                         disk=disk)
         del disk.pending_requests[sector]

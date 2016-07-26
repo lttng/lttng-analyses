@@ -85,7 +85,9 @@ class SyscallEvent():
 
 
 class Disk():
-    def __init__(self):
+    def __init__(self, dev, diskname=None):
+        self.dev = dev
+        self.diskname = diskname
         # pending block IO Requests, indexed by sector
         self.pending_requests = {}
 

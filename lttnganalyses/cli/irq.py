@@ -102,18 +102,24 @@ class IrqAnalysisCommand(Command):
         ),
     ]
 
-    def _analysis_tick(self, begin_ns, end_ns):
+    def _analysis_tick(self, period_data, end_ns):
+        if period_data is None:
+            return
+
+        begin_ns = period_data.period.begin_evt.timestamp
         log_table = None
         hard_stats_table = None
         soft_stats_table = None
         freq_tables = None
 
         if self._args.log:
-            log_table = self._get_log_result_table(begin_ns, end_ns)
+            log_table = self._get_log_result_table(period_data,
+                                                   begin_ns, end_ns)
 
         if self._args.stats or self._args.freq:
             hard_stats_table, soft_stats_table, freq_tables = \
-                self._get_stats_freq_result_tables(begin_ns, end_ns)
+                self._get_stats_freq_result_tables(period_data,
+                                                   begin_ns, end_ns)
 
         if self._mi_mode:
             self._mi_append_result_table(log_table)
@@ -164,18 +170,18 @@ class IrqAnalysisCommand(Command):
         self._mi_clear_result_tables()
         self._mi_append_result_table(summary_table)
 
-    def _get_log_result_table(self, begin_ns, end_ns):
+    def _get_log_result_table(self, period_data, begin_ns, end_ns):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_LOG,
                                                     begin_ns, end_ns)
 
-        for irq in self._analysis.irq_list:
+        for irq in period_data.irq_list:
             if not self._filter_irq(irq):
                 continue
 
             if type(irq) is sv.HardIRQ:
                 is_hard = True
                 raised_ts_do = mi.Empty()
-                name = self._analysis.hard_irq_stats[irq.id].name
+                name = period_data.hard_irq_stats[irq.id].name
             else:
                 is_hard = False
 
@@ -184,7 +190,7 @@ class IrqAnalysisCommand(Command):
                 else:
                     raised_ts_do = mi.Timestamp(irq.raise_ts)
 
-                name = self._analysis.softirq_stats[irq.id].name
+                name = period_data.softirq_stats[irq.id].name
 
             result_table.append_row(
                 time_range=mi.TimeRange(irq.begin_ts, irq.end_ts),
@@ -261,7 +267,7 @@ class IrqAnalysisCommand(Command):
             stdev_latency=stdev_latency,
         )
 
-    def _fill_freq_result_table(self, irq_stats, freq_table):
+    def _fill_freq_result_table(self, period_data, irq_stats, freq_table):
         # The number of bins for the histogram
         resolution = self._args.freq_resolution
         if self._args.min is not None:
@@ -280,7 +286,7 @@ class IrqAnalysisCommand(Command):
         # histogram's step
         if self._args.freq_uniform:
             # TODO: perform only one time
-            durations = [irq.duration for irq in self._analysis.irq_list]
+            durations = [irq.duration for irq in period_data.irq_list]
             min_duration, max_duration, step = \
                 self._get_uniform_freq_values(durations)
         else:
@@ -319,7 +325,8 @@ class IrqAnalysisCommand(Command):
                 count=mi.Number(count),
             )
 
-    def _fill_stats_freq_result_tables(self, begin_ns, end_ns, is_hard,
+    def _fill_stats_freq_result_tables(self, period_data, begin_ns,
+                                       end_ns, is_hard,
                                        analysis_stats, filter_list,
                                        hard_stats_table, soft_stats_table,
                                        freq_tables):
@@ -347,7 +354,7 @@ class IrqAnalysisCommand(Command):
                 freq_table = \
                     self._mi_create_result_table(self._MI_TABLE_CLASS_FREQ,
                                                  begin_ns, end_ns, subtitle)
-                self._fill_freq_result_table(irq_stats, freq_table)
+                self._fill_freq_result_table(period_data, irq_stats, freq_table)
 
                 # it is possible that the frequency distribution result
                 # table is empty; we need to keep it any way because
@@ -393,10 +400,11 @@ class IrqAnalysisCommand(Command):
 
         return result_table
 
-    def _get_stats_freq_result_tables(self, begin_ns, end_ns):
-        def fill_stats_freq_result_tables(is_hard, stats, filter_list):
-            self._fill_stats_freq_result_tables(begin_ns, end_ns, is_hard,
-                                                stats, filter_list,
+    def _get_stats_freq_result_tables(self, period_data, begin_ns, end_ns):
+        def fill_stats_freq_result_tables(period_data, is_hard,
+                                          stats, filter_list):
+            self._fill_stats_freq_result_tables(period_data, begin_ns, end_ns,
+                                                is_hard, stats, filter_list,
                                                 hard_stats_table,
                                                 soft_stats_table, freq_tables)
 
@@ -410,12 +418,14 @@ class IrqAnalysisCommand(Command):
 
         if self._args.irq_filter_list is not None or \
            self._args.softirq_filter_list is None:
-            fill_stats_freq_result_tables(True, self._analysis.hard_irq_stats,
+            fill_stats_freq_result_tables(period_data, True,
+                                          period_data.hard_irq_stats,
                                           self._args.irq_filter_list)
 
         if self._args.softirq_filter_list is not None or \
            self._args.irq_filter_list is None:
-            fill_stats_freq_result_tables(False, self._analysis.softirq_stats,
+            fill_stats_freq_result_tables(period_data, False,
+                                          period_data.softirq_stats,
                                           self._args.softirq_filter_list)
 
         return hard_stats_table, soft_stats_table, freq_tables
@@ -451,7 +461,8 @@ class IrqAnalysisCommand(Command):
                              '%d' % cpu_id, irqtype, irq_do.nr,
                              irq_do.name + raised_ts))
 
-    def _validate_transform_args(self, args):
+    def _validate_transform_args(self):
+        args = self._args
         args.irq_filter_list = None
         args.softirq_filter_list = None
 

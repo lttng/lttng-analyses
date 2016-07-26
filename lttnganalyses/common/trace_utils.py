@@ -160,3 +160,44 @@ def read_babeltrace_version():
     version_string = first_line.split()[-1]
 
     return Version.new_from_string(version_string)
+
+
+def check_field_exists(handles, ev_name, field_name):
+    """Validate that a field exists in the metadata.
+
+    Args:
+        handles (TraceHandle): an array of babeltrace TraceHandle instance.
+
+        ev_name (String): the event name in which the field must exist.
+
+        field_name (String): the field that we are looking for.
+
+    Returns:
+        True if the field is found in the event, False if the field is not
+        found in the event, or if the event is not found.
+    """
+    for handle in handles.values():
+        for event in handle.events:
+            if event.name == ev_name:
+                for field in event.fields:
+                    if field.name == field_name:
+                        return True
+    return False
+
+
+def check_event_exists(handles, name):
+    """Validate that an event exists in the metadata.
+
+    Args:
+        handles (TraceHandle): an array of babeltrace TraceHandle instance.
+
+        name (String): the event name in which the field must exist.
+
+    Returns:
+        True if the event is found in the metadata, False otherwise.
+    """
+    for handle in handles.values():
+        for event in handle.events:
+            if event.name == name:
+                return True
+    return False

@@ -127,7 +127,11 @@ class SchedAnalysisCommand(Command):
         ),
     ]
 
-    def _analysis_tick(self, begin_ns, end_ns):
+    def _analysis_tick(self, period_data, end_ns):
+        if period_data is None:
+            return
+
+        begin_ns = period_data.period.begin_evt.timestamp
         log_table = None
         top_table = None
         total_stats_table = None
@@ -138,36 +142,38 @@ class SchedAnalysisCommand(Command):
         per_prio_freq_tables = None
 
         if self._args.log:
-            log_table = self._get_log_result_table(begin_ns, end_ns)
+            log_table = self._get_log_result_table(period_data,
+                                                   begin_ns, end_ns)
 
         if self._args.top:
-            top_table = self._get_top_result_table(begin_ns, end_ns)
+            top_table = self._get_top_result_table(period_data,
+                                                   begin_ns, end_ns)
 
         if self._args.stats:
             if self._args.total:
                 total_stats_table = self._get_total_stats_result_table(
-                    begin_ns, end_ns)
+                    period_data, begin_ns, end_ns)
 
             if self._args.per_tid:
                 per_tid_stats_table = self._get_per_tid_stats_result_table(
-                    begin_ns, end_ns)
+                    period_data, begin_ns, end_ns)
 
             if self._args.per_prio:
                 per_prio_stats_table = self._get_per_prio_stats_result_table(
-                    begin_ns, end_ns)
+                    period_data, begin_ns, end_ns)
 
         if self._args.freq:
             if self._args.total:
                 total_freq_tables = self._get_total_freq_result_tables(
-                    begin_ns, end_ns)
+                    period_data, begin_ns, end_ns)
 
             if self._args.per_tid:
                 per_tid_freq_tables = self._get_per_tid_freq_result_tables(
-                    begin_ns, end_ns)
+                    period_data, begin_ns, end_ns)
 
             if self._args.per_prio:
                 per_prio_freq_tables = self._get_per_prio_freq_result_tables(
-                    begin_ns, end_ns)
+                    period_data, begin_ns, end_ns)
 
         if self._mi_mode:
             if log_table:
@@ -219,24 +225,24 @@ class SchedAnalysisCommand(Command):
             if top_table:
                 self._print_sched_events(top_table)
 
-    def _get_total_sched_lists_stats(self):
-        total_list = self._analysis.sched_list
+    def _get_total_sched_lists_stats(self, period_data):
+        total_list = period_data.sched_list
         stdev = self._compute_sched_latency_stdev(total_list)
         total_stats = _SchedStats(
-            count=self._analysis.count,
-            min=self._analysis.min_latency,
-            max=self._analysis.max_latency,
+            count=self._analysis.count(period_data),
+            min=period_data.min_latency,
+            max=period_data.max_latency,
             stdev=stdev,
-            total=self._analysis.total_latency
+            total=period_data.total_latency
         )
 
         return [total_list], total_stats
 
-    def _get_tid_sched_lists_stats(self):
+    def _get_tid_sched_lists_stats(self, period_data):
         tid_sched_lists = {}
         tid_stats = {}
 
-        for sched_event in self._analysis.sched_list:
+        for sched_event in period_data.sched_list:
             tid = sched_event.wakee_proc.tid
             if tid not in tid_sched_lists:
                 tid_sched_lists[tid] = []
@@ -266,11 +272,11 @@ class SchedAnalysisCommand(Command):
 
         return tid_sched_lists, tid_stats
 
-    def _get_prio_sched_lists_stats(self):
+    def _get_prio_sched_lists_stats(self, period_data):
         prio_sched_lists = {}
         prio_stats = {}
 
-        for sched_event in self._analysis.sched_list:
+        for sched_event in period_data.sched_list:
             if sched_event.prio not in prio_sched_lists:
                 prio_sched_lists[sched_event.prio] = []
 
@@ -299,11 +305,11 @@ class SchedAnalysisCommand(Command):
 
         return prio_sched_lists, prio_stats
 
-    def _get_log_result_table(self, begin_ns, end_ns):
+    def _get_log_result_table(self, period_data, begin_ns, end_ns):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_LOG,
                                                     begin_ns, end_ns)
 
-        for sched_event in self._analysis.sched_list:
+        for sched_event in period_data.sched_list:
             wakee_proc = mi.Process(sched_event.wakee_proc.comm,
                                     sched_event.wakee_proc.pid,
                                     sched_event.wakee_proc.tid)
@@ -327,11 +333,11 @@ class SchedAnalysisCommand(Command):
 
         return result_table
 
-    def _get_top_result_table(self, begin_ns, end_ns):
+    def _get_top_result_table(self, period_data, begin_ns, end_ns):
         result_table = self._mi_create_result_table(
             self._MI_TABLE_CLASS_TOP, begin_ns, end_ns)
 
-        top_events = sorted(self._analysis.sched_list,
+        top_events = sorted(period_data.sched_list,
                             key=operator.attrgetter('latency'),
                             reverse=True)
         top_events = top_events[:self._args.limit]
@@ -360,34 +366,49 @@ class SchedAnalysisCommand(Command):
 
         return result_table
 
-    def _get_total_stats_result_table(self, begin_ns, end_ns):
+    def _get_total_stats_result_table(self, period_data, begin_ns, end_ns):
         stats_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_TOTAL_STATS,
                                          begin_ns, end_ns)
 
-        stdev = self._compute_sched_latency_stdev(self._analysis.sched_list)
+        stdev = self._compute_sched_latency_stdev(period_data.sched_list)
         if math.isnan(stdev):
             stdev = mi.Unknown()
         else:
             stdev = mi.Duration(stdev)
 
+        count = self._analysis.count(period_data)
+        if count == 0:
+            avg = mi.Duration(0)
+        else:
+            avg = mi.Duration(period_data.total_latency / count)
+
+        if period_data.min_latency is None:
+            min = mi.Duration(0)
+        else:
+            min = mi.Duration(period_data.min_latency)
+
+        if period_data.max_latency is None:
+            max = mi.Duration(0)
+        else:
+            max = mi.Duration(period_data.max_latency)
+
         stats_table.append_row(
-            count=mi.Number(self._analysis.count),
-            min_latency=mi.Duration(self._analysis.min_latency),
-            avg_latency=mi.Duration(self._analysis.total_latency /
-                                    self._analysis.count),
-            max_latency=mi.Duration(self._analysis.max_latency),
+            count=mi.Number(self._analysis.count(period_data)),
+            min_latency=min,
+            avg_latency=avg,
+            max_latency=max,
             stdev_latency=stdev,
         )
 
         return stats_table
 
-    def _get_per_tid_stats_result_table(self, begin_ns, end_ns):
+    def _get_per_tid_stats_result_table(self, period_data, begin_ns, end_ns):
         stats_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_TID_STATS,
                                          begin_ns, end_ns)
 
-        tid_stats_list = sorted(list(self._analysis.tids.values()),
+        tid_stats_list = sorted(list(period_data.tids.values()),
                                 key=lambda proc: proc.comm.lower())
 
         for tid_stats in tid_stats_list:
@@ -415,12 +436,12 @@ class SchedAnalysisCommand(Command):
 
         return stats_table
 
-    def _get_per_prio_stats_result_table(self, begin_ns, end_ns):
+    def _get_per_prio_stats_result_table(self, period_data, begin_ns, end_ns):
         stats_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PRIO_STATS,
                                          begin_ns, end_ns)
 
-        _, prio_stats = self._get_prio_sched_lists_stats()
+        _, prio_stats = self._get_prio_sched_lists_stats(period_data)
 
         for prio in sorted(prio_stats):
             stats = prio_stats[prio]
@@ -538,8 +559,15 @@ class SchedAnalysisCommand(Command):
                 max_duration = stats.max
 
             # ns to µs
-            min_duration /= 1000
-            max_duration /= 1000
+            if min_duration is None:
+                min_duration = 0
+            else:
+                min_duration /= 1000
+
+            if max_duration is None:
+                max_duration = 0
+            else:
+                max_duration /= 1000
 
             step = (max_duration - min_duration) / resolution
 
@@ -576,9 +604,10 @@ class SchedAnalysisCommand(Command):
                 count=mi.Number(count),
             )
 
-    def _get_total_freq_result_tables(self, begin_ns, end_ns):
+    def _get_total_freq_result_tables(self, period_data, begin_ns, end_ns):
         freq_tables = []
-        sched_lists, sched_stats = self._get_total_sched_lists_stats()
+        sched_lists, sched_stats = self._get_total_sched_lists_stats(
+            period_data)
         min_duration = None
         max_duration = None
         step = None
@@ -602,9 +631,10 @@ class SchedAnalysisCommand(Command):
 
         return freq_tables
 
-    def _get_per_tid_freq_result_tables(self, begin_ns, end_ns):
+    def _get_per_tid_freq_result_tables(self, period_data, begin_ns, end_ns):
         freq_tables = []
-        tid_sched_lists, tid_stats = self._get_tid_sched_lists_stats()
+        tid_sched_lists, tid_stats = self._get_tid_sched_lists_stats(
+            period_data)
         min_duration = None
         max_duration = None
         step = None
@@ -631,9 +661,10 @@ class SchedAnalysisCommand(Command):
 
         return freq_tables
 
-    def _get_per_prio_freq_result_tables(self, begin_ns, end_ns):
+    def _get_per_prio_freq_result_tables(self, period_data, begin_ns, end_ns):
         freq_tables = []
-        prio_sched_lists, prio_stats = self._get_prio_sched_lists_stats()
+        prio_sched_lists, prio_stats = self._get_prio_sched_lists_stats(
+            period_data)
         min_duration = None
         max_duration = None
         step = None
@@ -661,13 +692,11 @@ class SchedAnalysisCommand(Command):
         return freq_tables
 
     def _compute_sched_latency_stdev(self, sched_events):
-        if len(sched_events) < 2:
-            return float('nan')
-
         sched_latencies = []
         for sched_event in sched_events:
             sched_latencies.append(sched_event.latency)
-
+        if len(sched_latencies) < 2:
+            return float('nan')
         return statistics.stdev(sched_latencies)
 
     def _print_sched_events(self, result_table):
@@ -798,7 +827,9 @@ class SchedAnalysisCommand(Command):
         for freq_table in freq_tables:
             self._print_frequency_distribution(freq_table)
 
-    def _validate_transform_args(self, args):
+    def _validate_transform_args(self):
+        args = self._args
+
         # If neither --total nor --per-prio are specified, default
         # to --per-tid
         if not (args.total or args.per_prio):
