@@ -450,7 +450,8 @@ class Command:
            args.period_end_key is not None) and (args.period or
                                                  args.period_captures):
             self._cmdline_error('Do not use another period option when using '
-                                'one or more --period or --period-captures options')
+                                'one or more --period or --period-captures '
+                                'options')
 
         registry = self._analysis_conf.period_def_registry
         name_to_begin_captures_exprs = {}
@@ -471,7 +472,8 @@ class Command:
                                             'expression: {}'.format(e))
 
                     if res.name in name_to_begin_captures_exprs:
-                        fmt = 'Duplicate period name "{}" in --period-captures argument'
+                        fmt = 'Duplicate period name "{}" in ' \
+                              '--period-captures argument'
                         self._cmdline_error(fmt.format(res.name))
 
                     name_to_begin_captures_exprs[res.name] = \
@@ -600,7 +602,8 @@ Please consider using the --period option.''')
         # check that --period-captures name existing periods
         for name in name_to_begin_captures_exprs:
             if not registry.has_period_def(name):
-                fmt = 'Cannot find period named "{}" for --period-captures argument'
+                fmt = 'Cannot find period named "{}" for --period-captures ' \
+                      'argument'
                 self._cmdline_error(fmt.format(name))
 
     def _validate_transform_common_args(self):
@@ -874,6 +877,9 @@ Please consider using the --period option.''')
         self.state = self._automaton.state
 
     def _analysis_tick_cb(self, period, end_ns):
+        # No event was processed, just exit
+        if end_ns is None:
+            return
         self._analysis_tick(period, end_ns)
         self._ticks += 1
 
