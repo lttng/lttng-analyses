@@ -37,7 +37,7 @@ class Memtop(Analysis):
         }
         super().__init__(state, conf, notification_cbs)
 
-    def _create_period_data_data(self):
+    def _create_period_data(self):
         return _PeriodData()
 
     def _process_tid_page_alloc(self, period_data, **kwargs):
