@@ -58,7 +58,7 @@ class Command:
         self._babeltrace_version = None
         self._handles = None
         self._traces = None
-        self._ticks = 0
+        self._period_ticks = 0
         self._mi_mode = mi_mode
         self._debug_mode = os.environ.get(self._DEBUG_ENV_VAR)
         self._run_step('create automaton', self._create_automaton)
@@ -299,14 +299,17 @@ class Command:
     def _pre_analysis(self):
         pass
 
-    def _post_analysis(self):
+    def _mi_post_analysis(self):
         if not self._mi_mode:
             return
 
-        if self._ticks > 1:
+        if self._period_ticks > 1:
             self._create_summary_result_tables()
 
         self._mi_print()
+
+    def _post_analysis(self):
+        self._mi_post_analysis()
 
     def _pb_setup(self):
         if self._args.no_progress:
@@ -881,7 +884,11 @@ Please consider using the --period option.''')
         if end_ns is None:
             return
         self._analysis_tick(period, end_ns)
-        self._ticks += 1
+
+        if period is not None:
+            # increment the number of effective ticks associated to
+            # an existing period
+            self._period_ticks += 1
 
     def _analysis_tick(self, period, end_ns):
         raise NotImplementedError()
