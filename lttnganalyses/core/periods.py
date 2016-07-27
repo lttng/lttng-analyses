@@ -111,6 +111,9 @@ class PeriodAnalysis(Analysis):
         period_data._period_event = PeriodEvent(
             period.begin_evt.timestamp, definition.name, parent)
 
+        if parent is not None:
+            parent.add_child(period_data._period_event)
+
         self._current_periods[period] = period_data._period_event
 
     def _end_period_cb(self, period_data, completed,
@@ -172,6 +175,7 @@ class PeriodEvent():
         self._start_ts = start_ts
         self._name = name
         self._parent = parent
+        self._children = []
         self._end_ts = None
         self._begin_captures = None
         self._end_captures = None
@@ -206,7 +210,14 @@ class PeriodEvent():
     def parent(self):
         return self._parent
 
+    @property
+    def children(self):
+        return self._children
+
     def finish(self, end_ts, begin_captures, end_captures):
         self._end_ts = end_ts
         self._begin_captures = begin_captures
         self._end_captures = end_captures
+
+    def add_child(self, child_period_event):
+        self._children.append(child_period_event)
