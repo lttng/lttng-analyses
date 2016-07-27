@@ -112,7 +112,7 @@ class TestAllOptions(unittest.TestCase):
                 "2016-07-20 18:02:05.196332110",
                 "2016-07-20 18:02:07.282598088")
 
-    def get_cmd_return(self, test_name, exec_name, options):
+    def get_cmd_return(self, exec_name, options):
         cmd_fmt = './{} {} {} {}'
 
         # Create an utf-8 test env
@@ -128,60 +128,55 @@ class TestAllOptions(unittest.TestCase):
             process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT, env=test_env)
             output, unused_err = process.communicate()
-            self.assertEqual(process.returncode, 0, msg=test_name)
+            self.assertEqual(process.returncode, 0, msg=cmd)
 
         return output
 
     def run_with_common_options(self, exec_name):
-        self.get_cmd_return('default', exec_name, '')
-        self.get_cmd_return('refresh 1 sec', exec_name, '-r 1')
-        self.get_cmd_return('--cpu', exec_name, '--cpu 0')
+        self.get_cmd_return(exec_name, '')
+        self.get_cmd_return(exec_name, '-r 1')
+        self.get_cmd_return(exec_name, '--cpu 0')
 
         # Timestamp handling
-        self.get_cmd_return('--begin', exec_name, '--begin "$BEGIN_TS$"')
-        self.get_cmd_return('--end', exec_name, '--end "$END_TS$"')
-        self.get_cmd_return('--begin --end', exec_name,
-                            '--begin "$BEGIN_TS$" --end "$END_TS$"')
-        self.get_cmd_return('--timerange', exec_name,
-                            '--timerange "[$BEGIN_TS$, $END_TS$]"')
+        self.get_cmd_return(exec_name, '--begin "$BEGIN_TS$"')
+        self.get_cmd_return(exec_name, '--end "$END_TS$"')
+        self.get_cmd_return(exec_name, '--begin "$BEGIN_TS$" --end "$END_TS$"')
+        self.get_cmd_return(exec_name, '--timerange "[$BEGIN_TS$, $END_TS$]"')
         # Out-of-scope timestamps (empty dataset)
-        self.get_cmd_return('--begin', exec_name, '--begin "%s"' % (
+        self.get_cmd_return(exec_name, '--begin "%s"' % (
             self._out_of_scope_ts_begin))
-        self.get_cmd_return('--end', exec_name, '--end "%s"' % (
+        self.get_cmd_return(exec_name, '--end "%s"' % (
             self._out_of_scope_ts_end))
-        self.get_cmd_return('--begin --end', exec_name,
-                            '--begin "%s" --end "%s"' % (
+        self.get_cmd_return(exec_name, '--begin "%s" --end "%s"' % (
                                 self._out_of_scope_ts_begin,
                                 self._out_of_scope_ts_end))
-        self.get_cmd_return('--timerange', exec_name,
-                            '--timerange "[%s,%s]"' % (
+        self.get_cmd_return(exec_name, '--timerange "[%s,%s]"' % (
                                 self._out_of_scope_ts_begin,
                                 self._out_of_scope_ts_end))
 
     def run_with_proc_filter_args(self, exec_name):
-        self.get_cmd_return('--tid', exec_name, '--tid 0')
-        self.get_cmd_return('--procname', exec_name, '--procname test')
+        self.get_cmd_return(exec_name, '--tid 0')
+        self.get_cmd_return(exec_name, '--procname test')
 
     def run_with_min_max_args(self, exec_name):
-        self.get_cmd_return('--min', exec_name, '--min 0')
-        self.get_cmd_return('--max', exec_name, '--max 0')
+        self.get_cmd_return(exec_name, '--min 0')
+        self.get_cmd_return(exec_name, '--max 0')
 
     def run_with_freq_args(self, exec_name):
-        self.get_cmd_return('--freq', exec_name, '--freq')
-        self.get_cmd_return('--freq-resolution', exec_name,
-                            '--freq-resolution 10')
-        self.get_cmd_return('--freq-uniform', exec_name, '--freq-uniform')
-        self.get_cmd_return('--freq-series', exec_name, '--freq-series')
+        self.get_cmd_return(exec_name, '--freq')
+        self.get_cmd_return(exec_name, '--freq-resolution 10')
+        self.get_cmd_return(exec_name, '--freq-uniform')
+        self.get_cmd_return(exec_name, '--freq-series')
 
     def run_with_log_args(self, exec_name):
-        self.get_cmd_return('--log', exec_name, '--log')
+        self.get_cmd_return(exec_name, '--log')
 
     def run_with_top_args(self, exec_name):
-        self.get_cmd_return('--top', exec_name, '--top')
-        self.get_cmd_return('--limit', exec_name, '--limit 0')
+        self.get_cmd_return(exec_name, '--top')
+        self.get_cmd_return(exec_name, '--limit 0')
 
     def run_with_stats_args(self, exec_name):
-        self.get_cmd_return('--stats', exec_name, '--stats')
+        self.get_cmd_return(exec_name, '--stats')
 
     # lttng-cputop
     def test_all_options_cputop(self):
@@ -198,8 +193,8 @@ class TestAllOptions(unittest.TestCase):
         self.run_with_log_args(exec_name)
         self.run_with_top_args(exec_name)
         self.run_with_stats_args(exec_name)
-        self.get_cmd_return('--minsize', exec_name, '--minsize 0')
-        self.get_cmd_return('--maxsize', exec_name, '--maxsize 0')
+        self.get_cmd_return(exec_name, '--minsize 0')
+        self.get_cmd_return(exec_name, '--maxsize 0')
 
     def test_all_options_iolatencyfreq(self):
         exec_name = 'lttng-iolatencyfreq'
@@ -220,8 +215,8 @@ class TestAllOptions(unittest.TestCase):
         self.run_with_freq_args(exec_name)
         self.run_with_log_args(exec_name)
         self.run_with_stats_args(exec_name)
-        self.get_cmd_return('--irq', exec_name, '--irq 0')
-        self.get_cmd_return('--softirq', exec_name, '--softirq 0')
+        self.get_cmd_return(exec_name, '--irq 0')
+        self.get_cmd_return(exec_name, '--softirq 0')
 
     def test_all_options_irqfreq(self):
         exec_name = 'lttng-irqfreq'
@@ -250,15 +245,13 @@ class TestAllOptions(unittest.TestCase):
         self.run_with_log_args(exec_name)
         self.run_with_stats_args(exec_name)
         self.run_with_top_args(exec_name)
-        self.get_cmd_return('--total', exec_name, '--total')
-        self.get_cmd_return('--per-period', exec_name, '--per-period')
+        self.get_cmd_return(exec_name, '--total')
+        self.get_cmd_return(exec_name, '--per-period')
 
     def test_all_options_periodfreq(self):
         exec_name = 'lttng-periodfreq'
-        self.get_cmd_return('--per-period --freq-uniform', exec_name,
-                            '--per-period --freq-uniform')
-        self.get_cmd_return('--total --freq-uniform', exec_name,
-                            '--total --freq-uniform')
+        self.get_cmd_return(exec_name, '--per-period --freq-uniform')
+        self.get_cmd_return(exec_name, '--total --freq-uniform')
         self.run_all_options_period(exec_name)
 
     def test_all_options_periodlog(self):
@@ -282,9 +275,9 @@ class TestAllOptions(unittest.TestCase):
         self.run_with_log_args(exec_name)
         self.run_with_top_args(exec_name)
         self.run_with_stats_args(exec_name)
-        self.get_cmd_return('--total', exec_name, '--total')
-        self.get_cmd_return('--per-tid', exec_name, '--per-tid')
-        self.get_cmd_return('--per-prio', exec_name, '--per-prio')
+        self.get_cmd_return(exec_name, '--total')
+        self.get_cmd_return(exec_name, '--per-tid')
+        self.get_cmd_return(exec_name, '--per-prio')
 
     def test_all_options_schedtop(self):
         exec_name = 'lttng-schedtop'
@@ -293,12 +286,9 @@ class TestAllOptions(unittest.TestCase):
     def test_all_options_schedfreq(self):
         exec_name = 'lttng-schedfreq'
         self.run_all_options_sched(exec_name)
-        self.get_cmd_return('--per-prio --freq-uniform', exec_name,
-                            '--per-prio --freq-uniform')
-        self.get_cmd_return('--per-tid --freq-uniform', exec_name,
-                            '--per-tid --freq-uniform')
-        self.get_cmd_return('--total --freq-uniform', exec_name,
-                            '--total --freq-uniform')
+        self.get_cmd_return(exec_name, '--per-prio --freq-uniform')
+        self.get_cmd_return(exec_name, '--per-tid --freq-uniform')
+        self.get_cmd_return(exec_name, '--total --freq-uniform')
 
     def test_all_options_schedlog(self):
         exec_name = 'lttng-schedlog'
