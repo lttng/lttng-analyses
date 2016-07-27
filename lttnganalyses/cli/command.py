@@ -472,7 +472,7 @@ class Command:
                                             'expression: {}'.format(e))
 
                     if res.name in name_to_begin_captures_exprs:
-                        fmt = 'Duplicate period name "{}" in ' \
+                        fmt = 'Duplicate period name "{}" in ' \
                               '--period-captures argument'
                         self._cmdline_error(fmt.format(res.name))
 
