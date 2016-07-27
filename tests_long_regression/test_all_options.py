@@ -123,9 +123,9 @@ class TestAllOptions(unittest.TestCase):
 
         for t in self._traces.keys():
             trace = self._traces[t]
-            options = options.replace('$BEGIN_TS$', trace.begin_ts)
-            options = options.replace('$END_TS$', trace.end_ts)
-            cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS, options,
+            opt = options.replace('$BEGIN_TS$', trace.begin_ts)
+            opt = opt.replace('$END_TS$', trace.end_ts)
+            cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS, opt,
                                  trace.path)
             process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT, env=test_env)
