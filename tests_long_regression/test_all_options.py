@@ -29,8 +29,8 @@ import tempfile
 
 
 class _RefTrace():
-    def __init__(self, repo_path, name, begin_ts, end_ts, period1=None,
-                 period2=None):
+    def __init__(self, repo_path, name, begin_ts, end_ts, period1,
+                 period2):
         # Directory containing all the trace archives
         repo_path = os.path.join(repo_path, "traces")
         # Path of the extracted trace
@@ -108,11 +108,27 @@ class TestAllOptions(unittest.TestCase):
         self._traces["picotrace"] = _RefTrace(
                 self._traces_repo_path, "picotrace",
                 "1970-01-01 00:00:01.004000000",
-                "1970-01-01 00:00:01.022000000")
+                "1970-01-01 00:00:01.022000000",
+                period1='switch : \$evt.\$name == \\"sched_switch\\" : '
+                        '\$evt.\$name == \\"sched_switch\\" && '
+                        '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+                        '\$evt.cpu_id == \$begin.\$evt.cpu_id',
+                period2=' : \$evt.\$name == \\"sched_switch\\" : '
+                        '\$evt.\$name == \\"sched_switch\\" && '
+                        '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+                        '\$evt.cpu_id == \$begin.\$evt.cpu_id')
         self._traces["16-cores-rt"] = _RefTrace(
                 self._traces_repo_path, "16-cores-rt",
                 "2016-07-20 18:02:05.196332110",
-                "2016-07-20 18:02:07.282598088")
+                "2016-07-20 18:02:07.282598088",
+                period1='switch : \$evt.\$name == \\"sched_switch\\" : '
+                        '\$evt.\$name == \\"sched_switch\\" && '
+                        '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+                        '\$evt.cpu_id == \$begin.\$evt.cpu_id',
+                period2=': \$evt.\$name == \\"sched_switch\\" : '
+                        '\$evt.\$name == \\"sched_switch\\" && '
+                        '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+                        '\$evt.cpu_id == \$begin.\$evt.cpu_id')
 
     def get_cmd_return(self, exec_name, options):
         cmd_fmt = './{} {} {} {}'
@@ -125,6 +141,8 @@ class TestAllOptions(unittest.TestCase):
             trace = self._traces[t]
             opt = options.replace('$BEGIN_TS$', trace.begin_ts)
             opt = opt.replace('$END_TS$', trace.end_ts)
+            opt = opt.replace('$PERIOD1$', trace.period1)
+            opt = opt.replace('$PERIOD2$', trace.period2)
             cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS, opt,
                                  trace.path)
             process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
@@ -158,6 +176,10 @@ class TestAllOptions(unittest.TestCase):
         self.get_cmd_return(exec_name, '--timerange "[%s,%s]"' % (
                                 self._out_of_scope_ts_begin,
                                 self._out_of_scope_ts_end))
+        self.get_cmd_return(exec_name, '--period "$PERIOD1$"')
+        self.get_cmd_return(exec_name, '--period "$PERIOD2$"')
+        self.get_cmd_return(exec_name, '--period "$PERIOD1$" '
+                                       '--period "$PERIOD2$"')
 
     def run_with_proc_filter_args(self, exec_name):
         self.get_cmd_return(exec_name, '--tid 0')
