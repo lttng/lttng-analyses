@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import os
+import sys
 import shutil
 import subprocess
 import unittest
@@ -46,6 +47,7 @@ class _RefTrace():
         self._period1 = period1
         self._period2 = period2
 
+        print('Extracting %s' % name)
         self._extract_trace(repo_path, self._path)
 
     @property
@@ -78,7 +80,7 @@ class _RefTrace():
 
 
 class TestAllOptions(unittest.TestCase):
-    COMMON_OPTIONS = '--no-color --no-progress --skip-validation --gmt'
+    COMMON_OPTIONS = '--no-color --no-progress --skip-validation --gmt --debug'
 
     # Get the traces only once for all the tests
     @classmethod
@@ -128,7 +130,10 @@ class TestAllOptions(unittest.TestCase):
             process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT, env=test_env)
             output, unused_err = process.communicate()
-            self.assertEqual(process.returncode, 0, msg=cmd)
+            msg = 'Cmd: %s\nReturn: %d\nOutput: %s' % (
+                    cmd, process.returncode,
+                    output.decode(sys.stderr.encoding))
+            self.assertEqual(process.returncode, 0, msg=msg)
 
         return output
 
