@@ -96,7 +96,11 @@ class PeriodAnalysis(Analysis):
         definition = period.definition
 
         if definition.name not in self._all_period_stats:
-            self._all_period_stats[definition.name] = \
+            if definition.name is None:
+                name = ""
+            else:
+                name = definition.name
+            self._all_period_stats[name] = \
                 PeriodStats.new_from_period(period_data.period)
 
         if period.parent is not None:
@@ -118,6 +122,11 @@ class PeriodAnalysis(Analysis):
 
         if completed is False:
             return
+
+        if period.definition.name is None:
+            name = ""
+        else:
+            name = period.definition.name
 
         period_data._period_event.finish(
             self.last_event_ts, begin_captures, end_captures)
@@ -175,6 +184,8 @@ class PeriodEvent():
 
     @property
     def name(self):
+        if self._name is None:
+            return ""
         return self._name
 
     @property
