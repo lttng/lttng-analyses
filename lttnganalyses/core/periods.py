@@ -130,7 +130,7 @@ class PeriodAnalysis(Analysis):
 
         period_data._period_event.finish(
             self.last_event_ts, begin_captures, end_captures)
-        self._all_period_stats[period.definition.name].update_stats(
+        self._all_period_stats[name].update_stats(
             period_data._period_event)
         self.update_global_stats(period_data._period_event)
 
