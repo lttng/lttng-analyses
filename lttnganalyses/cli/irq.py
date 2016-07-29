@@ -354,7 +354,8 @@ class IrqAnalysisCommand(Command):
                 freq_table = \
                     self._mi_create_result_table(self._MI_TABLE_CLASS_FREQ,
                                                  begin_ns, end_ns, subtitle)
-                self._fill_freq_result_table(period_data, irq_stats, freq_table)
+                self._fill_freq_result_table(period_data, irq_stats,
+                                             freq_table)
 
                 # it is possible that the frequency distribution result
                 # table is empty; we need to keep it any way because
