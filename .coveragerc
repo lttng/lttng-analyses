@@ -1,0 +1,4 @@
+[run]
+branch = True
+source = lttnganalyses
+omit = lttnganalyses/_version.py
