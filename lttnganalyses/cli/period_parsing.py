@@ -99,9 +99,9 @@ _and_op = pp.Literal('&&').setResultsName('andop')
 _or_op = pp.Literal('||').setResultsName('orop')
 _expr = pp.infixNotation(_comp_expr,
                          [
-                            (_not_op, 1, pp.opAssoc.RIGHT),
-                            (_and_op, 2, pp.opAssoc.LEFT),
-                            (_or_op, 2, pp.opAssoc.LEFT)
+                             (_not_op, 1, pp.opAssoc.RIGHT),
+                             (_and_op, 2, pp.opAssoc.LEFT),
+                             (_or_op, 2, pp.opAssoc.LEFT)
                          ]).setResultsName('expr')
 
 # period definition grammar elements

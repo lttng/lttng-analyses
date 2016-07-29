@@ -86,7 +86,7 @@ class PeriodDefinitionRegistry:
     @property
     def is_empty(self):
         return len(self._root_period_defs) == 0 and \
-                len(self._named_period_defs) == 0
+            len(self._named_period_defs) == 0
 
 
 # definition of a period
@@ -481,7 +481,8 @@ class _Matcher:
         return not self._expr_matches(expr.expr)
 
     def _glob_eq_expr_matches(self, expr):
-        def compfn(lh, rh): return bool(expr.regex.match(lh))
+        def compfn(lh, rh):
+            return bool(expr.regex.match(lh))
 
         return self._comp_expr_matches(compfn, expr)
 
@@ -600,7 +601,7 @@ class Period:
 
 
 class PeriodEngine:
-    def __init__(self,  registry, cbs):
+    def __init__(self, registry, cbs):
         self._registry = registry
         self._cbs = cbs
         self._root_periods = set()

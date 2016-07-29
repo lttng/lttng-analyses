@@ -105,8 +105,7 @@ class PeriodAnalysis(Analysis):
             parent = None
 
         period_data._period_event = PeriodEvent(
-                period.begin_evt.timestamp, definition.name,
-                parent)
+            period.begin_evt.timestamp, definition.name, parent)
 
         self._current_periods[period] = period_data._period_event
 
@@ -121,7 +120,7 @@ class PeriodAnalysis(Analysis):
             return
 
         period_data._period_event.finish(
-                self.last_event_ts, begin_captures, end_captures)
+            self.last_event_ts, begin_captures, end_captures)
         self._all_period_stats[period.definition.name].update_stats(
             period_data._period_event)
         self.update_global_stats(period_data._period_event)

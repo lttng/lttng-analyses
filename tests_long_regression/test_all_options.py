@@ -106,29 +106,29 @@ class TestAllOptions(unittest.TestCase):
         subprocess.check_output("git clone %s %s" % (
             self._traces_repo, self._traces_repo_path), shell=True)
         self._traces["picotrace"] = _RefTrace(
-                self._traces_repo_path, "picotrace",
-                "1970-01-01 00:00:01.004000000",
-                "1970-01-01 00:00:01.022000000",
-                period1='switch : \$evt.\$name == \\"sched_switch\\" : '
-                        '\$evt.\$name == \\"sched_switch\\" && '
-                        '\$evt.prev_tid == \$begin.\$evt.next_tid && '
-                        '\$evt.cpu_id == \$begin.\$evt.cpu_id',
-                period2=' : \$evt.\$name == \\"sched_switch\\" : '
-                        '\$evt.\$name == \\"sched_switch\\" && '
-                        '\$evt.prev_tid == \$begin.\$evt.next_tid && '
-                        '\$evt.cpu_id == \$begin.\$evt.cpu_id')
+            self._traces_repo_path, "picotrace",
+            "1970-01-01 00:00:01.004000000",
+            "1970-01-01 00:00:01.022000000",
+            period1='switch : \$evt.\$name == \\"sched_switch\\" : '
+                    '\$evt.\$name == \\"sched_switch\\" && '
+                    '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+                    '\$evt.cpu_id == \$begin.\$evt.cpu_id',
+            period2=' : \$evt.\$name == \\"sched_switch\\" : '
+                    '\$evt.\$name == \\"sched_switch\\" && '
+                    '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+                    '\$evt.cpu_id == \$begin.\$evt.cpu_id')
         self._traces["16-cores-rt"] = _RefTrace(
-                self._traces_repo_path, "16-cores-rt",
-                "2016-07-20 18:02:05.196332110",
-                "2016-07-20 18:02:07.282598088",
-                period1='switch : \$evt.\$name == \\"sched_switch\\" : '
-                        '\$evt.\$name == \\"sched_switch\\" && '
-                        '\$evt.prev_tid == \$begin.\$evt.next_tid && '
-                        '\$evt.cpu_id == \$begin.\$evt.cpu_id',
-                period2=': \$evt.\$name == \\"sched_switch\\" : '
-                        '\$evt.\$name == \\"sched_switch\\" && '
-                        '\$evt.prev_tid == \$begin.\$evt.next_tid && '
-                        '\$evt.cpu_id == \$begin.\$evt.cpu_id')
+            self._traces_repo_path, "16-cores-rt",
+            "2016-07-20 18:02:05.196332110",
+            "2016-07-20 18:02:07.282598088",
+            period1='switch : \$evt.\$name == \\"sched_switch\\" : '
+                    '\$evt.\$name == \\"sched_switch\\" && '
+                    '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+                    '\$evt.cpu_id == \$begin.\$evt.cpu_id',
+            period2=': \$evt.\$name == \\"sched_switch\\" : '
+                    '\$evt.\$name == \\"sched_switch\\" && '
+                    '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+                    '\$evt.cpu_id == \$begin.\$evt.cpu_id')
 
     def get_cmd_return(self, exec_name, options):
         cmd_fmt = './{} {} {} {}'
@@ -149,8 +149,8 @@ class TestAllOptions(unittest.TestCase):
                                        stderr=subprocess.STDOUT, env=test_env)
             output, unused_err = process.communicate()
             msg = 'Cmd: %s\nReturn: %d\nOutput: %s' % (
-                    cmd, process.returncode,
-                    output.decode(sys.stderr.encoding))
+                cmd, process.returncode,
+                output.decode(sys.stderr.encoding))
             self.assertEqual(process.returncode, 0, msg=msg)
 
         return output
@@ -171,11 +171,11 @@ class TestAllOptions(unittest.TestCase):
         self.get_cmd_return(exec_name, '--end "%s"' % (
             self._out_of_scope_ts_end))
         self.get_cmd_return(exec_name, '--begin "%s" --end "%s"' % (
-                                self._out_of_scope_ts_begin,
-                                self._out_of_scope_ts_end))
+                            self._out_of_scope_ts_begin,
+                            self._out_of_scope_ts_end))
         self.get_cmd_return(exec_name, '--timerange "[%s,%s]"' % (
-                                self._out_of_scope_ts_begin,
-                                self._out_of_scope_ts_end))
+                            self._out_of_scope_ts_begin,
+                            self._out_of_scope_ts_end))
         self.get_cmd_return(exec_name, '--period "$PERIOD1$"')
         self.get_cmd_return(exec_name, '--period "$PERIOD2$"')
         self.get_cmd_return(exec_name, '--period "$PERIOD1$" '

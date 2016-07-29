@@ -145,7 +145,7 @@ setup(
     ],
 
     extras_require={
-        'progressbar':  ["progressbar"]
+        'progressbar': ["progressbar"]
     },
 
     test_suite='tests',

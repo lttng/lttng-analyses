@@ -1,0 +1,4 @@
+pytest
+pytest-cov
+flake8>=2.5.0
+coverage>=4.1
