@@ -1,0 +1,2 @@
+pyparsing
+progressbar33 [progressbar]

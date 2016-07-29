@@ -1,14 +1,31 @@
 language: generic
 sudo: required
 dist: trusty
+env:
+  matrix:
+    - TOXENV=py3
+    - TOXENV=noutf8
+    - TOXENV=pep8
+#   - TOXENV=longregression # long regression is long
 before_install:
   - sudo apt-add-repository -y ppa:lttng/ppa
   - sudo apt-get update
   - sudo apt-get install -y python3-setuptools python-virtualenv python3-babeltrace babeltrace
+  - sudo apt-get purge python3-lxc
 install:
   - virtualenv --system-site-packages -p python3 .venv
   - . .venv/bin/activate
   - python3 setup.py install
+  - pip install codecov
+  - pip install tox
 script:
-  - python3 setup.py test
-  - LC_ALL=C python3 setup.py test
+  - tox
+  - test -d .tox/$TOXENV/log && cat .tox/$TOXENV/log/*.log || true
+cache:
+  directories:
+    - .tox/$TOXENV
+    - $HOME/.cache/pip
+  before_cache:
+    - rm -f .tox/$TOXENV/log/*.log
+after_success:
+  - codecov -e TOXENV
