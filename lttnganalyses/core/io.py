@@ -245,7 +245,7 @@ class IoAnalysis(Analysis):
 
         if tid not in period_data.tids:
             period_data.tids[tid] = ProcessIOStats.new_from_process(
-                    parent_proc)
+                parent_proc)
 
         parent_stats = period_data.tids[tid]
         if fd not in parent_stats.fds:

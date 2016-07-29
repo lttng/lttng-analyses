@@ -220,7 +220,7 @@ class PeriodAnalysisCommand(Command):
             total += period_event.duration
             filter_list.append(period_event)
         if count > 0:
-            avg = total/count
+            avg = total / count
         else:
             avg = 0
         return min, max, count, avg, total, filter_list
@@ -306,7 +306,7 @@ class PeriodAnalysisCommand(Command):
                 avg = 0
             else:
                 avg = self._analysis.all_total_duration / \
-                        self._analysis.all_count
+                    self._analysis.all_count
         else:
             min, max, count, avg, total, period_list = \
                 self._get_filtered_min_max_count_avg_total_flist(
@@ -361,7 +361,7 @@ class PeriodAnalysisCommand(Command):
                 count = period_stats.count
                 if count > 0:
                     avg = period_stats.total_duration / \
-                            period_stats.count
+                        period_stats.count
                 else:
                     avg = 0
             else:
@@ -593,10 +593,10 @@ class PeriodAnalysisCommand(Command):
             begin_captures = ast.literal_eval(row.begin_captures.value)
             # Order the dict based on keys to always get the same output
             begin_captures = collections.OrderedDict(
-                    sorted(begin_captures.items()))
+                sorted(begin_captures.items()))
             end_captures = ast.literal_eval(row.end_captures.value)
             end_captures = collections.OrderedDict(
-                    sorted(end_captures.items()))
+                sorted(end_captures.items()))
 
             b_string, e_string = self._pop_next_capture_string(begin_captures,
                                                                end_captures)
