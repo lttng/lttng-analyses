@@ -259,6 +259,8 @@ class IoAnalysis(Analysis):
         tid = parent_proc.tid
         fd = kwargs['fd']
 
+        if tid not in period_data.tids:
+            return
         parent_stats = period_data.tids[tid]
         last_fd = parent_stats.get_fd(fd)
         if last_fd is None:
