@@ -147,6 +147,8 @@ class PeriodStats():
 
     @classmethod
     def new_from_period(cls, period):
+        if period.definition.name is None:
+            return cls("")
         return cls(period.definition.name)
 
     @property
