@@ -111,6 +111,11 @@ class IoStateProvider(sp.StateProvider):
                 parent_proc.fds[fd].filename = format_utils.format_ipv4(
                     event['v4addr'], event['dport']
                 )
+            self._state.send_notification_cb('update_fd',
+                                             fd=fd,
+                                             parent_proc=proc,
+                                             timestamp=event.timestamp,
+                                             cpu_id=event['cpu_id'])
 
     def _process_writeback_pages_written(self, event):
         for cpu in self._state.cpus.values():
