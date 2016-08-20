@@ -273,6 +273,9 @@ class IoAnalysis(Analysis):
         tid = parent_proc.tid
         fd = kwargs['fd']
 
+        if fd not in parent_proc.fds:
+            return
+
         if fd not in period_data.tids[tid].fds:
             period_data.tids[tid].fds[fd] = []
             period_data.tids[tid].fds[fd].append(
