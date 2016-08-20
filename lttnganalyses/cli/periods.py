@@ -40,6 +40,30 @@ _PeriodStats = collections.namedtuple('_PeriodStats', [
 ])
 
 
+class _AggregatedItem():
+    def __init__(self, event, parent_event, group_by_captures, full_captures):
+        self._event = event
+        self._parent = parent_event
+        self._group_by_captures = group_by_captures
+        self._full_captures = full_captures
+
+    @property
+    def event(self):
+        return self._event
+
+    @property
+    def parent_event(self):
+        return self._parent
+
+    @property
+    def group_by_captures(self):
+        return self._group_by_captures
+
+    @property
+    def full_captures(self):
+        return self._full_captures
+
+
 class PeriodAnalysisCommand(Command):
     _DESC = """The periods command."""
     _ANALYSIS_CLASS = periods.PeriodAnalysis
@@ -53,6 +77,8 @@ class PeriodAnalysisCommand(Command):
     _MI_TABLE_CLASS_TOTAL_STATS = 'total_stats'
     _MI_TABLE_CLASS_PER_PERIOD_STATS = 'per_period_stats'
     _MI_TABLE_CLASS_FREQ = 'freq'
+    _MI_TABLE_CLASS_AGGREGATED_LOG = 'aggregated_log'
+    _MI_TABLE_CLASS_AGGREGATED_TOP = 'aggregated_top'
     _MI_TABLE_CLASSES = [
         (
             _MI_TABLE_CLASS_LOG,
@@ -107,6 +133,34 @@ class PeriodAnalysisCommand(Command):
                 ('count', 'Period count', mi.Number, 'occurences'),
             ]
         ),
+        (
+            _MI_TABLE_CLASS_AGGREGATED_LOG,
+            'Aggregated period log', [
+                ('parent_begin_ts', 'Parent begin timestamp', mi.Timestamp),
+                ('parent_end_ts', 'Parent end timestamp', mi.Timestamp),
+                ('parent_name', 'Parent period name', mi.String),
+                ('child_begin_ts', 'Child begin timestamp', mi.Timestamp),
+                ('child_end_ts', 'Child end timestamp', mi.Timestamp),
+                ('child_name', 'Child period name', mi.String),
+                ('child_duration', 'Child period duration', mi.Duration),
+                ('parent_duration', 'Parent period duration', mi.Duration),
+                ('captures', 'Captures', mi.String),
+            ]
+        ),
+        (
+            _MI_TABLE_CLASS_AGGREGATED_TOP,
+            'Aggregated period top', [
+                ('parent_begin_ts', 'Parent begin timestamp', mi.Timestamp),
+                ('parent_end_ts', 'Parent end timestamp', mi.Timestamp),
+                ('parent_name', 'Parent period name', mi.String),
+                ('child_begin_ts', 'Child begin timestamp', mi.Timestamp),
+                ('child_end_ts', 'Child end timestamp', mi.Timestamp),
+                ('child_name', 'Child period name', mi.String),
+                ('child_duration', 'Child period duration', mi.Duration),
+                ('parent_duration', 'Parent period duration', mi.Duration),
+                ('captures', 'Captures', mi.String),
+            ]
+        ),
     ]
 
     def _get_count(self, period_event):
@@ -138,11 +192,31 @@ class PeriodAnalysisCommand(Command):
         total_freq_tables = None
         per_period_freq_tables = None
 
+        aggregated_list = None
+        group_dict = None
+        aggregated_log_tables = None
+        aggregated_top_tables = None
+
+        if self._args.period_aggregate:
+            aggregated_list = self._get_aggregated_list()
+            group_dict = self._get_groups_dict(aggregated_list)
+
         if self._args.log:
-            log_table = self._get_log_result_table(begin_ns, end_ns)
+            if aggregated_list is not None:
+                aggregated_log_tables = \
+                        self._get_aggregated_log_top_result_table(
+                            begin_ns, end_ns, aggregated_list, group_dict)
+            else:
+                log_table = self._get_log_result_table(begin_ns, end_ns)
 
         if self._args.top:
-            top_table = self._get_top_result_table(begin_ns, end_ns)
+            if aggregated_list is not None:
+                aggregated_top_tables = \
+                        self._get_aggregated_log_top_result_table(
+                            begin_ns, end_ns, aggregated_list, group_dict,
+                            top=True)
+            else:
+                top_table = self._get_top_result_table(begin_ns, end_ns)
 
         if self._args.stats:
             if self._args.total:
@@ -202,6 +276,12 @@ class PeriodAnalysisCommand(Command):
             if top_table:
                 self._print_period_events(top_table)
 
+            if aggregated_log_tables:
+                self._print_aggregated_period_events(aggregated_log_tables)
+
+            if aggregated_top_tables:
+                self._print_aggregated_period_events(aggregated_top_tables)
+
     def _get_filtered_min_max_count_avg_total_flist(self, period_list):
         min = None
         max = None
@@ -224,6 +304,59 @@ class PeriodAnalysisCommand(Command):
         else:
             avg = 0
         return min, max, count, avg, total, filter_list
+
+    def _find_aggregated_subperiods(self, root, event, aggregated_list,
+                                    group_by_captures,
+                                    full_captures):
+        if event.name in self._analysis_conf._period_aggregate:
+            aggregated_list.append(_AggregatedItem(event, root,
+                                                   group_by_captures,
+                                                   full_captures))
+        for capture in event.filtered_captures(
+                self._analysis_conf._period_group_by):
+            group_by_captures.append(capture)
+        for capture in event.full_captures():
+            full_captures.append(capture)
+        for child in event.children:
+            self._find_aggregated_subperiods(root, child,
+                                             aggregated_list,
+                                             group_by_captures,
+                                             full_captures)
+
+    def _get_aggregated_list(self):
+        # List of _AggregatedItem
+        aggregated_list = []
+        for period_event in self._analysis.all_period_list:
+            if period_event.name != self._analysis_conf._period_aggregate_by:
+                continue
+            if not self._filter_duration(period_event):
+                continue
+            for child in period_event.children:
+                self._find_aggregated_subperiods(
+                        period_event,
+                        child, aggregated_list,
+                        period_event.filtered_captures(
+                            self._analysis_conf._period_group_by),
+                        period_event.full_captures())
+        return aggregated_list
+
+    def _get_groups_dict(self, aggregated_list):
+        # Dict of groups, each item contains the list of _AggregatedItem that
+        # have the same group key (sorted list of all possible group-by values)
+        groups = {}
+        for ag_event in aggregated_list:
+            group_key = ""
+            for group in sorted(ag_event.group_by_captures,
+                                key=lambda x: x[0]):
+                if len(group_key) == 0:
+                    group_key = "%s = %s" % (group[0], group[1])
+                else:
+                    group_key = "%s, %s = %s" % (group_key, group[0], group[1])
+
+            if group_key not in groups.keys():
+                groups[group_key] = []
+            groups[group_key].append(ag_event)
+        return groups
 
     def _get_total_period_lists_stats(self):
         if self._args.min_duration is None and \
@@ -251,6 +384,76 @@ class PeriodAnalysisCommand(Command):
 
         return [total_list], total_stats
 
+    def _get_one_aggregated_log_table(self, begin_ns, end_ns, aggregated_list,
+                                      sub, top):
+        if top:
+            table = self._mi_create_result_table(
+                    self._MI_TABLE_CLASS_AGGREGATED_TOP, begin_ns, end_ns,
+                    subtitle=sub)
+            top_events = sorted(aggregated_list, key=operator.attrgetter(
+                'event.duration'), reverse=True)
+            top_events = top_events[:self._args.limit]
+            for ag_event in top_events:
+                table.append_row(
+                        parent_begin_ts=mi.Timestamp(
+                            ag_event.parent_event.start_ts),
+                        parent_end_ts=mi.Timestamp(
+                            ag_event.parent_event.end_ts),
+                        parent_name=mi.String(ag_event.parent_event.name),
+                        child_begin_ts=mi.Timestamp(ag_event.event.start_ts),
+                        child_end_ts=mi.Timestamp(ag_event.event.end_ts),
+                        child_name=mi.String(ag_event.event.name),
+                        child_duration=mi.Duration(ag_event.event.duration),
+                        parent_duration=mi.Duration(
+                            ag_event.parent_event.duration),
+                        captures=mi.String(str(ag_event.full_captures)),
+                    )
+        else:
+            table = self._mi_create_result_table(
+                    self._MI_TABLE_CLASS_AGGREGATED_LOG, begin_ns, end_ns,
+                    subtitle=sub)
+            for ag_event in aggregated_list:
+                table.append_row(
+                    parent_begin_ts=mi.Timestamp(
+                        ag_event.parent_event.start_ts),
+                    parent_end_ts=mi.Timestamp(ag_event.parent_event.end_ts),
+                    parent_name=mi.String(ag_event.parent_event.name),
+                    child_begin_ts=mi.Timestamp(ag_event.event.start_ts),
+                    child_end_ts=mi.Timestamp(ag_event.event.end_ts),
+                    child_name=mi.String(ag_event.event.name),
+                    child_duration=mi.Duration(ag_event.event.duration),
+                    parent_duration=mi.Duration(
+                        ag_event.parent_event.duration),
+                    captures=mi.String(str(ag_event.full_captures)),
+                )
+        return table
+
+    def _get_aggregated_log_top_result_table(self, begin_ns, end_ns,
+                                             aggregated_list, group_dict,
+                                             top=False):
+        result_tables = []
+        ag_list = ""
+        for i in self._analysis_conf._period_aggregate:
+            if len(ag_list) == 0:
+                ag_list = i
+            else:
+                ag_list = "%s, %s" % (ag_list, i)
+        sub = "Aggregation of (%s) by %s" % (
+                ag_list, self._analysis_conf._period_aggregate_by)
+
+        if group_dict is None:
+            table = self._get_one_aggregated_log_table(begin_ns, end_ns,
+                                                       aggregated_list, sub,
+                                                       top)
+            result_tables.append(table)
+        else:
+            for group in group_dict.keys():
+                group_sub = "%s, group: %s" % (sub, group)
+                result_tables.append(self._get_one_aggregated_log_table(
+                    begin_ns, end_ns, group_dict[group], group_sub, top))
+
+        return result_tables
+
     def _get_log_result_table(self, begin_ns, end_ns):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_LOG,
                                                     begin_ns, end_ns)
@@ -265,7 +468,6 @@ class PeriodAnalysisCommand(Command):
                 begin_captures=mi.String(period_event.begin_captures),
                 end_captures=mi.String(period_event.end_captures),
             )
-
         return result_table
 
     def _get_top_result_table(self, begin_ns, end_ns):
@@ -592,9 +794,13 @@ class PeriodAnalysisCommand(Command):
             # Convert back the string to dict
             begin_captures = ast.literal_eval(row.begin_captures.value)
             # Order the dict based on keys to always get the same output
+            if begin_captures is None:
+                begin_captures = {}
             begin_captures = collections.OrderedDict(
                 sorted(begin_captures.items()))
             end_captures = ast.literal_eval(row.end_captures.value)
+            if end_captures is None:
+                end_captures = {}
             end_captures = collections.OrderedDict(
                 sorted(end_captures.items()))
 
@@ -612,6 +818,65 @@ class PeriodAnalysisCommand(Command):
                 b_string, e_string = self._pop_next_capture_string(
                     begin_captures, end_captures)
                 print(fmt_captures.format('', '', '', '', b_string, e_string))
+
+    def _print_aggregated_period_events(self, result_tables):
+        fmt = '[{:<18}, {:<18}] {:>22} {:<15} [{:<18}, {:<18}] {:>22} ' \
+            '{:<15} {:<35}'
+#        fmt_captures = '{:<18} {:<18} {:>25} {:<15} {:<18} {:<25} {:>18} ' \
+#            '{:<15} {:<35}'
+        title_fmt = '{:<20} {:<19} {:>22} {:<15} {:<20} {:<19} {:>22} ' \
+            '{:<15} {:<35}'
+        for result_table in result_tables:
+            print()
+            print(result_table.title)
+            print(result_table.subtitle)
+            print(title_fmt.format('Parent begin', 'Parent end',
+                                   'Parent duration (us)', 'Parent name',
+                                   'Child begin', 'Child end',
+                                   'Child duration (us)', 'Child name',
+                                   'Captures'))
+            for row in result_table.rows:
+                parent_begin_ts = row.parent_begin_ts.value
+                parent_end_ts = row.parent_end_ts.value
+                parent_duration = row.parent_duration.value
+                parent_name = row.parent_name.value
+                child_begin_ts = row.child_begin_ts.value
+                child_end_ts = row.child_end_ts.value
+                child_duration = row.child_duration.value
+                child_name = row.child_name.value
+
+                # Convert back the string to list of tuple
+                captures = ast.literal_eval(row.captures.value)
+                # Order the dict based on keys to always get the same output
+#                if captures is None:
+#                    captures = []
+#                    capture_str = ''
+#                else:
+#                    captures = sorted(captures, key=lambda x: x[0])
+#                    captures.reverse()
+#                    tmp = captures.pop()
+#                    capture_str = "%s = %s" % (tmp[0], tmp[1])
+                capture_str = ''
+                for i in sorted(captures, key=lambda x: x[0]):
+                    if len(capture_str) == 0:
+                        capture_str = "%s = %s" % (i[0], i[1])
+                    else:
+                        capture_str = "%s, %s = %s" % (capture_str, i[0], i[1])
+
+                print(fmt.format(self._format_timestamp(parent_begin_ts),
+                                 self._format_timestamp(parent_end_ts),
+                                 '%0.03f' % (parent_duration / 1000),
+                                 parent_name,
+                                 self._format_timestamp(child_begin_ts),
+                                 self._format_timestamp(child_end_ts),
+                                 '%0.03f' % (child_duration / 1000),
+                                 child_name,
+                                 capture_str))
+#                for i in range(len(captures)):
+#                    tmp = captures.pop()
+#                    capture_str = "%s = %s" % (tmp[0], tmp[1])
+#                    print(fmt_captures.format('', '', '', '', '', '', '', '',
+#                                              capture_str))
 
     def _print_total_stats(self, stats_table):
         row_format = '{:<12} {:<12} {:<12} {:<12} {:<12}'
@@ -685,17 +950,45 @@ class PeriodAnalysisCommand(Command):
 
     def _validate_transform_args(self):
         args = self._args
+        self._analysis_conf._period_group_by = {}
+        self._analysis_conf._period_aggregate_by = None
+        self._analysis_conf._period_aggregate = []
 
-        # If neither --total nor --per-period are specified, default
-        # to --per-period
-        if not (args.total or args.per_period):
+        if args.period_group_by:
+            for group in args.period_group_by.split(','):
+                g = group.strip()
+                if len(g) == 0:
+                    continue
+                _period_name = g.split('.')[0]
+                _period_field = g.split('.')[1]
+                if _period_name not in \
+                        self._analysis_conf._period_group_by.keys():
+                    self._analysis_conf._period_group_by[_period_name] = []
+                self._analysis_conf._period_group_by[_period_name]. \
+                    append(_period_field)
+
+        # TODO: check aggregation and group-by attributes are valid
+        if args.period_aggregate:
+            for ag in args.period_aggregate.split(','):
+                self._analysis_conf._period_aggregate.append(ag.strip())
+        self._analysis_conf._period_aggregate_by = args.period_aggregate_by
+
+        # Default to --per-period if no --total or aggregation parameter
+        # passed
+        if not (args.total or args.per_period or args.period_aggregate):
             args.per_period = True
+
+
+#    if len(self._analysis_conf._period_group_by) > 0:
+#        for group in self._analysis._group_by_values.keys():
+#            print("Group", group)
+#                for value in self._analysis._group_by_values[group].keys():
+#                    print(" -", value)
 
     def _add_arguments(self, ap):
         Command._add_min_max_args(ap)
         Command._add_freq_args(
-            ap, help='Output the frequency distribution of sched switch '
-            'durations')
+            ap, help='Output statistics about periods durations')
         Command._add_top_args(ap, help='Output the top sched switch durations')
         Command._add_log_args(
             ap, help='Output the sched switches in chronological order')
@@ -710,6 +1003,14 @@ class PeriodAnalysisCommand(Command):
                              '(usec)')
         ap.add_argument('--max-duration', type=float,
                         help='Filter out, periods longer than duration (usec)')
+        ap.add_argument('--period-aggregate-by', type=str,
+                        help='FIXME')
+        ap.add_argument('--period-aggregate', type=str,
+                        help='FIXME')
+        ap.add_argument('--period-group-by', type=str,
+                        help='Present the results grouped by a list of fields'
+                             '(period.captured_field'
+                             '[, period.captured_field2])')
 
 
 def _run(mi_mode):

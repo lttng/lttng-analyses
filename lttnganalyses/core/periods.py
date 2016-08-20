@@ -83,7 +83,6 @@ class PeriodAnalysis(Analysis):
                 self._all_max_duration:
             self._all_max_duration = period_event.duration
         self._all_total_duration += period_event.duration
-        self._all_period_list.append(period_event)
 
     # beginning of a new period
     def _begin_period_cb(self, period_data):
@@ -111,6 +110,7 @@ class PeriodAnalysis(Analysis):
         period_data._period_event = PeriodEvent(
             period.begin_evt.timestamp, definition.name, parent)
 
+        self._all_period_list.append(period_data._period_event)
         self._current_periods[period] = period_data._period_event
 
     def _end_period_cb(self, period_data, completed,
@@ -121,6 +121,9 @@ class PeriodAnalysis(Analysis):
             return
 
         if completed is False:
+            # We should eventually warn the user here or keep
+            # the event as uncomplete or in a separate table.
+            self._all_period_list.remove(period_data._period_event)
             return
 
         if period.definition.name is None:
@@ -133,6 +136,10 @@ class PeriodAnalysis(Analysis):
         self._all_period_stats[name].update_stats(
             period_data._period_event)
         self.update_global_stats(period_data._period_event)
+
+        if period.parent is not None:
+            parent = self._current_periods[period.parent]
+            parent.add_child(period_data._period_event)
 
         del self._current_periods[period]
 
@@ -175,6 +182,9 @@ class PeriodEvent():
         self._end_ts = None
         self._begin_captures = None
         self._end_captures = None
+        # Only during the aggregation phase, store the list
+        # of children we want to output.
+        self._children = []
 
     @property
     def start_ts(self):
@@ -202,11 +212,48 @@ class PeriodEvent():
     def end_captures(self):
         return str(self._end_captures)
 
+    def filtered_captures(self, period_group_by):
+        # List of tuple (field, value) for all the captured fields
+        # present in the _period_group_by dict.
+        _captures = []
+        if self._name not in period_group_by.keys():
+            return _captures
+        if self._begin_captures is not None:
+            for c in self._begin_captures.keys():
+                if c in period_group_by[self._name]:
+                    _captures.append(('%s.%s' % (self._name, c),
+                                     self._begin_captures[c]))
+        if self._end_captures is not None:
+            for c in self._end_captures.keys():
+                if c in period_group_by[self._name]:
+                    _captures.append(('%s.%s' % (self._name, c),
+                                     self._end_captures[c]))
+        return _captures
+
+    def full_captures(self):
+        _captures = []
+        if self._begin_captures is not None:
+            for c in self._begin_captures.keys():
+                _captures.append(('%s.%s' % (self._name, c),
+                                 self._begin_captures[c]))
+        if self._end_captures is not None:
+            for c in self._end_captures.keys():
+                _captures.append(('%s.%s' % (self._name, c),
+                                 self._end_captures[c]))
+        return _captures
+
     @property
     def parent(self):
         return self._parent
+
+    @property
+    def children(self):
+        return self._children
 
     def finish(self, end_ts, begin_captures, end_captures):
         self._end_ts = end_ts
         self._begin_captures = begin_captures
         self._end_captures = end_captures
+
+    def add_child(self, child_period_event):
+        self._children.append(child_period_event)
