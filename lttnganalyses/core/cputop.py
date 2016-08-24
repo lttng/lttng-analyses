@@ -113,13 +113,14 @@ class Cputop(Analysis):
         prev_tid = kwargs['prev_tid']
         next_tid = kwargs['next_tid']
         next_comm = kwargs['next_comm']
+        prev_comm = kwargs['prev_comm']
 
         if not self._filter_cpu(cpu_id):
             return
 
         if prev_tid not in period_data.tids:
             period_data.tids[prev_tid] = ProcessCpuStats(
-                None, next_tid, next_comm)
+                None, prev_tid, prev_comm)
             prev_proc = period_data.tids[prev_tid]
             # Set the last_sched_ts to the beginning of the period
             # since we missed the entry event.

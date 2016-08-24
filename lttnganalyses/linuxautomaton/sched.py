@@ -92,6 +92,7 @@ class SchedStateProvider(sp.StateProvider):
         next_prio = event['next_prio']
         prev_tid = event['prev_tid']
         prev_prio = event['prev_prio']
+        prev_comm = event['prev_comm']
 
         self._sched_switch_per_cpu(cpu_id, next_tid)
         self._sched_switch_per_tid(next_tid, next_comm, prev_tid)
@@ -111,6 +112,7 @@ class SchedStateProvider(sp.StateProvider):
             'next_comm': next_comm,
             'wakee_proc': wakee_proc,
             'waker_proc': waker_proc,
+            'prev_comm': prev_comm,
         }
 
         self._state.send_notification_cb('sched_switch_per_cpu', **cb_data)
