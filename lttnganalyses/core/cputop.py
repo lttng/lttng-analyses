@@ -27,6 +27,7 @@ from .analysis import Analysis, PeriodData
 
 class _PeriodData(PeriodData):
     def __init__(self):
+        self.period_begin_ts = None
         self.cpus = {}
         self.tids = {}
 
@@ -44,6 +45,10 @@ class Cputop(Analysis):
 
     def _create_period_data(self):
         return _PeriodData()
+
+    def _begin_period_cb(self, period_data):
+        period = period_data.period
+        period_data.period_begin_ts = period.begin_evt.timestamp
 
     def _end_period_cb(self, period_data, completed, begin_captures,
                        end_captures):
@@ -89,6 +94,8 @@ class Cputop(Analysis):
 
         if cpu_id not in period_data.cpus:
             period_data.cpus[cpu_id] = CpuUsageStats(cpu_id)
+            period_data.cpus[cpu_id].current_task_start_ts = \
+                period_data.period_begin_ts
 
         cpu = period_data.cpus[cpu_id]
         if cpu.current_task_start_ts is not None:
@@ -110,11 +117,18 @@ class Cputop(Analysis):
         if not self._filter_cpu(cpu_id):
             return
 
-        if prev_tid in period_data.tids:
+        if prev_tid not in period_data.tids:
+            period_data.tids[prev_tid] = ProcessCpuStats(
+                None, next_tid, next_comm)
             prev_proc = period_data.tids[prev_tid]
-            if prev_proc.last_sched_ts is not None:
-                prev_proc.total_cpu_time += timestamp - prev_proc.last_sched_ts
-                prev_proc.last_sched_ts = None
+            # Set the last_sched_ts to the beginning of the period
+            # since we missed the entry event.
+            prev_proc.last_sched_ts = period_data.period_begin_ts
+
+        prev_proc = period_data.tids[prev_tid]
+        if prev_proc.last_sched_ts is not None:
+            prev_proc.total_cpu_time += timestamp - prev_proc.last_sched_ts
+            prev_proc.last_sched_ts = None
 
         # Only filter on wakee_proc after finalizing the prev_proc
         # accounting
