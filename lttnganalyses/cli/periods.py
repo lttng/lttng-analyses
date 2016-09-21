@@ -79,6 +79,7 @@ class PeriodAnalysisCommand(Command):
     _MI_TABLE_CLASS_FREQ = 'freq'
     _MI_TABLE_CLASS_AGGREGATED_LOG = 'aggregated_log'
     _MI_TABLE_CLASS_AGGREGATED_TOP = 'aggregated_top'
+    _MI_TABLE_CLASS_AGGREGATED_STATS = 'aggregated_stats'
     _MI_TABLE_CLASSES = [
         (
             _MI_TABLE_CLASS_LOG,
@@ -161,6 +162,21 @@ class PeriodAnalysisCommand(Command):
                 ('captures', 'Captures', mi.String),
             ]
         ),
+        (
+            _MI_TABLE_CLASS_AGGREGATED_STATS,
+            'Aggregated period statistics', [
+                ('parent_name', 'Parent period name', mi.String),
+                ('parent_begin_ts', 'Parent begin timestamp', mi.Timestamp),
+                ('parent_end_ts', 'Parent end timestamp', mi.Timestamp),
+                ('child_name', 'Child period name', mi.String),
+                ('count', 'Period count', mi.Number, 'occurences'),
+                ('min_duration', 'Minimum duration', mi.Duration),
+                ('avg_duration', 'Average duration', mi.Duration),
+                ('max_duration', 'Maximum duration', mi.Duration),
+                ('stdev_duration', 'Period duration standard deviation',
+                 mi.Duration),
+            ]
+        ),
     ]
 
     def _get_count(self, period_event):
@@ -196,10 +212,13 @@ class PeriodAnalysisCommand(Command):
         group_dict = None
         aggregated_log_tables = None
         aggregated_top_tables = None
+        aggregated_stats_tables = None
 
         if self._args.period_aggregate:
-            aggregated_list = self._get_aggregated_list()
-            group_dict = self._get_groups_dict(aggregated_list)
+            aggregated_list, per_parent_aggregated_dict = \
+                self._get_aggregated_list()
+            if self._args.period_group_by:
+                group_dict = self._get_groups_dict(aggregated_list)
 
         if self._args.log:
             if aggregated_list is not None:
@@ -219,13 +238,21 @@ class PeriodAnalysisCommand(Command):
                 top_table = self._get_top_result_table(begin_ns, end_ns)
 
         if self._args.stats:
-            if self._args.total:
-                total_stats_table = self._get_total_stats_result_table(
-                    begin_ns, end_ns)
+            if aggregated_list is not None:
+                aggregated_stats_tables = \
+                    self._get_aggregated_stats_table(
+                        begin_ns, end_ns, aggregated_list,
+                        per_parent_aggregated_dict, group_dict,
+                        top=True)
+            else:
+                if self._args.total:
+                    total_stats_table = self._get_total_stats_result_table(
+                        begin_ns, end_ns)
 
-            if self._args.per_period:
-                per_period_stats_table = \
-                    self._get_per_period_stats_result_table(begin_ns, end_ns)
+                if self._args.per_period:
+                    per_period_stats_table = \
+                        self._get_per_period_stats_result_table(begin_ns,
+                                                                end_ns)
 
         if self._args.freq:
             if self._args.total:
@@ -282,6 +309,9 @@ class PeriodAnalysisCommand(Command):
             if aggregated_top_tables:
                 self._print_aggregated_period_events(aggregated_top_tables)
 
+            if aggregated_stats_tables:
+                self._print_aggregated_period_stats(aggregated_stats_tables)
+
     def _get_filtered_min_max_count_avg_total_flist(self, period_list):
         min = None
         max = None
@@ -290,6 +320,30 @@ class PeriodAnalysisCommand(Command):
         total = 0
         filter_list = []
         for period_event in period_list:
+            if not self._filter_duration(period_event):
+                continue
+            if min is None or min > period_event.duration:
+                min = period_event.duration
+            if max is None or max < period_event.duration:
+                max = period_event.duration
+            count += 1
+            total += period_event.duration
+            filter_list.append(period_event)
+        if count > 0:
+            avg = total / count
+        else:
+            avg = 0
+        return min, max, count, avg, total, filter_list
+
+    def _get_agg_filtered_min_max_count_avg_total_flist(self, ag_list):
+        min = None
+        max = None
+        count = 0
+        avg = 0
+        total = 0
+        filter_list = []
+        for ag_event in ag_list:
+            period_event = ag_event.event
             if not self._filter_duration(period_event):
                 continue
             if min is None or min > period_event.duration:
@@ -326,19 +380,36 @@ class PeriodAnalysisCommand(Command):
     def _get_aggregated_list(self):
         # List of _AggregatedItem
         aggregated_list = []
+        # Dict with parent period as key. Each entry contains a dict
+        # of all child period that each contain a list of _AggregatedItem.
+        # parent_aggregated_dict[parent_period][child_period] = []
+        parent_aggregated_dict = {}
         for period_event in self._analysis.all_period_list:
             if period_event.name != self._analysis_conf._period_aggregate_by:
                 continue
             if not self._filter_duration(period_event):
                 continue
+            if period_event not in parent_aggregated_dict.keys():
+                parent_aggregated_dict[period_event] = {}
+            tmp_list = []
             for child in period_event.children:
                 self._find_aggregated_subperiods(
                     period_event,
-                    child, aggregated_list,
+                    child, tmp_list,
                     period_event.filtered_captures(
                         self._analysis_conf._period_group_by),
                     period_event.full_captures())
-        return aggregated_list
+            for item in tmp_list:
+                aggregated_list.append(item)
+                if item.event.name not in \
+                        parent_aggregated_dict[period_event].keys():
+                    parent_aggregated_dict[period_event][item.event.name] = []
+                parent_aggregated_dict[period_event][item.event.name]. \
+                    append(item)
+        ordered_parent = collections.OrderedDict(
+                sorted(parent_aggregated_dict.items(),
+                       key=lambda t: t[0].start_ts))
+        return aggregated_list, ordered_parent
 
     def _get_groups_dict(self, aggregated_list):
         # Dict of groups, each item contains the list of _AggregatedItem that
@@ -588,6 +659,68 @@ class PeriodAnalysisCommand(Command):
 
         return stats_table
 
+    def _get_one_aggregated_stats_table(self, begin_ns, end_ns,
+                                        per_parent_aggregated_dict, sub, top):
+        table = self._mi_create_result_table(
+            self._MI_TABLE_CLASS_AGGREGATED_STATS, begin_ns, end_ns,
+            subtitle=sub)
+        for parent_period in per_parent_aggregated_dict.keys():
+            for child_period in \
+                    per_parent_aggregated_dict[parent_period].keys():
+                child_period_list = \
+                    per_parent_aggregated_dict[parent_period][child_period]
+                min, max, count, avg, total, period_list = \
+                    self._get_agg_filtered_min_max_count_avg_total_flist(
+                        child_period_list)
+                stdev = self._compute_period_agg_duration_stdev(
+                    child_period_list)
+
+                if math.isnan(stdev):
+                    stdev = mi.Unknown()
+                else:
+                    stdev = mi.Duration(stdev)
+
+                table.append_row(
+                    parent_begin_ts=mi.Timestamp(
+                        parent_period.start_ts),
+                    parent_end_ts=mi.Timestamp(
+                        parent_period.end_ts),
+                    parent_name=mi.String(parent_period.name),
+                    child_name=mi.String(child_period),
+                    count=mi.Number(count),
+                    min_duration=mi.Duration(min),
+                    avg_duration=mi.Duration(avg),
+                    max_duration=mi.Duration(max),
+                    stdev_duration=stdev,
+                )
+        return table
+
+    def _get_aggregated_stats_table(self, begin_ns, end_ns, aggregated_list,
+                                    per_parent_aggregated_dict, group_dict,
+                                    top=False):
+        result_tables = []
+        ag_list = ""
+        for i in self._analysis_conf._period_aggregate:
+            if len(ag_list) == 0:
+                ag_list = i
+            else:
+                ag_list = "%s, %s" % (ag_list, i)
+        sub = "Aggregation of (%s) by %s" % (
+            ag_list, self._analysis_conf._period_aggregate_by)
+
+        if group_dict is None:
+            table = self._get_one_aggregated_stats_table(
+                begin_ns, end_ns, per_parent_aggregated_dict, sub, top)
+            result_tables.append(table)
+        else:
+            # TODO
+            for group in group_dict.keys():
+                group_sub = "%s, group: %s" % (sub, group)
+                result_tables.append(self._get_one_aggregated_stats_table(
+                    begin_ns, end_ns, group_dict[group], group_sub, top))
+
+        return result_tables
+
     def _fill_freq_result_table(self, period_list, stats, min_duration,
                                 max_duration, step, freq_table):
         # The number of bins for the histogram
@@ -760,6 +893,16 @@ class PeriodAnalysisCommand(Command):
             return float('nan')
         return statistics.stdev(period_durations)
 
+    def _compute_period_agg_duration_stdev(self, period_agg_events):
+        period_durations = []
+        for period_event in period_agg_events:
+            if not self._filter_duration(period_event.event):
+                continue
+            period_durations.append(period_event.event.duration)
+        if len(period_durations) < 2:
+            return float('nan')
+        return statistics.stdev(period_durations)
+
     def _pop_next_capture_string(self, begin_captures, end_captures):
         if len(begin_captures.keys()) > 0:
             b_key, b_value = begin_captures.popitem()
@@ -922,6 +1065,45 @@ class PeriodAnalysisCommand(Command):
 
                 row_str = row_format.format(
                     '%s' % row.name,
+                    '%d' % row.count.value,
+                    '%0.03f' % row.min_duration.to_us(),
+                    '%0.03f' % row.avg_duration.to_us(),
+                    '%0.03f' % row.max_duration.to_us(),
+                    '%s' % stdev_str,
+                )
+
+                print(row_str)
+
+    def _print_aggregated_period_stats(self, stats_tables):
+        fmt = '[{:<18}, {:<18}] {:>22} {:<15} {:<15} {:>12} {:>12} ' \
+            '{:>12} {:>12} {:>12}'
+        title_fmt = '{:<20} {:<19} {:>22} {:<15} {:<15} {:>12} {:>12}' \
+            '{:>12} {:>12} {:>12}'
+        for stats_table in stats_tables:
+            print()
+            print(stats_table.title)
+            print(stats_table.subtitle)
+            print(title_fmt.format('Parent begin', 'Parent end',
+                                   'Parent duration (us)', 'Parent name',
+                                   'Child name', 'Count', 'Min', 'Avg',
+                                   'Max', 'Stdev'))
+
+            for row in stats_table.rows:
+                parent_begin_ts = row.parent_begin_ts.value
+                parent_end_ts = row.parent_end_ts.value
+                parent_duration = parent_end_ts - parent_begin_ts
+                parent_name = row.parent_name.value
+                child_name = row.child_name.value
+                if type(row.stdev_duration) is mi.Unknown:
+                    stdev_str = '?'
+                else:
+                    stdev_str = '%0.03f' % row.stdev_duration.to_us()
+
+                row_str = fmt.format(
+                    self._format_timestamp(parent_begin_ts),
+                    self._format_timestamp(parent_end_ts),
+                    '%0.03f' % (parent_duration / 1000),
+                    parent_name, child_name,
                     '%d' % row.count.value,
                     '%0.03f' % row.min_duration.to_us(),
                     '%0.03f' % row.avg_duration.to_us(),
