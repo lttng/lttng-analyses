@@ -216,10 +216,10 @@ class PeriodAnalysisCommand(Command):
         aggregated_stats_tables = None
         per_parent_aggregated_dict = None
 
-        if self._args.period_aggregate or self._args.order_by == "hierarchy":
+        if self._args.select or self._args.order_by == "hierarchy":
             aggregated_list, per_parent_aggregated_dict, hierarchical_list = \
                 self._get_aggregated_list()
-            if self._args.period_group_by:
+            if self._args.group_by:
                 group_dict = self._get_groups_dict(aggregated_list)
 
         if self._args.log:
@@ -359,13 +359,13 @@ class PeriodAnalysisCommand(Command):
     def _find_aggregated_subperiods(self, root, event, aggregated_list,
                                     group_by_captures,
                                     full_captures):
-        if len(self._analysis_conf._period_aggregate) == 0 or \
-                event.name in self._analysis_conf._period_aggregate:
+        if len(self._analysis_conf._select) == 0 or \
+                event.name in self._analysis_conf._select:
             aggregated_list.append(_AggregatedItem(event, root,
                                                    group_by_captures,
                                                    full_captures))
         for capture in event.filtered_captures(
-                self._analysis_conf._period_group_by):
+                self._analysis_conf._group_by):
             group_by_captures.append(capture)
         for capture in event.full_captures():
             full_captures.append(capture)
@@ -401,7 +401,7 @@ class PeriodAnalysisCommand(Command):
                         for item in tmp_list:
                             hierarchical_list.append(item)
 
-            if period_event.name != self._analysis_conf._period_aggregate_by:
+            if period_event.name != self._analysis_conf._aggregate_by:
                 continue
             if not self._filter_duration(period_event):
                 continue
@@ -413,7 +413,7 @@ class PeriodAnalysisCommand(Command):
                     period_event,
                     child, tmp_list,
                     period_event.filtered_captures(
-                        self._analysis_conf._period_group_by),
+                        self._analysis_conf._group_by),
                     period_event.full_captures())
             for item in tmp_list:
                 aggregated_list.append(item)
@@ -520,13 +520,13 @@ class PeriodAnalysisCommand(Command):
                                                top=False):
         result_tables = []
         ag_list = ""
-        for i in self._analysis_conf._period_aggregate:
+        for i in self._analysis_conf._select:
             if len(ag_list) == 0:
                 ag_list = i
             else:
                 ag_list = "%s, %s" % (ag_list, i)
         sub = "Aggregation of (%s) by %s" % (
-            ag_list, self._analysis_conf._period_aggregate_by)
+            ag_list, self._analysis_conf._aggregate_by)
 
         if group_dict is None:
             table = self._get_one_hierarchical_log_table(begin_ns, end_ns,
@@ -720,13 +720,13 @@ class PeriodAnalysisCommand(Command):
                                     top=False):
         result_tables = []
         ag_list = ""
-        for i in self._analysis_conf._period_aggregate:
+        for i in self._analysis_conf._select:
             if len(ag_list) == 0:
                 ag_list = i
             else:
                 ag_list = "%s, %s" % (ag_list, i)
         sub = "Aggregation of (%s) by %s" % (
-            ag_list, self._analysis_conf._period_aggregate_by)
+            ag_list, self._analysis_conf._aggregate_by)
 
         if group_dict is None:
             table = self._get_one_aggregated_stats_table(
@@ -1152,21 +1152,22 @@ class PeriodAnalysisCommand(Command):
 
     def _validate_transform_args(self):
         args = self._args
-        self._analysis_conf._period_group_by = {}
-        self._analysis_conf._period_aggregate_by = None
-        self._analysis_conf._period_aggregate = []
+        self._analysis_conf._group_by = {}
+        self._analysis_conf._aggregate_by = None
+        self._analysis_conf._select = []
+        self._analysis_conf._order_by = None
 
-        if args.period_group_by:
-            for group in args.period_group_by.split(','):
+        if args.group_by:
+            for group in args.group_by.split(','):
                 g = group.strip()
                 if len(g) == 0:
                     continue
                 _period_name = g.split('.')[0]
                 _period_field = g.split('.')[1]
                 if _period_name not in \
-                        self._analysis_conf._period_group_by.keys():
-                    self._analysis_conf._period_group_by[_period_name] = []
-                self._analysis_conf._period_group_by[_period_name]. \
+                        self._analysis_conf._group_by.keys():
+                    self._analysis_conf._group_by[_period_name] = []
+                self._analysis_conf._group_by[_period_name]. \
                     append(_period_field)
 
         if args.order_by:
@@ -1175,22 +1176,15 @@ class PeriodAnalysisCommand(Command):
             self._analysis_conf._order_by = args.order_by
 
         # TODO: check aggregation and group-by attributes are valid
-        if args.period_aggregate:
-            for ag in args.period_aggregate.split(','):
-                self._analysis_conf._period_aggregate.append(ag.strip())
-        self._analysis_conf._period_aggregate_by = args.period_aggregate_by
+        if args.select:
+            for ag in args.select.split(','):
+                self._analysis_conf._select.append(ag.strip())
+        self._analysis_conf._aggregate_by = args.aggregate_by
 
         # Default to --per-period if no --total or aggregation parameter
         # passed
-        if not (args.total or args.per_period or args.period_aggregate):
+        if not (args.total or args.per_period or args.select):
             args.per_period = True
-
-
-#    if len(self._analysis_conf._period_group_by) > 0:
-#        for group in self._analysis._group_by_values.keys():
-#            print("Group", group)
-#                for value in self._analysis._group_by_values[group].keys():
-#                    print(" -", value)
 
     def _add_arguments(self, ap):
         Command._add_min_max_args(ap)
@@ -1210,11 +1204,11 @@ class PeriodAnalysisCommand(Command):
                              '(usec)')
         ap.add_argument('--max-duration', type=float,
                         help='Filter out, periods longer than duration (usec)')
-        ap.add_argument('--period-aggregate-by', type=str,
+        ap.add_argument('--aggregate-by', type=str,
                         help='FIXME')
-        ap.add_argument('--period-aggregate', type=str,
+        ap.add_argument('--select', type=str,
                         help='FIXME')
-        ap.add_argument('--period-group-by', type=str,
+        ap.add_argument('--group-by', type=str,
                         help='Present the results grouped by a list of fields'
                              '(period.captured_field'
                              '[, period.captured_field2])')
