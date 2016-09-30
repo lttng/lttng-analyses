@@ -35,9 +35,33 @@ class PeriodDefinitionRegistry:
     def __init__(self):
         self._root_period_defs = set()
         self._named_period_defs = {}
+        # name to hierarchy
+        self._full_period_path = {}
+
+    def period_full_path(self, name):
+        return self._full_period_path[name]
 
     def has_period_def(self, name):
         return name in self._named_period_defs
+
+    def add_full_period_path(self, period_name, parent_name):
+        period_path = [period_name]
+        period_path_str = ""
+        if parent_name is None:
+            self._full_period_path[period_name] = period_name
+            return
+
+        parent = self.get_period_def(parent_name)
+        while parent is not None:
+            period_path.append(parent.name)
+            parent = parent.parent
+        period_path.reverse()
+        for i in period_path:
+            if len(period_path_str) == 0:
+                period_path_str = i
+            else:
+                period_path_str = "%s/%s" % (period_path_str, i)
+        self._full_period_path[period_name] = period_path_str
 
     def add_period_def(self, parent_name, period_name, begin_expr, end_expr,
                        begin_captures_exprs, end_captures_exprs):
@@ -74,6 +98,8 @@ class PeriodDefinitionRegistry:
 
         if period_def.name is not None:
             self._named_period_defs[period_def.name] = period_def
+
+        self.add_full_period_path(period_name, parent_name)
 
     def get_period_def(self, name):
         return self._named_period_defs.get(name)
