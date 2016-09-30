@@ -225,10 +225,10 @@ class PeriodAnalysisCommand(Command):
         if self._args.log:
             if self._args.order_by == "hierarchy":
                 log_table = self._get_log_result_table(
-                        begin_ns, end_ns, hierarchical_list)
+                    begin_ns, end_ns, hierarchical_list)
             else:
                 log_table = self._get_log_result_table(
-                        begin_ns, end_ns, self._analysis.all_period_list)
+                    begin_ns, end_ns, self._analysis.all_period_list)
 
         if self._args.top:
             top_table = self._get_top_result_table(
@@ -423,8 +423,8 @@ class PeriodAnalysisCommand(Command):
                 parent_aggregated_dict[period_event][item.event.name]. \
                     append(item)
         ordered_parent = collections.OrderedDict(
-                sorted(parent_aggregated_dict.items(),
-                       key=lambda t: t[0].start_ts))
+            sorted(parent_aggregated_dict.items(),
+                   key=lambda t: t[0].start_ts))
         return aggregated_list, ordered_parent, hierarchical_list
 
     def _get_groups_dict(self, aggregated_list):
@@ -543,7 +543,7 @@ class PeriodAnalysisCommand(Command):
 
     def _get_full_period_path(self, period_event):
         return self._analysis_conf.period_def_registry.period_full_path(
-                period_event.name)
+            period_event.name)
 
     def _get_log_result_table(self, begin_ns, end_ns, period_list):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_LOG,
