@@ -79,7 +79,7 @@ class PeriodAnalysisCommand(Command):
     _MI_TABLE_CLASS_FREQ = 'freq'
     _MI_TABLE_CLASS_HIERARCHICAL_LOG = 'aggregated_log'
     _MI_TABLE_CLASS_AGGREGATED_TOP = 'aggregated_top'
-    _MI_TABLE_CLASS_AGGREGATED_STATS = 'aggregated_stats'
+    _MI_TABLE_CLASS_AGGREGATED_LOG = 'aggregated_stats'
     _MI_TABLE_CLASSES = [
         (
             _MI_TABLE_CLASS_LOG,
@@ -163,8 +163,8 @@ class PeriodAnalysisCommand(Command):
             ]
         ),
         (
-            _MI_TABLE_CLASS_AGGREGATED_STATS,
-            'Aggregated period statistics', [
+            _MI_TABLE_CLASS_AGGREGATED_LOG,
+            'Aggregated log', [
                 ('parent_name', 'Parent period name', mi.String),
                 ('parent_begin_ts', 'Parent begin timestamp', mi.Timestamp),
                 ('parent_end_ts', 'Parent end timestamp', mi.Timestamp),
@@ -175,6 +175,8 @@ class PeriodAnalysisCommand(Command):
                 ('max_duration', 'Maximum duration', mi.Duration),
                 ('stdev_duration', 'Period duration standard deviation',
                  mi.Duration),
+                ('runtime', 'Total runtime', mi.Duration),
+                ('parent_captures', 'Parent captures', mi.String),
             ]
         ),
     ]
@@ -213,7 +215,7 @@ class PeriodAnalysisCommand(Command):
         hierarchical_list = None
         hierarchical_log_tables = None
         hierarchical_top_tables = None
-        aggregated_stats_tables = None
+        aggregated_log_tables = None
         per_parent_aggregated_dict = None
 
         if self._args.select or self._args.order_by == "hierarchy":
@@ -223,10 +225,19 @@ class PeriodAnalysisCommand(Command):
                 group_dict = self._get_groups_dict(aggregated_list)
 
         if self._args.log:
-            if self._args.order_by == "hierarchy":
+            # aggregated view
+            if per_parent_aggregated_dict is not None:
+                aggregated_log_tables = \
+                    self._get_aggregated_log_table(
+                        begin_ns, end_ns,
+                        per_parent_aggregated_dict, group_dict,
+                        top=True)
+            # hierarchical view
+            elif self._args.order_by == "hierarchy":
                 log_table = self._get_log_result_table(
                     begin_ns, end_ns, hierarchical_list)
             else:
+                # time-based view
                 log_table = self._get_log_result_table(
                     begin_ns, end_ns, self._analysis.all_period_list)
 
@@ -235,21 +246,14 @@ class PeriodAnalysisCommand(Command):
                 begin_ns, end_ns, self._analysis.all_period_list)
 
         if self._args.stats:
-            if per_parent_aggregated_dict is not None:
-                aggregated_stats_tables = \
-                    self._get_aggregated_stats_table(
-                        begin_ns, end_ns,
-                        per_parent_aggregated_dict, group_dict,
-                        top=True)
-            else:
-                if self._args.total:
-                    total_stats_table = self._get_total_stats_result_table(
-                        begin_ns, end_ns)
+            if self._args.total:
+                total_stats_table = self._get_total_stats_result_table(
+                    begin_ns, end_ns)
 
-                if self._args.per_period:
-                    per_period_stats_table = \
-                        self._get_per_period_stats_result_table(begin_ns,
-                                                                end_ns)
+            if self._args.per_period:
+                per_period_stats_table = \
+                    self._get_per_period_stats_result_table(begin_ns,
+                                                            end_ns)
 
         if self._args.freq:
             if self._args.total:
@@ -306,8 +310,8 @@ class PeriodAnalysisCommand(Command):
             if hierarchical_top_tables:
                 self._print_aggregated_period_events(hierarchical_top_tables)
 
-            if aggregated_stats_tables:
-                self._print_aggregated_period_stats(aggregated_stats_tables)
+            if aggregated_log_tables:
+                self._print_aggregated_log(aggregated_log_tables)
 
     def _get_filtered_min_max_count_avg_total_flist(self, period_list):
         min = None
@@ -541,9 +545,9 @@ class PeriodAnalysisCommand(Command):
 
         return result_tables
 
-    def _get_full_period_path(self, period_event):
+    def _get_full_period_path(self, period_name):
         return self._analysis_conf.period_def_registry.period_full_path(
-            period_event.name)
+            period_name)
 
     def _get_log_result_table(self, begin_ns, end_ns, period_list):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_LOG,
@@ -555,7 +559,7 @@ class PeriodAnalysisCommand(Command):
                 begin_ts=mi.Timestamp(period_event.start_ts),
                 end_ts=mi.Timestamp(period_event.end_ts),
                 duration=mi.Duration(period_event.duration),
-                name=mi.String(self._get_full_period_path(period_event)),
+                name=mi.String(self._get_full_period_path(period_event.name)),
                 begin_captures=mi.String(period_event.begin_captures),
                 end_captures=mi.String(period_event.end_captures),
             )
@@ -679,10 +683,10 @@ class PeriodAnalysisCommand(Command):
 
         return stats_table
 
-    def _get_one_aggregated_stats_table(self, begin_ns, end_ns,
-                                        per_parent_aggregated_dict, sub, top):
+    def _get_one_aggregated_log_table(self, begin_ns, end_ns,
+                                      per_parent_aggregated_dict, sub, top):
         table = self._mi_create_result_table(
-            self._MI_TABLE_CLASS_AGGREGATED_STATS, begin_ns, end_ns,
+            self._MI_TABLE_CLASS_AGGREGATED_LOG, begin_ns, end_ns,
             subtitle=sub)
         for parent_period in per_parent_aggregated_dict.keys():
             for child_period in \
@@ -706,18 +710,21 @@ class PeriodAnalysisCommand(Command):
                     parent_end_ts=mi.Timestamp(
                         parent_period.end_ts),
                     parent_name=mi.String(parent_period.name),
-                    child_name=mi.String(child_period),
+                    child_name=mi.String(self._get_full_period_path(
+                        child_period)),
                     count=mi.Number(count),
                     min_duration=mi.Duration(min),
                     avg_duration=mi.Duration(avg),
                     max_duration=mi.Duration(max),
+                    runtime=mi.Duration(total),
+                    parent_captures=mi.String(parent_period.full_captures()),
                     stdev_duration=stdev,
                 )
         return table
 
-    def _get_aggregated_stats_table(self, begin_ns, end_ns,
-                                    per_parent_aggregated_dict, group_dict,
-                                    top=False):
+    def _get_aggregated_log_table(self, begin_ns, end_ns,
+                                  per_parent_aggregated_dict, group_dict,
+                                  top=False):
         result_tables = []
         ag_list = ""
         for i in self._analysis_conf._select:
@@ -729,14 +736,14 @@ class PeriodAnalysisCommand(Command):
             ag_list, self._analysis_conf._aggregate_by)
 
         if group_dict is None:
-            table = self._get_one_aggregated_stats_table(
+            table = self._get_one_aggregated_log_table(
                 begin_ns, end_ns, per_parent_aggregated_dict, sub, top)
             result_tables.append(table)
         else:
             # TODO
             for group in group_dict.keys():
                 group_sub = "%s, group: %s" % (sub, group)
-                result_tables.append(self._get_one_aggregated_stats_table(
+                result_tables.append(self._get_one_aggregated_log_table(
                     begin_ns, end_ns, group_dict[group], group_sub, top))
 
         return result_tables
@@ -1094,19 +1101,32 @@ class PeriodAnalysisCommand(Command):
 
                 print(row_str)
 
-    def _print_aggregated_period_stats(self, stats_tables):
-        fmt = '[{:<18}, {:<18}] {:>22} {:<15} {:<15} {:>12} {:>12} ' \
-            '{:>12} {:>12} {:>12}'
-        title_fmt = '{:<20} {:<19} {:>22} {:<15} {:<15} {:>12} {:>12}' \
-            '{:>12} {:>12} {:>12}'
+    def _one_line_captures(self, capture_tuple_list):
+        capture_str = None
+        for item in capture_tuple_list:
+            if capture_str is None:
+                capture_str = "%s = %s" % (item[0], item[1])
+                continue
+            capture_str = "%s, %s = %s" % (capture_str, item[0], item[1])
+        return capture_str
+
+    def _print_aggregated_log(self, stats_tables):
+        fmt = '[{:<18}, {:<18}] {:>18} {:<15} {:<24} {:>12} | {:>10} ' \
+            '{:>12} {:>12} {:>12} {:>12} | {:>12}'
+        title_fmt = '{:<20} {:<19} {:>18} {:<15} {:<24} {:>12} | {:>10} ' \
+            '{:>12} {:>12} {:>13} {:>12} | {:>12}'
+        high_title_fmt = '{:<35} Parent {:<32} | {:<35} | {:<25} ' \
+            'Durations (us) {:<21} |'
         for stats_table in stats_tables:
             print()
             print(stats_table.title)
             print(stats_table.subtitle)
-            print(title_fmt.format('Parent begin', 'Parent end',
-                                   'Parent duration (us)', 'Parent name',
-                                   'Child name', 'Count', 'Min', 'Avg',
-                                   'Max', 'Stdev'))
+            print(high_title_fmt.format('', '', '', '', ''))
+            print(title_fmt.format('Begin', 'End',
+                                   'Duration (us)', 'Name',
+                                   '| Child name', 'Count', 'Min', 'Avg',
+                                   'Max', 'Stdev', 'Runtime',
+                                   'Parent captures'))
 
             for row in stats_table.rows:
                 parent_begin_ts = row.parent_begin_ts.value
@@ -1114,6 +1134,7 @@ class PeriodAnalysisCommand(Command):
                 parent_duration = parent_end_ts - parent_begin_ts
                 parent_name = row.parent_name.value
                 child_name = row.child_name.value
+                captures = self._one_line_captures(row.parent_captures.value)
                 if type(row.stdev_duration) is mi.Unknown:
                     stdev_str = '?'
                 else:
@@ -1123,12 +1144,15 @@ class PeriodAnalysisCommand(Command):
                     self._format_timestamp(parent_begin_ts),
                     self._format_timestamp(parent_end_ts),
                     '%0.03f' % (parent_duration / 1000),
-                    parent_name, child_name,
+                    parent_name,
+                    '| %s' % child_name,
                     '%d' % row.count.value,
                     '%0.03f' % row.min_duration.to_us(),
                     '%0.03f' % row.avg_duration.to_us(),
                     '%0.03f' % row.max_duration.to_us(),
                     '%s' % stdev_str,
+                    '%0.03f' % row.runtime.to_us(),
+                    '%s' % captures,
                 )
 
                 print(row_str)
