@@ -222,7 +222,7 @@ class PeriodAnalysisCommand(Command):
             aggregated_list, per_parent_aggregated_dict, hierarchical_list = \
                 self._get_aggregated_list()
             if self._args.group_by:
-                group_dict = self._get_groups_dict(aggregated_list)
+                group_dict = self._get_groups_dict(per_parent_aggregated_dict)
 
         if self._args.log:
             # aggregated view
@@ -431,22 +431,28 @@ class PeriodAnalysisCommand(Command):
                    key=lambda t: t[0].start_ts))
         return aggregated_list, ordered_parent, hierarchical_list
 
-    def _get_groups_dict(self, aggregated_list):
-        # Dict of groups, each item contains the list of _AggregatedItem that
-        # have the same group key (sorted list of all possible group-by values)
+    def _get_groups_dict(self, per_parent_aggregated_dict):
+        # groups[group_key][parent][child] = [_AggregatedItem, ...]
         groups = {}
-        for ag_event in aggregated_list:
-            group_key = ""
-            for group in sorted(ag_event.group_by_captures,
-                                key=lambda x: x[0]):
-                if len(group_key) == 0:
-                    group_key = "%s = %s" % (group[0], group[1])
-                else:
-                    group_key = "%s, %s = %s" % (group_key, group[0], group[1])
+        for parent in per_parent_aggregated_dict.keys():
+            for child in per_parent_aggregated_dict[parent].keys():
+                for ag_event in per_parent_aggregated_dict[parent][child]:
+                    group_key = ""
+                    for group in sorted(ag_event.group_by_captures,
+                                        key=lambda x: x[0]):
+                        if len(group_key) == 0:
+                            group_key = "%s = %s" % (group[0], group[1])
+                        else:
+                            group_key = "%s, %s = %s" % (group_key, group[0],
+                                                         group[1])
 
-            if group_key not in groups.keys():
-                groups[group_key] = []
-            groups[group_key].append(ag_event)
+                    if group_key not in groups.keys():
+                        groups[group_key] = {}
+                    if parent not in groups[group_key].keys():
+                        groups[group_key][parent] = {}
+                    if child not in groups[group_key][parent].keys():
+                        groups[group_key][parent][child] = []
+                    groups[group_key][parent][child].append(ag_event)
         return groups
 
     def _get_total_period_lists_stats(self):
@@ -740,7 +746,6 @@ class PeriodAnalysisCommand(Command):
                 begin_ns, end_ns, per_parent_aggregated_dict, sub, top)
             result_tables.append(table)
         else:
-            # TODO
             for group in group_dict.keys():
                 group_sub = "%s, group: %s" % (sub, group)
                 result_tables.append(self._get_one_aggregated_log_table(
@@ -1112,11 +1117,11 @@ class PeriodAnalysisCommand(Command):
 
     def _print_aggregated_log(self, stats_tables):
         fmt = '[{:<18}, {:<18}] {:>18} {:<15} {:<24} {:>12} | {:>10} ' \
-            '{:>12} {:>12} {:>12} {:>12} | {:>12}'
+            '{:>12} {:>12} {:>12} {:>13} | {:>12}'
         title_fmt = '{:<20} {:<19} {:>18} {:<15} {:<24} {:>12} | {:>10} ' \
             '{:>12} {:>12} {:>13} {:>12} | {:>12}'
         high_title_fmt = '{:<35} Parent {:<32} | {:<35} | {:<25} ' \
-            'Durations (us) {:<21} |'
+            'Durations (us) {:<22} |'
         for stats_table in stats_tables:
             print()
             print(stats_table.title)
