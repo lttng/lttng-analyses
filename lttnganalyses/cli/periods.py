@@ -112,6 +112,7 @@ class PeriodAnalysisCommand(Command):
                 ('max_duration', 'Maximum duration', mi.Duration),
                 ('stdev_duration', 'Period duration standard deviation',
                  mi.Duration),
+                ('runtime', 'Total runtime', mi.Duration),
             ]
         ),
         (
@@ -265,9 +266,8 @@ class PeriodAnalysisCommand(Command):
             self._print_date(begin_ns, end_ns)
 
             if self._args.stats:
-                print("Period tree:")
-                self._print_period_tree(period_tree, 0)
-                self._print_per_period_stats(per_period_stats_table)
+                self._print_per_period_stats(per_period_stats_table,
+                                             period_tree)
 
             if self._args.freq:
                 self._print_freq(per_period_freq_tables)
@@ -595,6 +595,7 @@ class PeriodAnalysisCommand(Command):
                 min = period_stats.min_duration
                 max = period_stats.max_duration
                 count = period_stats.count
+                total = period_stats.total_duration
                 if count > 0:
                     avg = period_stats.total_duration / \
                         period_stats.count
@@ -618,6 +619,7 @@ class PeriodAnalysisCommand(Command):
                 avg_duration=mi.Duration(avg),
                 max_duration=mi.Duration(max),
                 stdev_duration=stdev,
+                runtime=mi.Duration(total),
             )
 
         return stats_table
@@ -1022,11 +1024,14 @@ class PeriodAnalysisCommand(Command):
             for child in period_tree[parent]:
                 self._print_period_tree(period_tree[parent], level + 1)
 
-    def _print_per_period_stats(self, stats_table):
-        row_format = '{:<25} {:>8}  {:>12}  {:>12}  {:>12}  {:>12}'
+    def _print_per_period_stats(self, stats_table, period_tree):
+        row_format = '{:<25} {:>8}  {:>12}  {:>12}  {:>12}  {:>12} {:>12}'
         header = row_format.format(
-            'Period', 'Count', 'Min', 'Avg', 'Max', 'Stdev'
+            'Period', 'Count', 'Min', 'Avg', 'Max', 'Stdev', 'Runtime'
         )
+
+        print("Period tree:")
+        self._print_period_tree(period_tree, 0)
 
         if stats_table.rows:
             print()
@@ -1045,6 +1050,7 @@ class PeriodAnalysisCommand(Command):
                     '%0.03f' % row.avg_duration.to_us(),
                     '%0.03f' % row.max_duration.to_us(),
                     '%s' % stdev_str,
+                    '%0.03f' % row.runtime.to_us(),
                 )
 
                 print(row_str)
