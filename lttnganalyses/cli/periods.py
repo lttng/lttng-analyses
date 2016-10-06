@@ -523,6 +523,8 @@ class PeriodAnalysisCommand(Command):
         return result_tables
 
     def _get_full_period_path(self, period_name):
+        if len(period_name) == 0:
+            return period_name
         return self._analysis_conf.period_def_registry.period_full_path(
             period_name)
 
