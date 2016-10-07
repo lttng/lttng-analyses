@@ -274,13 +274,10 @@ class TestAllOptions(unittest.TestCase):
         self.run_with_log_args(exec_name)
         self.run_with_stats_args(exec_name)
         self.run_with_top_args(exec_name)
-        self.get_cmd_return(exec_name, '--total')
-        self.get_cmd_return(exec_name, '--per-period')
 
     def test_all_options_periodfreq(self):
         exec_name = 'lttng-periodfreq'
-        self.get_cmd_return(exec_name, '--per-period --freq-uniform')
-        self.get_cmd_return(exec_name, '--total --freq-uniform')
+        self.get_cmd_return(exec_name, '--freq-uniform')
         self.run_all_options_period(exec_name)
 
     def test_all_options_periodlog(self):
