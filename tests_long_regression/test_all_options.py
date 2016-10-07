@@ -117,18 +117,20 @@ class TestAllOptions(unittest.TestCase):
                     '\$evt.\$name == \\"sched_switch\\" && '
                     '\$evt.prev_tid == \$begin.\$evt.next_tid && '
                     '\$evt.cpu_id == \$begin.\$evt.cpu_id')
-        self._traces["16-cores-rt"] = _RefTrace(
-            self._traces_repo_path, "16-cores-rt",
-            "2016-07-20 18:02:05.196332110",
-            "2016-07-20 18:02:07.282598088",
-            period1='switch : \$evt.\$name == \\"sched_switch\\" : '
-                    '\$evt.\$name == \\"sched_switch\\" && '
-                    '\$evt.prev_tid == \$begin.\$evt.next_tid && '
-                    '\$evt.cpu_id == \$begin.\$evt.cpu_id',
-            period2=': \$evt.\$name == \\"sched_switch\\" : '
-                    '\$evt.\$name == \\"sched_switch\\" && '
-                    '\$evt.prev_tid == \$begin.\$evt.next_tid && '
-                    '\$evt.cpu_id == \$begin.\$evt.cpu_id')
+
+        # Disabled for now since they take far too long to run
+        # self._traces["16-cores-rt"] = _RefTrace(
+        #    self._traces_repo_path, "16-cores-rt",
+        #    "2016-07-20 18:02:05.196332110",
+        #    "2016-07-20 18:02:07.282598088",
+        #    period1='switch : \$evt.\$name == \\"sched_switch\\" : '
+        #            '\$evt.\$name == \\"sched_switch\\" && '
+        #            '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+        #            '\$evt.cpu_id == \$begin.\$evt.cpu_id',
+        #    period2=': \$evt.\$name == \\"sched_switch\\" : '
+        #            '\$evt.\$name == \\"sched_switch\\" && '
+        #            '\$evt.prev_tid == \$begin.\$evt.next_tid && '
+        #            '\$evt.cpu_id == \$begin.\$evt.cpu_id')
 
     def get_cmd_return(self, exec_name, options):
         cmd_fmt = './{} {} {} {}'
