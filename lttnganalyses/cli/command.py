@@ -760,6 +760,12 @@ Please consider using the --period option.''')
         self._args = ap.parse_args()
 
         if self._mi_mode:
+            # Compatiblity checking does not need to read the whole
+            # trace, the caller should make sure there are no lost
+            # events. At worst, they will be detected when the analysis
+            # is actually run.
+            if self._args.test_compatibility:
+                self._args.skip_validation = True
             self._args.no_progress = True
 
             if self._args.output_progress:
