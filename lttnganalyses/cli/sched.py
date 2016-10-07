@@ -196,9 +196,19 @@ class SchedAnalysisCommand(Command):
                     self._mi_append_result_tables(total_freq_tables)
 
                 if per_tid_freq_tables:
+                    if self._args.freq_series:
+                        per_tid_freq_tables = [
+                            self._get_per_tid_freq_series_table(
+                                per_tid_freq_tables)
+                        ]
                     self._mi_append_result_tables(per_tid_freq_tables)
 
                 if per_prio_freq_tables:
+                    if self._args.freq_series:
+                        per_prio_freq_tables = [
+                            self._get_per_prio_freq_series_table(
+                                per_prio_freq_tables)
+                        ]
                     self._mi_append_result_tables(per_prio_freq_tables)
         else:
             self._print_date(begin_ns, end_ns)
