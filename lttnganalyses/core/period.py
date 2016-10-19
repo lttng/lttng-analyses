@@ -110,6 +110,10 @@ class PeriodDefinitionRegistry:
             yield period_def
 
     @property
+    def named_period_defs(self):
+        return self._named_period_defs
+
+    @property
     def is_empty(self):
         return len(self._root_period_defs) == 0 and \
             len(self._named_period_defs) == 0
