@@ -518,8 +518,8 @@ class PeriodAnalysisCommand(Command):
         # OrderedDict because we want the same order as the period_tree
         per_period_stats = OrderedDict()
         for period_event in self._analysis.all_period_list:
-            # FIXME
-            if self._analysis_conf._order_by == "hierarchy" or True:
+            if self._analysis_conf._order_by == "hierarchy" or \
+                    self._args.stats:
                 # Only top-level events
                 if period_event.parent is None:
                     hierarchical_list.append(period_event)
