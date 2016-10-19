@@ -333,24 +333,25 @@ class PeriodAnalysisCommand(Command):
         for parent in reg.root_period_defs:
             self._get_period_tree(parent, period_tree)
 
-        if self._args.select or self._args.order_by == "hierarchy":
+        if self._args.select or self._args.order_by == "hierarchy" or \
+                self._args.stats:
             per_parent_aggregated_dict, hierarchical_list, per_period_stats = \
-                self._get_aggregated_list()
+                self._get_aggregated_lists()
             if self._args.group_by:
                 group_dict = self._get_groups_dict(per_parent_aggregated_dict)
 
         if self._args.log:
+            # hierarchical view
+            if self._args.order_by == "hierarchy":
+                log_table = self._get_log_result_table(
+                    begin_ns, end_ns, hierarchical_list)
             # aggregated view
-            if per_parent_aggregated_dict is not None:
+            elif self._args.select:
                 aggregated_log_tables = \
                     self._get_aggregated_log_table(
                         begin_ns, end_ns,
                         per_parent_aggregated_dict, group_dict,
                         top=True)
-            # hierarchical view
-            elif self._args.order_by == "hierarchy":
-                log_table = self._get_log_result_table(
-                    begin_ns, end_ns, hierarchical_list)
             else:
                 # time-based view
                 log_table = self._get_log_result_table(
@@ -506,7 +507,7 @@ class PeriodAnalysisCommand(Command):
         per_period_stats[event.name].finish_period(event.start_ts,
                                                    event.end_ts)
 
-    def _get_aggregated_list(self):
+    def _get_aggregated_lists(self):
         # Dict with parent period as key. Each entry contains a dict
         # of all child period that each contain a list of _AggregatedItem.
         # parent_aggregated_dict[parent_period][child_period] = []
