@@ -724,10 +724,13 @@ class PeriodAnalysisCommand(Command):
         top_events = sorted(event_list,
                             key=operator.attrgetter('duration'),
                             reverse=True)
-        top_events = top_events[:self._args.limit]
+        count = 0
 
         for period_event in top_events:
             if not self._filter_duration(period_event):
+                continue
+            if self._args.select and period_event.name not in \
+                    self._args.select:
                 continue
             result_table.append_row(
                 begin_ts=mi.Timestamp(period_event.start_ts),
@@ -737,6 +740,9 @@ class PeriodAnalysisCommand(Command):
                 begin_captures=mi.String(period_event.begin_captures),
                 end_captures=mi.String(period_event.end_captures),
             )
+            count += 1
+            if count == self._args.limit:
+                break
         return result_table
 
     def _get_ordered_period_stats_list(self, parent_name, period_stats_list,
