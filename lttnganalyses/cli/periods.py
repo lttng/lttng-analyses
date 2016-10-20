@@ -71,6 +71,8 @@ class _AggregatedPeriodStats():
 
     def _init_children(self):
         period_def = self._reg.get_period_def(self._name)
+        if period_def is None:
+            return
         self._recurs_find_children(period_def)
 
     def add_tmp_child(self, name, duration):
