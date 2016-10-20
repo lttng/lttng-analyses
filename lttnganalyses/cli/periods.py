@@ -757,23 +757,23 @@ class PeriodAnalysisCommand(Command):
     def _get_per_parent_stats_result_table(self, begin_ns, end_ns,
                                            per_period_stats):
         duration_table = self._mi_create_result_table(
-                self._MI_TABLE_CLASS_PER_PARENT_STATS, begin_ns, end_ns,
-                subtitle="With active children")
+            self._MI_TABLE_CLASS_PER_PARENT_STATS, begin_ns, end_ns,
+            subtitle="With active children")
         count_table = self._mi_create_result_table(
-                self._MI_TABLE_CLASS_PER_PARENT_COUNT, begin_ns, end_ns,
-                subtitle="With active children")
+            self._MI_TABLE_CLASS_PER_PARENT_COUNT, begin_ns, end_ns,
+            subtitle="With active children")
         global_duration_table = self._mi_create_result_table(
-                self._MI_TABLE_CLASS_PER_PARENT_STATS, begin_ns, end_ns,
-                subtitle="Globally")
+            self._MI_TABLE_CLASS_PER_PARENT_STATS, begin_ns, end_ns,
+            subtitle="Globally")
         global_count_table = self._mi_create_result_table(
-                self._MI_TABLE_CLASS_PER_PARENT_COUNT, begin_ns, end_ns,
-                subtitle="Globally")
+            self._MI_TABLE_CLASS_PER_PARENT_COUNT, begin_ns, end_ns,
+            subtitle="Globally")
         pc_table = self._mi_create_result_table(
-                self._MI_TABLE_CLASS_PER_PARENT_PC, begin_ns, end_ns,
-                subtitle="With active children")
+            self._MI_TABLE_CLASS_PER_PARENT_PC, begin_ns, end_ns,
+            subtitle="With active children")
         global_pc_table = self._mi_create_result_table(
-                self._MI_TABLE_CLASS_PER_PARENT_PC, begin_ns, end_ns,
-                subtitle="Globally")
+            self._MI_TABLE_CLASS_PER_PARENT_PC, begin_ns, end_ns,
+            subtitle="Globally")
         for period in per_period_stats.keys():
             for child in per_period_stats[period]._children.keys():
                 c = per_period_stats[period]._children[child]
