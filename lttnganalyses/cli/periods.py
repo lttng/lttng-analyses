@@ -54,12 +54,30 @@ class _PeriodStats():
         self.parent_count = {}
 
 
+class _TmpAggregation():
+    def __init__(self, parent=None):
+        # self._children[name] = [durations]
+        self._children = {}
+        self._parent = parent
+
+    @property
+    def children(self):
+        return self._children
+
+    def add_child(self, name, duration):
+        if name not in self._children.keys():
+            self._children[name] = []
+        self._children[name].append(duration)
+
+        if self._parent is not None:
+            self._parent.add_child(name, duration)
+
+
 class _AggregatedPeriodStats():
     def __init__(self, registry, name):
         self._reg = registry
         self._name = name
         self._children = OrderedDict()
-        self._tmp_children = {}
         self._stats = _PeriodStats()
         self.nr_periods = 0
         self._init_children()
@@ -75,18 +93,14 @@ class _AggregatedPeriodStats():
             return
         self._recurs_find_children(period_def)
 
-    def add_tmp_child(self, name, duration):
-        if name not in self._tmp_children.keys():
-            self._tmp_children[name] = []
-        self._tmp_children[name].append(duration)
-
-    def finish_period(self, start_ts, end_ts):
+    def finish_period(self, start_ts, end_ts, child_dict):
         parent_duration = end_ts - start_ts
-        for child in self._tmp_children.keys():
-            count = 0
+        for child in child_dict.keys():
+            if child not in self._children.keys():
+                continue
+            count = len(child_dict[child])
             duration = 0
-            for period in self._tmp_children[child]:
-                count += 1
+            for period in child_dict[child]:
                 duration += period
             c = self._children[child]
             pc = (duration / parent_duration) * 100
@@ -118,7 +132,6 @@ class _AggregatedPeriodStats():
             if self._name not in c.parent_count.keys():
                 c.parent_count[self._name] = 0
             c.parent_count[self._name] += 1
-        self._tmp_children = {}
         self.nr_periods += 1
 
 
@@ -323,7 +336,7 @@ class PeriodAnalysisCommand(Command):
         per_parent_count_table = None
         per_period_freq_tables = None
 
-        group_dict = None
+        aggregated_groups = None
         hierarchical_list = None
         hierarchical_log_tables = None
         hierarchical_top_tables = None
@@ -340,7 +353,8 @@ class PeriodAnalysisCommand(Command):
             per_parent_aggregated_dict, hierarchical_list, per_period_stats = \
                 self._get_aggregated_lists()
             if self._args.group_by:
-                group_dict = self._get_groups_dict(per_parent_aggregated_dict)
+                aggregated_groups = self._get_aggregated_groups(
+                    per_parent_aggregated_dict)
 
         if self._args.log:
             # hierarchical view
@@ -352,7 +366,7 @@ class PeriodAnalysisCommand(Command):
                 aggregated_log_tables = \
                     self._get_aggregated_log_table(
                         begin_ns, end_ns,
-                        per_parent_aggregated_dict, group_dict,
+                        per_parent_aggregated_dict, aggregated_groups,
                         top=True)
             else:
                 # time-based view
@@ -486,28 +500,90 @@ class PeriodAnalysisCommand(Command):
                                              group_by_captures,
                                              full_captures)
 
-    def _hierarchical_sub(self, tmp_list, event, per_period_stats,
-                          tmp_parent_stats):
-        tmp_list.append(event)
-        for parent in tmp_parent_stats.keys():
-            if parent == event.name:
-                continue
-            tmp_parent_stats[parent].add_tmp_child(event.name, event.duration)
+    def _hierarchical_sub(self, tmp_hierarchical_list, event, per_period_stats,
+                          parent_captures,
+                          per_period_group_by_stats, active_periods):
+        tmp_hierarchical_list.append(event)
 
-        if len(event.children) == 0:
-            return
+#        self._check_period_by_group(
+#            event,
+#            self._get_group_by_dict(per_period_group_by_stats,
+#                                    parent_captures))
+#        child_captures = self._append_captures(event, parent_captures)
+#        self._account_event_in_group(per_period_group_by_stats,
+#                                     child_captures, event)
+        child_captures = None
 
-        if event.name not in tmp_parent_stats.keys():
-            tmp_parent_stats[event.name] = per_period_stats[event.name]
+        # Recursively iterate over all the children of this period
         for child in event.children:
             if child.name not in per_period_stats.keys():
                 per_period_stats[child.name] = _AggregatedPeriodStats(
                     self._analysis_conf.period_def_registry,
                     child.name)
-            self._hierarchical_sub(tmp_list, child, per_period_stats,
-                                   tmp_parent_stats)
-        per_period_stats[event.name].finish_period(event.start_ts,
-                                                   event.end_ts)
+            active_periods[event].add_child(child.name, child.duration)
+            active_periods[child] = _TmpAggregation(active_periods[event])
+            self._hierarchical_sub(tmp_hierarchical_list, child,
+                                   per_period_stats, child_captures,
+                                   per_period_group_by_stats,
+                                   active_periods)
+            del(active_periods[child])
+
+        per_period_stats[event.name].finish_period(
+            event.start_ts, event.end_ts,
+            active_periods[event].children)
+
+    def _account_event_in_group(self, per_period_group_by_stats, captures,
+                                event):
+        # Check if the event name exists at all level of the group
+        # chain and create it if necessary.
+        d = per_period_group_by_stats
+        for c in captures:
+            group = d[c]
+            if event.name not in group['data'].keys():
+                group['data'][event.name] = _PeriodStats()
+            d = group
+
+    def _check_period_by_group(self, event, group_by_stats):
+        # group_by_stats[capture1]...[capture-n][parent][child] = \
+        #    _PeriodStats()
+        grp_dict = group_by_stats
+        for c in event.filtered_captures(self._analysis_conf._group_by):
+            group_key = '%s = %s' % (c[0], c[1])
+            if group_key not in grp_dict.keys():
+                grp_dict[group_key] = {}
+                grp_dict[group_key]['data'] = {}
+            grp_dict = grp_dict[group_key]
+
+    def _get_group_by_dict(self, per_period_group_by_stats, captures):
+        d = per_period_group_by_stats
+        for c in captures:
+            d = d[c]
+        return d
+
+    def _append_captures(self, event, captures=None):
+        if captures is None:
+            tmp_cap = []
+        else:
+            tmp_cap = captures.copy()
+        for c in event.filtered_captures(self._analysis_conf._group_by):
+            group_key = '%s = %s' % (c[0], c[1])
+            tmp_cap.append(group_key)
+        return tmp_cap
+
+    def _print_dict(self, per_period_group_by_stats, d=None, level=0):
+        # Debug function
+        if d is None:
+            d = per_period_group_by_stats
+        for i in d.keys():
+            spaces = ''
+            for j in range(level):
+                spaces = '%s%s ' % (spaces, '')
+            if i == 'data':
+                for k in d[i].keys():
+                    print('%s- %s' % (spaces, k))
+                continue
+            print('%s- %s' % (spaces, i))
+            self._print_dict(None, d[i], level + 1)
 
     def _get_aggregated_lists(self):
         # Dict with parent period as key. Each entry contains a dict
@@ -520,37 +596,36 @@ class PeriodAnalysisCommand(Command):
         # dict of _AggregatedPeriodStats
         # OrderedDict because we want the same order as the period_tree
         per_period_stats = OrderedDict()
+        per_period_group_by_stats = OrderedDict()
+        # active_periods[period_event] = _TmpAggregation()
+        active_periods = {}
         for period_event in self._analysis.all_period_list:
             if self._analysis_conf._order_by == "hierarchy" or \
                     self._args.stats:
                 # Only top-level events
                 if period_event.parent is None:
+                    active_periods[period_event] = _TmpAggregation()
                     hierarchical_list.append(period_event)
+                    parent_captures = self._append_captures(period_event)
+                    self._check_period_by_group(
+                        period_event, per_period_group_by_stats)
                     if period_event.name not in per_period_stats.keys():
                         per_period_stats[period_event.name] = \
                             _AggregatedPeriodStats(
                                 self._analysis_conf.period_def_registry,
                                 period_event.name)
-                    tmp_parent_stats = {}
-                    if len(period_event.children) > 0 and \
-                            period_event.name not in tmp_parent_stats.keys():
-                        tmp_parent_stats[period_event.name] = \
-                            per_period_stats[period_event.name]
+                    self._check_period_by_group(period_event,
+                                                per_period_group_by_stats)
 
-                    for child in period_event.children:
-                        tmp_list = []
-                        if child.name not in per_period_stats.keys():
-                            per_period_stats[child.name] = \
-                                _AggregatedPeriodStats(
-                                    self._analysis_conf.period_def_registry,
-                                    child.name)
-                        self._hierarchical_sub(
-                            tmp_list, child, per_period_stats,
-                            tmp_parent_stats)
-                        for item in tmp_list:
-                            hierarchical_list.append(item)
-                    per_period_stats[period_event.name].finish_period(
-                        period_event.start_ts, period_event.end_ts)
+                    tmp_hierarchical_list = []
+                    self._hierarchical_sub(
+                        tmp_hierarchical_list, period_event, per_period_stats,
+                        parent_captures,
+                        per_period_group_by_stats,
+                        active_periods)
+                    del(active_periods[period_event])
+                    for item in tmp_hierarchical_list:
+                        hierarchical_list.append(item)
 
             if period_event.name != self._analysis_conf._aggregate_by:
                 continue
@@ -575,9 +650,11 @@ class PeriodAnalysisCommand(Command):
         ordered_parent = collections.OrderedDict(
             sorted(parent_aggregated_dict.items(),
                    key=lambda t: t[0].start_ts))
+#        self._print_dict(per_period_group_by_stats)
         return ordered_parent, hierarchical_list, per_period_stats
 
-    def _get_groups_dict(self, per_parent_aggregated_dict):
+    def _get_aggregated_groups(self, per_parent_aggregated_dict):
+        # Group and flatten event list by captured keys, aggregate by parent
         # groups[group_key][parent][child] = [_AggregatedItem, ...]
         groups = {}
         for parent in per_parent_aggregated_dict.keys():
@@ -672,7 +749,8 @@ class PeriodAnalysisCommand(Command):
         return table
 
     def _get_hierarchical_log_top_result_table(self, begin_ns, end_ns,
-                                               aggregated_list, group_dict,
+                                               aggregated_list,
+                                               aggregated_groups,
                                                top=False):
         result_tables = []
         ag_list = ""
@@ -684,16 +762,17 @@ class PeriodAnalysisCommand(Command):
         sub = "Aggregation of (%s) by %s" % (
             ag_list, self._analysis_conf._aggregate_by)
 
-        if group_dict is None:
+        if aggregated_groups is None:
             table = self._get_one_hierarchical_log_table(begin_ns, end_ns,
                                                          aggregated_list, sub,
                                                          top)
             result_tables.append(table)
         else:
-            for group in group_dict.keys():
+            for group in aggregated_groups.keys():
                 group_sub = "%s, group: %s" % (sub, group)
                 result_tables.append(self._get_one_hierarchical_log_table(
-                    begin_ns, end_ns, group_dict[group], group_sub, top))
+                    begin_ns, end_ns, aggregated_groups[group], group_sub,
+                    top))
 
         return result_tables
 
@@ -984,7 +1063,8 @@ class PeriodAnalysisCommand(Command):
         return table
 
     def _get_aggregated_log_table(self, begin_ns, end_ns,
-                                  per_parent_aggregated_dict, group_dict,
+                                  per_parent_aggregated_dict,
+                                  aggregated_groups,
                                   top=False):
         result_tables = []
         ag_list = ""
@@ -996,15 +1076,16 @@ class PeriodAnalysisCommand(Command):
         sub = "Aggregation of (%s) by %s" % (
             ag_list, self._analysis_conf._aggregate_by)
 
-        if group_dict is None:
+        if aggregated_groups is None:
             table = self._get_one_aggregated_log_table(
                 begin_ns, end_ns, per_parent_aggregated_dict, sub, top)
             result_tables.append(table)
         else:
-            for group in group_dict.keys():
+            for group in aggregated_groups.keys():
                 group_sub = "%s, group: %s" % (sub, group)
                 result_tables.append(self._get_one_aggregated_log_table(
-                    begin_ns, end_ns, group_dict[group], group_sub, top))
+                    begin_ns, end_ns, aggregated_groups[group], group_sub,
+                    top))
 
         return result_tables
 

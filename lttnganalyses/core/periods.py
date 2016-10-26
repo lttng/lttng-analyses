@@ -219,12 +219,12 @@ class PeriodEvent():
         if self._name not in period_group_by.keys():
             return _captures
         if self._begin_captures is not None:
-            for c in self._begin_captures.keys():
+            for c in sorted(self._begin_captures.keys()):
                 if c in period_group_by[self._name]:
                     _captures.append(('%s.%s' % (self._name, c),
                                      self._begin_captures[c]))
         if self._end_captures is not None:
-            for c in self._end_captures.keys():
+            for c in sorted(self._end_captures.keys()):
                 if c in period_group_by[self._name]:
                     _captures.append(('%s.%s' % (self._name, c),
                                      self._end_captures[c]))
