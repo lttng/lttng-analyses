@@ -52,6 +52,7 @@ def read_file(filename):
     with open(filename, encoding='utf-8') as source:
         return source.read()
 
+
 setup(
     name='lttnganalyses',
     version=versioneer.get_version(),
