@@ -1,7 +1,6 @@
 # The MIT License (MIT)
 #
 # Copyright (C) 2016 - Julien Desfossez <jdesfossez@efficios.com>
-#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -30,6 +29,34 @@ from collections import OrderedDict
 from . import mi, termgraph
 from ..core import periods
 from .command import Command
+
+
+class _StatsFreqTables():
+    def __init__(self):
+        # Stats tables
+        self.per_parent_stats_table = None
+        self.per_parent_count_table = None
+        self.per_parent_pc_table = None
+        self.global_duration_table = None
+        self.global_count_table = None
+        self.global_pc_table = None
+
+        # Raw values for the frequency distributions
+        # *_values[period][child] = []
+        self.duration_values = {}
+        self.count_values = {}
+        self.pc_values = {}
+        self.global_duration_values = {}
+        self.global_count_values = {}
+        self.global_pc_values = {}
+
+        # Freq tables
+        self.per_parent_freq_tables = []
+        self.per_parent_count_freq_tables = []
+        self.per_parent_pc_freq_tables = []
+        self.global_duration_freq_tables = []
+        self.global_count_freq_tables = []
+        self.global_pc_freq_tables = []
 
 
 class _PeriodStats():
@@ -215,7 +242,7 @@ class PeriodAnalysisCommand(Command):
         ),
         (
             _MI_TABLE_CLASS_FREQ,
-            'Period duration frequency distribution', [
+            'Period frequency distribution', [
                 ('duration_lower', 'Duration (lower bound)', mi.Duration),
                 ('duration_upper', 'Duration (upper bound)', mi.Duration),
                 ('count', 'Period count', mi.Number, 'occurences'),
@@ -305,14 +332,17 @@ class PeriodAnalysisCommand(Command):
     def _get_count(self, period_event):
         pass
 
-    def _filter_duration(self, period_event):
+    def _filter_duration(self, duration):
         if self._args.min_duration is not None and \
-                period_event.duration < (self._args.min_duration * 1000):
+                duration < (self._args.min_duration * 1000):
             return False
         if self._args.max_duration is not None and \
-                period_event.duration > (self._args.max_duration * 1000):
+                duration > (self._args.max_duration * 1000):
             return False
         return True
+
+    def _filter_event_duration(self, period_event):
+        return self._filter_duration(period_event.duration)
 
     def _get_period_tree(self, period, period_tree):
         period_tree[period.name] = OrderedDict()
@@ -332,8 +362,6 @@ class PeriodAnalysisCommand(Command):
         log_table = None
         top_table = None
         per_period_stats_table = None
-        per_parent_stats_table = None
-        per_parent_count_table = None
         per_period_freq_tables = None
 
         aggregated_groups = None
@@ -349,7 +377,7 @@ class PeriodAnalysisCommand(Command):
             self._get_period_tree(parent, period_tree)
 
         if self._args.select or self._args.order_by == "hierarchy" or \
-                self._args.stats:
+                self._args.stats or self._args.freq:
             per_parent_aggregated_dict, hierarchical_list, per_period_stats = \
                 self._get_aggregated_lists()
             if self._args.group_by:
@@ -377,19 +405,22 @@ class PeriodAnalysisCommand(Command):
             top_table = self._get_top_result_table(
                 begin_ns, end_ns, self._analysis.all_period_list)
 
-        if self._args.stats:
+        # Common tables for stats and freq
+        if self._args.stats or self._args.freq:
             per_period_stats_table = \
                 self._get_per_period_stats_result_table(begin_ns, end_ns,
                                                         period_tree)
-            per_parent_stats_table, per_parent_count_table, \
-                global_duration_table, global_count_table, \
-                pc_table, global_pc_table = \
-                self._get_per_parent_stats_result_table(begin_ns, end_ns,
-                                                        per_period_stats)
+            per_parent_stats_freq_tables = \
+                self._get_per_parent_stats_result_table(
+                    begin_ns, end_ns, per_period_stats)
 
         if self._args.freq:
             per_period_freq_tables = \
                 self._get_per_period_freq_result_tables(begin_ns, end_ns)
+            # This updates per_parent_stats_freq_tables with the new tables,
+            # nothing to return.
+            self._get_per_parent_freq_result_table(
+                begin_ns, end_ns, per_parent_stats_freq_tables)
 
         if self._mi_mode:
             if log_table:
@@ -398,26 +429,68 @@ class PeriodAnalysisCommand(Command):
             if top_table:
                 self._mi_append_result_table(top_table)
 
-            if per_period_stats_table and per_period_stats_table.rows:
-                self._mi_append_result_table(per_period_stats_table)
+            if self._args.stats:
+                self._mi_append_result_tables(per_period_stats_table)
+                self._mi_append_result_table(
+                    per_parent_stats_freq_tables.per_parent_stats_table)
+                self._mi_append_result_table(
+                    per_parent_stats_freq_tables.per_parent_count_table)
+                self._mi_append_result_table(
+                    per_parent_stats_freq_tables.per_parent_pc_table)
+                self._mi_append_result_table(
+                    per_parent_stats_freq_tables.global_duration_table)
+                self._mi_append_result_table(
+                    per_parent_stats_freq_tables.global_count_table)
+                self._mi_append_result_table(
+                    per_parent_stats_freq_tables.global_pc_table)
 
             if self._args.freq:
                 self._mi_append_result_tables(per_period_freq_tables)
+                self._mi_append_result_tables(
+                    per_parent_stats_freq_tables.per_parent_freq_tables)
+                self._mi_append_result_tables(
+                    per_parent_stats_freq_tables.per_parent_count_freq_tables)
+                self._mi_append_result_tables(
+                    per_parent_stats_freq_tables.per_parent_pc_freq_tables)
+                self._mi_append_result_tables(
+                    per_parent_stats_freq_tables.global_duration_freq_tables)
+                self._mi_append_result_tables(
+                    per_parent_stats_freq_tables.global_count_freq_tables)
+                self._mi_append_result_tables(
+                    per_parent_stats_freq_tables.global_pc_freq_tables)
         else:
             self._print_date(begin_ns, end_ns)
 
             if self._args.stats:
                 self._print_per_period_stats(per_period_stats_table,
                                              period_tree)
-                self._print_per_parent_stats(per_parent_stats_table)
-                self._print_per_parent_pc(pc_table)
-                self._print_per_parent_count(per_parent_count_table)
-                self._print_per_parent_stats(global_duration_table)
-                self._print_per_parent_pc(global_pc_table)
-                self._print_per_parent_count(global_count_table)
+                self._print_per_parent_stats(
+                    per_parent_stats_freq_tables.per_parent_stats_table)
+                self._print_per_parent_pc(
+                    per_parent_stats_freq_tables.per_parent_pc_table)
+                self._print_per_parent_count(
+                    per_parent_stats_freq_tables.per_parent_count_table)
+                self._print_per_parent_stats(
+                    per_parent_stats_freq_tables.global_duration_table)
+                self._print_per_parent_pc(
+                    per_parent_stats_freq_tables.global_pc_table)
+                self._print_per_parent_count(
+                    per_parent_stats_freq_tables.global_count_table)
 
             if self._args.freq:
                 self._print_freq(per_period_freq_tables)
+                self._print_freq(
+                    per_parent_stats_freq_tables.per_parent_freq_tables)
+                self._print_freq(
+                    per_parent_stats_freq_tables.per_parent_pc_freq_tables)
+                self._print_freq(
+                    per_parent_stats_freq_tables.per_parent_count_freq_tables)
+                self._print_freq(
+                    per_parent_stats_freq_tables.global_duration_freq_tables)
+                self._print_freq(
+                    per_parent_stats_freq_tables.global_pc_freq_tables)
+                self._print_freq(
+                    per_parent_stats_freq_tables.global_count_freq_tables)
 
             if log_table:
                 self._print_period_events(log_table)
@@ -442,7 +515,7 @@ class PeriodAnalysisCommand(Command):
         total = 0
         filter_list = []
         for period_event in period_list:
-            if not self._filter_duration(period_event):
+            if not self._filter_event_duration(period_event):
                 continue
             if min is None or min > period_event.duration:
                 min = period_event.duration
@@ -466,7 +539,7 @@ class PeriodAnalysisCommand(Command):
         filter_list = []
         for ag_event in ag_list:
             period_event = ag_event.event
-            if not self._filter_duration(period_event):
+            if not self._filter_event_duration(period_event):
                 continue
             if min is None or min > period_event.duration:
                 min = period_event.duration
@@ -601,7 +674,7 @@ class PeriodAnalysisCommand(Command):
         active_periods = {}
         for period_event in self._analysis.all_period_list:
             if self._analysis_conf._order_by == "hierarchy" or \
-                    self._args.stats:
+                    self._args.stats or self._args.freq:
                 # Only top-level events
                 if period_event.parent is None:
                     active_periods[period_event] = _TmpAggregation()
@@ -629,7 +702,7 @@ class PeriodAnalysisCommand(Command):
 
             if period_event.name != self._analysis_conf._aggregate_by:
                 continue
-            if not self._filter_duration(period_event):
+            if not self._filter_event_duration(period_event):
                 continue
             if period_event not in parent_aggregated_dict.keys():
                 parent_aggregated_dict[period_event] = {}
@@ -748,10 +821,9 @@ class PeriodAnalysisCommand(Command):
                 )
         return table
 
-    def _get_hierarchical_log_top_result_table(self, begin_ns, end_ns,
-                                               aggregated_list,
-                                               aggregated_groups,
-                                               top=False):
+    def _get_hierarchical_log_top_result_table(
+            self, begin_ns, end_ns, aggregated_list, aggregated_groups,
+            top=False):
         result_tables = []
         ag_list = ""
         for i in self._analysis_conf._select:
@@ -786,7 +858,7 @@ class PeriodAnalysisCommand(Command):
         result_table = self._mi_create_result_table(self._MI_TABLE_CLASS_LOG,
                                                     begin_ns, end_ns)
         for period_event in period_list:
-            if not self._filter_duration(period_event):
+            if not self._filter_event_duration(period_event):
                 continue
             result_table.append_row(
                 begin_ts=mi.Timestamp(period_event.start_ts),
@@ -808,7 +880,7 @@ class PeriodAnalysisCommand(Command):
         count = 0
 
         for period_event in top_events:
-            if not self._filter_duration(period_event):
+            if not self._filter_event_duration(period_event):
                 continue
             if self._args.select and period_event.name not in \
                     self._args.select:
@@ -855,7 +927,21 @@ class PeriodAnalysisCommand(Command):
         global_pc_table = self._mi_create_result_table(
             self._MI_TABLE_CLASS_PER_PARENT_PC, begin_ns, end_ns,
             subtitle="Globally")
+        ret = _StatsFreqTables()
+        ret.per_parent_stats_table = duration_table
+        ret.per_parent_count_table = count_table
+        ret.global_duration_table = global_duration_table
+        ret.global_count_table = global_count_table
+        ret.per_parent_pc_table = pc_table
+        ret.global_pc_table = global_pc_table
+
         for period in per_period_stats.keys():
+            ret.duration_values[period] = {}
+            ret.count_values[period] = {}
+            ret.pc_values[period] = {}
+            ret.global_duration_values[period] = {}
+            ret.global_count_values[period] = {}
+            ret.global_pc_values[period] = {}
             for child in per_period_stats[period]._children.keys():
                 c = per_period_stats[period]._children[child]
                 if per_period_stats[period].nr_periods == 0:
@@ -889,6 +975,14 @@ class PeriodAnalysisCommand(Command):
                 global_durations = c.durations.copy()
                 global_count_array = c.count_array.copy()
                 global_pc_array = c.pc_array.copy()
+                # Save the raw values if we need them for the frequency
+                # distributions
+                ret.duration_values[period][child] = c.durations.copy()
+                ret.count_values[period][child] = c.count_array.copy()
+                ret.pc_values[period][child] = c.pc_array.copy()
+                ret.global_duration_values[period][child] = c.durations.copy()
+                ret.global_count_values[period][child] = c.count_array.copy()
+                ret.global_pc_values[period][child] = c.pc_array.copy()
                 if c.parent_count[period] < \
                         per_period_stats[period].nr_periods:
                     global_min = 0
@@ -899,6 +993,9 @@ class PeriodAnalysisCommand(Command):
                         global_durations.append(0)
                         global_count_array.append(0)
                         global_pc_array.append(0)
+                        ret.global_duration_values[period][child].append(0)
+                        ret.global_count_values[period][child].append(0)
+                        ret.global_pc_values[period][child].append(0)
                 else:
                     global_min = c.min
                     global_min_count = c.min_count
@@ -969,8 +1066,7 @@ class PeriodAnalysisCommand(Command):
                     max=mi.Number(c.max_pc),
                     stdev=global_pc_stdev,
                 )
-        return duration_table, count_table, global_duration_table, \
-            global_count_table, pc_table, global_pc_table
+        return ret
 
     def _get_per_period_stats_result_table(self, begin_ns, end_ns,
                                            period_tree):
@@ -1129,9 +1225,72 @@ class PeriodAnalysisCommand(Command):
             counts.append(0)
 
         for period_event in period_list:
-            if not self._filter_duration(period_event):
+            if not self._filter_event_duration(period_event):
                 continue
             duration = period_event.duration / 1000
+            index = int((duration - min_duration) / step)
+
+            if index >= resolution:
+                # special case for max value: put in last bucket (includes
+                # its upper bound)
+                if duration == max_duration:
+                    counts[index - 1] += 1
+
+                continue
+
+            counts[index] += 1
+
+        for index, count in enumerate(counts):
+            lower_bound = index * step + min_duration
+            upper_bound = (index + 1) * step + min_duration
+            freq_table.append_row(
+                duration_lower=mi.Duration.from_us(lower_bound),
+                duration_upper=mi.Duration.from_us(upper_bound),
+                count=mi.Number(count),
+            )
+
+    def _fill_freq_result_table_values(self, values, min_duration,
+                                       max_duration, step, freq_table, ratio):
+        # Differ from _fill_freq_result_table because we work directly with
+        # a list of values instead of periods.
+
+        # The number of bins for the histogram
+        resolution = self._args.freq_resolution
+
+        if not self._args.freq_uniform:
+            if self._args.min is not None:
+                min_duration = self._args.min
+            else:
+                min_duration = min(values)/ratio
+
+            if self._args.max is not None:
+                max_duration = self._args.max
+            else:
+                max_duration = max(values)/ratio
+
+            # ns to µs
+            if min_duration is None:
+                min_duration = 0
+
+            if max_duration is None:
+                max_duration = 0
+
+            step = (max_duration - min_duration) / resolution
+
+        if step == 0:
+            return
+
+        buckets = []
+        counts = []
+
+        for i in range(resolution):
+            buckets.append(i * step)
+            counts.append(0)
+
+        for v in values:
+            if not self._filter_duration(v):
+                continue
+            duration = v / ratio
             index = int((duration - min_duration) / step)
 
             if index >= resolution:
@@ -1166,7 +1325,7 @@ class PeriodAnalysisCommand(Command):
 
             for period_list in period_lists:
                 for period_event in period_list:
-                    if not self._filter_duration(period_event):
+                    if not self._filter_event_duration(period_event):
                         continue
                     durations.append(period_event.duration)
 
@@ -1208,15 +1367,143 @@ class PeriodAnalysisCommand(Command):
                 stdev = self._compute_period_duration_stdev(period_list)
 
             period_stats[period] = _PeriodStats(
-                count=count,
-                min=min,
-                max=max,
-                stdev=stdev,
-                total=total,
-            )
+                count=count, min=min, max=max, stdev=stdev, total=total)
             period_lists[period] = period_list
 
         return period_lists, period_stats
+
+    def _find_table_min_max_step(self, table):
+        min = None
+        max = 0
+        # Find the uniform freq values across all parent/child combinations
+        for period in table.keys():
+            for child in table[period].keys():
+                tmp_min, tmp_max, tmp_step = \
+                    self._get_uniform_freq_values(
+                        table[period][child])
+                if min is None or tmp_min < min:
+                    min = tmp_min
+                if tmp_max > max:
+                    max = tmp_max
+        if min is None:
+            steps = 0
+        else:
+            steps = (max - min) / self._args.freq_resolution
+        return min, max, steps
+
+    def _find_uniform_values(self, tables):
+        if not self._args.freq_uniform:
+            return None, None, None, None, None, None, \
+                    None, None, None, None, None, None, \
+                    None, None, None, None, None, None
+
+        duration_min, duration_max, duration_step = \
+            self._find_table_min_max_step(tables.duration_values)
+        global_duration_min, global_duration_max, global_duration_step = \
+            self._find_table_min_max_step(tables.global_duration_values)
+
+        count_min, count_max, count_step = \
+            self._find_table_min_max_step(tables.count_values)
+        global_count_min, global_count_max, global_count_step = \
+            self._find_table_min_max_step(tables.global_count_values)
+
+        pc_min, pc_max, pc_step = \
+            self._find_table_min_max_step(tables.pc_values)
+        global_pc_min, global_pc_max, global_pc_step = \
+            self._find_table_min_max_step(tables.global_pc_values)
+
+        return duration_min, duration_max, duration_step, \
+            global_duration_min, global_duration_max, \
+            global_duration_step, \
+            count_min, count_max, count_step, \
+            global_count_min, global_count_max, \
+            global_count_step, \
+            pc_min, pc_max, pc_step, \
+            global_pc_min, global_pc_max, \
+            global_pc_step
+
+    def _get_one_per_parent_freq_result_table(self, begin_ns, end_ns,
+                                              min, max, step, values,
+                                              subtitle, ratio=1):
+        freq_table = \
+            self._mi_create_result_table(self._MI_TABLE_CLASS_FREQ,
+                                         begin_ns, end_ns, subtitle)
+        self._fill_freq_result_table_values(values, min, max, step,
+                                            freq_table, ratio)
+        return freq_table
+
+    def _get_per_parent_freq_result_table(self, begin_ns, end_ns,
+                                          tables):
+        duration_min, duration_max, duration_step, \
+            global_duration_min, global_duration_max, \
+            global_duration_step, \
+            count_min, count_max, count_step, \
+            global_count_min, global_count_max, \
+            global_count_step, \
+            pc_min, pc_max, pc_step, \
+            global_pc_min, global_pc_max, \
+            global_pc_step = self._find_uniform_values(tables)
+
+        for period in tables.duration_values.keys():
+            for child in tables.duration_values[period].keys():
+                subtitle = "Duration of %s in %s (us)" % (
+                    self._get_full_period_path(child),
+                    self._get_full_period_path(period))
+                # ratio=1000 for ns -> us
+                tables.per_parent_freq_tables.append(
+                    self._get_one_per_parent_freq_result_table(
+                        begin_ns, end_ns, duration_min, duration_max,
+                        duration_step, tables.duration_values[period][child],
+                        subtitle, ratio=1000))
+
+                subtitle = "Count of %s in %s" % (
+                    self._get_full_period_path(child),
+                    self._get_full_period_path(period))
+                tables.per_parent_count_freq_tables.append(
+                    self._get_one_per_parent_freq_result_table(
+                        begin_ns, end_ns, count_min, count_max, count_step,
+                        tables.count_values[period][child],
+                        subtitle))
+
+                subtitle = "Duration ratio of %s in %s (%%)" % (
+                    self._get_full_period_path(child),
+                    self._get_full_period_path(period))
+                tables.per_parent_pc_freq_tables.append(
+                    self._get_one_per_parent_freq_result_table(
+                        begin_ns, end_ns, pc_min, pc_max, pc_step,
+                        tables.pc_values[period][child],
+                        subtitle))
+
+                subtitle = "Global duration of %s in %s (us)" % (
+                    self._get_full_period_path(child),
+                    self._get_full_period_path(period))
+                # ratio=1000 for ns -> us
+                tables.global_duration_freq_tables.append(
+                    self._get_one_per_parent_freq_result_table(
+                        begin_ns, end_ns, global_duration_min,
+                        global_duration_max, global_duration_step,
+                        tables.global_duration_values[period][child],
+                        subtitle, ratio=1000))
+
+                subtitle = "Global count of %s in %s" % (
+                    self._get_full_period_path(child),
+                    self._get_full_period_path(period))
+                tables.global_count_freq_tables.append(
+                    self._get_one_per_parent_freq_result_table(
+                        begin_ns, end_ns, global_count_min, global_count_max,
+                        global_count_step,
+                        tables.global_count_values[period][child],
+                        subtitle))
+
+                subtitle = "Global duration ratio of %s in %s (%%)" % (
+                    self._get_full_period_path(child),
+                    self._get_full_period_path(period))
+                tables.global_pc_freq_tables.append(
+                    self._get_one_per_parent_freq_result_table(
+                        begin_ns, end_ns, global_pc_min, global_pc_max,
+                        global_pc_step,
+                        tables.global_pc_values[period][child],
+                        subtitle))
 
     def _get_per_period_freq_result_tables(self, begin_ns, end_ns):
         freq_tables = []
@@ -1230,7 +1517,7 @@ class PeriodAnalysisCommand(Command):
 
             for period_list in period_lists.values():
                 for period_event in period_list:
-                    if not self._filter_duration(period_event):
+                    if not self._filter_event_duration(period_event):
                         continue
                     durations.append(period_event.duration)
 
@@ -1240,7 +1527,7 @@ class PeriodAnalysisCommand(Command):
         for period in sorted(period_stats.keys()):
             period_list = period_lists[period]
             stats = period_stats[period]
-            subtitle = 'Period: {}'.format(period)
+            subtitle = 'Duration of period: {} (us)'.format(period)
             freq_table = \
                 self._mi_create_result_table(self._MI_TABLE_CLASS_FREQ,
                                              begin_ns, end_ns, subtitle)
@@ -1254,7 +1541,7 @@ class PeriodAnalysisCommand(Command):
     def _compute_period_duration_stdev(self, period_events):
         period_durations = []
         for period_event in period_events:
-            if not self._filter_duration(period_event):
+            if not self._filter_event_duration(period_event):
                 continue
             period_durations.append(period_event.duration)
         if len(period_durations) < 2:
@@ -1264,7 +1551,7 @@ class PeriodAnalysisCommand(Command):
     def _compute_period_agg_duration_stdev(self, period_agg_events):
         period_durations = []
         for period_event in period_agg_events:
-            if not self._filter_duration(period_event.event):
+            if not self._filter_event_duration(period_event.event):
                 continue
             period_durations.append(period_event.event.duration)
         if len(period_durations) < 2:
@@ -1588,14 +1875,13 @@ class PeriodAnalysisCommand(Command):
                 print(row_str)
 
     def _print_frequency_distribution(self, freq_table):
-        title_fmt = 'Periods duration frequency distribution - {}'
+        title_fmt = 'Period frequency distribution - {}'
 
         graph = termgraph.FreqGraph(
             data=freq_table.rows,
             get_value=lambda row: row.count.value,
             get_lower_bound=lambda row: row.duration_lower.to_us(),
             title=title_fmt.format(freq_table.subtitle),
-            unit='µs'
         )
 
         graph.print_graph()
