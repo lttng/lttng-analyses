@@ -1330,7 +1330,7 @@ class PeriodAnalysisCommand(Command):
                     durations.append(period_event.duration)
 
             min_duration, max_duration, step = \
-                self._get_uniform_freq_values(durations)
+                self._find_uniform_freq_values(durations)
 
         for period_list in period_lists:
             freq_table = \
@@ -1379,7 +1379,7 @@ class PeriodAnalysisCommand(Command):
         for period in table.keys():
             for child in table[period].keys():
                 tmp_min, tmp_max, tmp_step = \
-                    self._get_uniform_freq_values(
+                    self._find_uniform_freq_values(
                         table[period][child])
                 if min is None or tmp_min < min:
                     min = tmp_min
@@ -1522,7 +1522,7 @@ class PeriodAnalysisCommand(Command):
                     durations.append(period_event.duration)
 
             min_duration, max_duration, step = \
-                self._get_uniform_freq_values(durations)
+                self._find_uniform_freq_values(durations)
 
         for period in sorted(period_stats.keys()):
             period_list = period_lists[period]

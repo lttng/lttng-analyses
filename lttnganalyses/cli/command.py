@@ -377,36 +377,52 @@ class Command:
             timestamp, print_date=self._args.multi_day, gmt=self._args.gmt
         )
 
-    def _get_uniform_freq_values(self, durations):
-        if self._args.uniform_step is not None:
-            return (self._args.uniform_min, self._args.uniform_max,
-                    self._args.uniform_step)
+    def _uniform_freq_min(self, category='default'):
+        return self._analysis_conf.uniform_min[category]
+
+    def _uniform_freq_max(self, category='default'):
+        return self._analysis_conf.uniform_max[category]
+
+    def _uniform_freq_step(self, category='default'):
+        return self._analysis_conf.uniform_step[category]
+
+    def _find_uniform_freq_values(self, durations, category='default'):
+        if category not in self._analysis_conf.uniform_step.keys():
+            self._analysis_conf.uniform_min[category] = None
+            self._analysis_conf.uniform_max[category] = None
+            self._analysis_conf.uniform_step[category] = None
+
+        if self._analysis_conf.uniform_step[category] is not None:
+            return (self._analysis_conf.uniform_min[category],
+                    self._analysis_conf.uniform_max[category],
+                    self._analysis_conf.uniform_step[category])
 
         if self._args.min is not None:
-            self._args.uniform_min = self._args.min
+            self._analysis_conf.uniform_min[category] = self._args.min
         else:
             if len(durations) == 0:
-                self._args.uniform_min = 0
+                self._analysis_conf.uniform_min[category] = 0
             else:
-                self._args.uniform_min = min(durations)
+                self._analysis_conf.uniform_min[category] = min(durations)
         if self._args.max is not None:
-            self._args.uniform_max = self._args.max
+            self._analysis_conf.uniform_max[category] = self._args.max
         else:
             if len(durations) == 0:
-                self._args.uniform_max = 0
+                self._analysis_conf.uniform_max[category] = 0
             else:
-                self._args.uniform_max = max(durations)
+                self._analysis_conf.uniform_max[category] = max(durations)
 
         # ns to µs
-        self._args.uniform_min /= 1000
-        self._args.uniform_max /= 1000
-        self._args.uniform_step = (
-            (self._args.uniform_max - self._args.uniform_min) /
-            self._args.freq_resolution
-        )
+        self._analysis_conf.uniform_min[category] /= 1000
+        self._analysis_conf.uniform_max[category] /= 1000
+        self._analysis_conf.uniform_step[category] = (
+            (self._analysis_conf.uniform_max[category] -
+                self._analysis_conf.uniform_min[category]) /
+            self._args.freq_resolution)
 
-        return self._args.uniform_min, self._args.uniform_max, \
-            self._args.uniform_step
+        return self._analysis_conf.uniform_min[category], \
+            self._analysis_conf.uniform_max[category], \
+            self._analysis_conf.uniform_step[category]
 
     def _check_period_args(self):
         # FIXME
@@ -654,13 +670,14 @@ Please consider using the --period option.''')
                                                 self._analysis_conf.tid_list]
 
         if hasattr(args, 'freq'):
-            args.uniform_min = None
-            args.uniform_max = None
-            args.uniform_step = None
-
             if args.freq_series:
                 # implies uniform buckets
                 args.freq_uniform = True
+
+        if hasattr(args, 'freq') and args.freq_uniform:
+            self._analysis_conf.uniform_min = {}
+            self._analysis_conf.uniform_max = {}
+            self._analysis_conf.uniform_step = {}
 
         if self._mi_mode:
             # print MI version if required

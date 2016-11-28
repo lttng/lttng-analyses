@@ -288,7 +288,7 @@ class IrqAnalysisCommand(Command):
             # TODO: perform only one time
             durations = [irq.duration for irq in period_data.irq_list]
             min_duration, max_duration, step = \
-                self._get_uniform_freq_values(durations)
+                self._find_uniform_freq_values(durations)
         else:
             step = (max_duration - min_duration) / resolution
 

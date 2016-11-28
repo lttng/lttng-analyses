@@ -629,7 +629,7 @@ class SchedAnalysisCommand(Command):
                 latencies += [sched.latency for sched in sched_list]
 
             min_duration, max_duration, step = \
-                self._get_uniform_freq_values(latencies)
+                self._find_uniform_freq_values(latencies)
 
         for sched_list in sched_lists:
             freq_table = \
@@ -656,7 +656,7 @@ class SchedAnalysisCommand(Command):
                 latencies += [sched.latency for sched in sched_list]
 
             min_duration, max_duration, step = \
-                self._get_uniform_freq_values(latencies)
+                self._find_uniform_freq_values(latencies)
 
         for tid in sorted(tid_sched_lists):
             sched_list = tid_sched_lists[tid]
@@ -686,7 +686,7 @@ class SchedAnalysisCommand(Command):
                 latencies += [sched.latency for sched in sched_list]
 
             min_duration, max_duration, step = \
-                self._get_uniform_freq_values(latencies)
+                self._find_uniform_freq_values(latencies)
 
         for prio in sorted(prio_sched_lists):
             sched_list = prio_sched_lists[prio]
