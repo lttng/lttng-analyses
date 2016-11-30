@@ -400,10 +400,10 @@ class Command:
                 self._analysis_conf.uniform_min[category] = 0
             else:
                 if self._analysis_conf.uniform_min[category] is None or \
-                        min(durations)/ratio < \
+                        min(durations) / ratio < \
                         self._analysis_conf.uniform_min[category]:
                     self._analysis_conf.uniform_min[category] = \
-                        min(durations)/ratio
+                        min(durations) / ratio
         if self._args.max is not None:
             self._analysis_conf.uniform_max[category] = self._args.max
         else:
@@ -411,10 +411,10 @@ class Command:
                 self._analysis_conf.uniform_max[category] = 0
             else:
                 if self._analysis_conf.uniform_max[category] is None or \
-                        max(durations)/ratio > \
+                        max(durations) / ratio > \
                         self._analysis_conf.uniform_max[category]:
                     self._analysis_conf.uniform_max[category] = \
-                        max(durations)/ratio
+                        max(durations) / ratio
 
         # ns to µs
         self._analysis_conf.uniform_step[category] = (

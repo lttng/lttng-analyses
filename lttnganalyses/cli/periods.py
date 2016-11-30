@@ -1283,12 +1283,12 @@ class PeriodAnalysisCommand(Command):
             if self._args.min is not None:
                 min_duration = self._args.min
             else:
-                min_duration = min(values)/ratio
+                min_duration = min(values) / ratio
 
             if self._args.max is not None:
                 max_duration = self._args.max
             else:
-                max_duration = max(values)/ratio
+                max_duration = max(values) / ratio
 
             # ns to µs
             if min_duration is None:
@@ -1417,8 +1417,8 @@ class PeriodAnalysisCommand(Command):
     def _find_uniform_values(self, tables):
         if not self._args.freq_uniform:
             return None, None, None, None, None, None, \
-                    None, None, None, None, None, None, \
-                    None, None, None, None, None, None
+                None, None, None, None, None, None, \
+                None, None, None, None, None, None
 
         duration_min, duration_max, duration_step = \
             self._find_table_min_max_step(tables.duration_values, 1000,
