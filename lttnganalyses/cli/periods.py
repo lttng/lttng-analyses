@@ -384,8 +384,6 @@ class PeriodAnalysisCommand(Command):
 
         aggregated_groups = None
         hierarchical_list = None
-        hierarchical_log_tables = None
-        hierarchical_top_tables = None
         aggregated_log_tables = None
         per_parent_aggregated_dict = None
 
@@ -519,12 +517,6 @@ class PeriodAnalysisCommand(Command):
 
             if top_table:
                 self._print_period_events(top_table)
-
-            if hierarchical_log_tables:
-                self._print_aggregated_period_events(hierarchical_log_tables)
-
-            if hierarchical_top_tables:
-                self._print_aggregated_period_events(hierarchical_top_tables)
 
             if aggregated_log_tables:
                 self._print_aggregated_log(aggregated_log_tables)
