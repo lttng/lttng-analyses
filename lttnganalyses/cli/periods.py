@@ -448,7 +448,7 @@ class PeriodAnalysisCommand(Command):
                 self._mi_append_result_table(top_table)
 
             if self._args.stats:
-                self._mi_append_result_tables(per_period_stats_table)
+                self._mi_append_result_table(per_period_stats_table)
                 self._mi_append_result_table(
                     per_parent_stats_freq_tables.per_parent_stats_table)
                 self._mi_append_result_table(
