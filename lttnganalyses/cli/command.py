@@ -386,16 +386,12 @@ class Command:
     def _uniform_freq_step(self, category='default'):
         return self._analysis_conf.uniform_step[category]
 
-    def _find_uniform_freq_values(self, durations, category='default'):
+    def _find_uniform_freq_values(self, durations, ratio=1000,
+                                  category='default'):
         if category not in self._analysis_conf.uniform_step.keys():
             self._analysis_conf.uniform_min[category] = None
             self._analysis_conf.uniform_max[category] = None
             self._analysis_conf.uniform_step[category] = None
-
-        if self._analysis_conf.uniform_step[category] is not None:
-            return (self._analysis_conf.uniform_min[category],
-                    self._analysis_conf.uniform_max[category],
-                    self._analysis_conf.uniform_step[category])
 
         if self._args.min is not None:
             self._analysis_conf.uniform_min[category] = self._args.min
@@ -403,18 +399,24 @@ class Command:
             if len(durations) == 0:
                 self._analysis_conf.uniform_min[category] = 0
             else:
-                self._analysis_conf.uniform_min[category] = min(durations)
+                if self._analysis_conf.uniform_min[category] is None or \
+                        min(durations)/ratio < \
+                        self._analysis_conf.uniform_min[category]:
+                    self._analysis_conf.uniform_min[category] = \
+                        min(durations)/ratio
         if self._args.max is not None:
             self._analysis_conf.uniform_max[category] = self._args.max
         else:
             if len(durations) == 0:
                 self._analysis_conf.uniform_max[category] = 0
             else:
-                self._analysis_conf.uniform_max[category] = max(durations)
+                if self._analysis_conf.uniform_max[category] is None or \
+                        max(durations)/ratio > \
+                        self._analysis_conf.uniform_max[category]:
+                    self._analysis_conf.uniform_max[category] = \
+                        max(durations)/ratio
 
         # ns to µs
-        self._analysis_conf.uniform_min[category] /= 1000
-        self._analysis_conf.uniform_max[category] /= 1000
         self._analysis_conf.uniform_step[category] = (
             (self._analysis_conf.uniform_max[category] -
                 self._analysis_conf.uniform_min[category]) /

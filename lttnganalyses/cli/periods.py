@@ -1372,24 +1372,24 @@ class PeriodAnalysisCommand(Command):
 
         return period_lists, period_stats
 
-    def _find_table_min_max_step(self, table):
-        min = None
+    def _find_table_min_max_step(self, table, ratio, category):
+        _min = None
         max = 0
         # Find the uniform freq values across all parent/child combinations
         for period in table.keys():
             for child in table[period].keys():
                 tmp_min, tmp_max, tmp_step = \
                     self._find_uniform_freq_values(
-                        table[period][child])
-                if min is None or tmp_min < min:
-                    min = tmp_min
+                        table[period][child], ratio, category)
+                if _min is None or tmp_min < _min:
+                    _min = tmp_min
                 if tmp_max > max:
                     max = tmp_max
-        if min is None:
+        if _min is None:
             steps = 0
         else:
-            steps = (max - min) / self._args.freq_resolution
-        return min, max, steps
+            steps = (max - _min) / self._args.freq_resolution
+        return _min, max, steps
 
     def _find_uniform_values(self, tables):
         if not self._args.freq_uniform:
@@ -1398,19 +1398,23 @@ class PeriodAnalysisCommand(Command):
                     None, None, None, None, None, None
 
         duration_min, duration_max, duration_step = \
-            self._find_table_min_max_step(tables.duration_values)
+            self._find_table_min_max_step(tables.duration_values, 1000,
+                                          'duration')
         global_duration_min, global_duration_max, global_duration_step = \
-            self._find_table_min_max_step(tables.global_duration_values)
+            self._find_table_min_max_step(tables.global_duration_values, 1000,
+                                          'global_duration')
 
         count_min, count_max, count_step = \
-            self._find_table_min_max_step(tables.count_values)
+            self._find_table_min_max_step(tables.count_values, 1, 'count')
         global_count_min, global_count_max, global_count_step = \
-            self._find_table_min_max_step(tables.global_count_values)
+            self._find_table_min_max_step(tables.global_count_values, 1,
+                                          'global_count')
 
         pc_min, pc_max, pc_step = \
-            self._find_table_min_max_step(tables.pc_values)
+            self._find_table_min_max_step(tables.pc_values, 1, 'pc')
         global_pc_min, global_pc_max, global_pc_step = \
-            self._find_table_min_max_step(tables.global_pc_values)
+            self._find_table_min_max_step(tables.global_pc_values, 1,
+                                          'global_pc')
 
         return duration_min, duration_max, duration_step, \
             global_duration_min, global_duration_max, \
@@ -1444,7 +1448,8 @@ class PeriodAnalysisCommand(Command):
             global_pc_min, global_pc_max, \
             global_pc_step = self._find_uniform_values(tables)
 
-        for period in tables.duration_values.keys():
+        # sorted to get the same output order between runs
+        for period in sorted(tables.duration_values.keys()):
             for child in tables.duration_values[period].keys():
                 subtitle = "Duration of %s in %s (us)" % (
                     self._get_full_period_path(child),
