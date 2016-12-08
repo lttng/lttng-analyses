@@ -289,26 +289,31 @@ To record an LTTng kernel trace suitable for the LTTng analyses:
 
       sudo lttng enable-event --kernel --channel=chan block_bio_backmerge
       sudo lttng enable-event --kernel --channel=chan block_bio_remap
-      sudo lttng enable-event --kernel --channel=chan block_dirty_buffer
       sudo lttng enable-event --kernel --channel=chan block_rq_complete
       sudo lttng enable-event --kernel --channel=chan block_rq_issue
       sudo lttng enable-event --kernel --channel=chan irq_handler_entry
       sudo lttng enable-event --kernel --channel=chan irq_handler_exit
+      sudo lttng enable-event --kernel --channel=chan irq_softirq_entry
+      sudo lttng enable-event --kernel --channel=chan irq_softirq_exit
+      sudo lttng enable-event --kernel --channel=chan irq_softirq_raise
+      sudo lttng enable-event --kernel --channel=chan kmem_mm_page_alloc
+      sudo lttng enable-event --kernel --channel=chan kmem_mm_page_free
       sudo lttng enable-event --kernel --channel=chan lttng_statedump_block_device
       sudo lttng enable-event --kernel --channel=chan lttng_statedump_file_descriptor
       sudo lttng enable-event --kernel --channel=chan lttng_statedump_process_state
       sudo lttng enable-event --kernel --channel=chan mm_page_alloc
       sudo lttng enable-event --kernel --channel=chan mm_page_free
-      sudo lttng enable-event --kernel --channel=chan mm_vmscan_wakeup_kswapd
       sudo lttng enable-event --kernel --channel=chan net_dev_xmit
       sudo lttng enable-event --kernel --channel=chan netif_receive_skb
+      sudo lttng enable-event --kernel --channel=chan sched_pi_setprio
       sudo lttng enable-event --kernel --channel=chan sched_process_exec
       sudo lttng enable-event --kernel --channel=chan sched_process_fork
       sudo lttng enable-event --kernel --channel=chan sched_switch
+      sudo lttng enable-event --kernel --channel=chan sched_wakeup
+      sudo lttng enable-event --kernel --channel=chan sched_waking
       sudo lttng enable-event --kernel --channel=chan softirq_entry
       sudo lttng enable-event --kernel --channel=chan softirq_exit
       sudo lttng enable-event --kernel --channel=chan softirq_raise
-      sudo lttng enable-event --kernel --channel=chan writeback_pages_written
       sudo lttng enable-event --kernel --channel=chan --syscall --all
 #. Start recording:
 
