@@ -440,11 +440,11 @@ class PeriodAnalysisCommand(Command):
 
             for group in per_parent_period_group_by_stats.keys():
                 per_period_stats_group_by_tables[group], \
-                        per_period_freq_group_by_tables[group] = \
-                        self._get_grouped_by_period_stats_freq(
-                            begin_ns, end_ns,
-                            per_period_group_by_stats[group],
-                            "'%s' - " % group)
+                    per_period_freq_group_by_tables[group] = \
+                    self._get_grouped_by_period_stats_freq(
+                        begin_ns, end_ns,
+                        per_period_group_by_stats[group],
+                        "'%s' - " % group)
                 # One _StatsFreqTables per group
                 per_parent_stats_freq_group_by_tables[group] = \
                     self._get_per_parent_stats_result_table(
@@ -774,8 +774,8 @@ class PeriodAnalysisCommand(Command):
                     per_parent_period_group_by_stats[group_key].keys():
                 per_parent_period_group_by_stats[group_key][event.name] = \
                     _AggregatedPeriodStats(
-                            self._analysis_conf.period_def_registry,
-                            event.name)
+                        self._analysis_conf.period_def_registry,
+                        event.name)
             # Account all parent periods of this event in all of its groups
             _parent = event.parent
             _child = event
@@ -786,9 +786,9 @@ class PeriodAnalysisCommand(Command):
                 if _parent.name not in \
                         per_parent_period_group_by_stats[group_key].keys():
                     per_parent_period_group_by_stats[group_key][_parent.name] \
-                            = _AggregatedPeriodStats(
-                            self._analysis_conf.period_def_registry,
-                            _parent.name)
+                        = _AggregatedPeriodStats(
+                        self._analysis_conf.period_def_registry,
+                        _parent.name)
                 per_group_active_periods[group_key][_parent].add_child(
                     _child.name, _child.duration)
                 _parent = _parent.parent
