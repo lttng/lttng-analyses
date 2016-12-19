@@ -438,13 +438,21 @@ class PeriodAnalysisCommand(Command):
                     begin_ns, end_ns, per_period_stats,
                     '', per_period_stats)
 
+            freq_min = freq_max = freq_step = None
+            if self._args.freq_uniform:
+                for group in per_parent_period_group_by_stats.keys():
+                    freq_min, freq_max, freq_step = \
+                        self._find_filtered_uniform_freq_values(
+                            per_period_group_by_stats[group])
+
             for group in per_parent_period_group_by_stats.keys():
                 per_period_stats_group_by_tables[group], \
                     per_period_freq_group_by_tables[group] = \
                     self._get_grouped_by_period_stats_freq(
                         begin_ns, end_ns,
                         per_period_group_by_stats[group],
-                        "'%s' - " % group)
+                        "'%s' - " % group,
+                        freq_min, freq_max, freq_step)
                 # One _StatsFreqTables per group
                 per_parent_stats_freq_group_by_tables[group] = \
                     self._get_per_parent_stats_result_table(
@@ -1273,13 +1281,26 @@ class PeriodAnalysisCommand(Command):
                 )
         return ret
 
+    def _find_filtered_uniform_freq_values(self, per_period_group_stats):
+        for period in per_period_group_stats.keys():
+            table = per_period_group_stats[period]
+            min, max, count, avg, total, total_list = \
+                self._get_filtered_min_max_count_avg_total_values(
+                    table.durations)
+            min, max, step = self._find_uniform_freq_values(total_list, 1000,
+                                                            'duration')
+        # We only care about the last values
+        return min, max, step
+
     def _get_grouped_by_period_stats_freq(self, begin_ns, end_ns,
                                           per_period_group_stats,
-                                          group_prefix):
+                                          group_prefix, freq_min,
+                                          freq_max, freq_step):
         stats_table = \
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PERIOD_STATS,
                                          begin_ns, end_ns)
         freq_tables = []
+
         for period in per_period_group_stats.keys():
             table = per_period_group_stats[period]
             min, max, count, avg, total, total_list = \
@@ -1302,12 +1323,10 @@ class PeriodAnalysisCommand(Command):
                 runtime=mi.Duration(total),
             )
 
-            step = (max - min) / self._args.freq_resolution
-
             subtitle = '{}Duration of period: {}'.format(group_prefix, period)
             freq_tables.append(self._get_one_freq_result_table(
                 self._MI_TABLE_CLASS_FREQ_DURATION, begin_ns, end_ns,
-                min, max, step, total_list, subtitle, 1000))
+                freq_min, freq_max, freq_step, total_list, subtitle, 1000))
         return stats_table, freq_tables
 
     def _get_per_period_stats_result_table(self, begin_ns, end_ns,
@@ -1534,6 +1553,12 @@ class PeriodAnalysisCommand(Command):
                 continue
             duration = v / ratio
             index = int((duration - min_duration) / step)
+
+            if index < 0:
+                raise ValueError('Invalid range, duration=%s, min=%s, max=%s,'
+                                 ' step=%s, resolution=%s' % (
+                                     duration, min_duration, max_duration,
+                                     step, resolution))
 
             if index >= resolution:
                 # special case for max value: put in last bucket (includes
