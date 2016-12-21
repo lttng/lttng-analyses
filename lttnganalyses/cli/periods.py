@@ -912,7 +912,6 @@ class PeriodAnalysisCommand(Command):
                 # of periods
                 if period_event.parent is None:
                     active_periods[period_event] = _TmpAggregation()
-                    hierarchical_list.append(period_event)
                     if period_event.name not in per_period_stats.keys():
                         per_period_stats[period_event.name] = \
                             _AggregatedPeriodStats(
