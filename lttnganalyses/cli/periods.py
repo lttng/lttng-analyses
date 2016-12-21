@@ -2310,8 +2310,9 @@ class PeriodAnalysisCommand(Command):
             for ag in args.select.split(','):
                 self._analysis_conf._select.append(
                     self._cleanup_period_name(ag).strip())
-        self._analysis_conf._aggregate_by = self._cleanup_period_name(
-            args.aggregate_by)
+        if args.aggregate_by is not None:
+            self._analysis_conf._aggregate_by = self._cleanup_period_name(
+                args.aggregate_by)
 
     def _add_arguments(self, ap):
         Command._add_min_max_args(ap)
