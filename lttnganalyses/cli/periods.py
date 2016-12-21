@@ -1173,6 +1173,8 @@ class PeriodAnalysisCommand(Command):
             ret.global_pc_values[period] = {}
             for child in per_period_stats[period]._children.keys():
                 c = per_period_stats[period]._children[child]
+                if period not in c.parent_count.keys():
+                    continue
                 nogroup_c = not_grouped_per_period_stats[period]
                 if per_period_stats[period].nr_periods == 0:
                     global_duration_avg = 0
