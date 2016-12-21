@@ -227,6 +227,8 @@ class Command:
             self._traces.remove_trace(handle)
 
     def _read_tracer_version(self):
+        # TODO: associate the version of the tracer with each trace, not
+        # globally. Waiting for bug #1085 to be fixed in Babeltrace.
         kernel_path = None
         # remove the trailing /
         while self._args.path.endswith('/'):
@@ -236,8 +238,10 @@ class Command:
                 kernel_path = root
                 break
 
+        # If we don't have a kernel folder, we don't need to check the version
+        # of the tracer for now.
         if kernel_path is None:
-            self._gen_error('Could not find kernel trace directory')
+            return
 
         try:
             ret, metadata = subprocess.getstatusoutput(
