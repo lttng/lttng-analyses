@@ -25,6 +25,7 @@ import operator
 import statistics
 import collections
 import ast
+import re
 from collections import OrderedDict
 from . import mi, termgraph
 from ..core import periods
@@ -392,6 +393,12 @@ class PeriodAnalysisCommand(Command):
         per_parent_stats_freq_group_by_tables = OrderedDict()
         per_period_stats_group_by_tables = OrderedDict()
         per_period_freq_group_by_tables = OrderedDict()
+        # for freq-series:
+        # freq_tables_group_per_period_names[group][period] = freq_table
+        freq_tables_group_per_period_names = OrderedDict()
+
+        # First pass to find the uniform values if needed
+        freq_min = freq_max = freq_step = None
 
         period_tree = OrderedDict()
         reg = self._analysis_conf.period_def_registry
@@ -438,7 +445,6 @@ class PeriodAnalysisCommand(Command):
                     begin_ns, end_ns, per_period_stats,
                     '', per_period_stats)
 
-            freq_min = freq_max = freq_step = None
             if self._args.freq_uniform:
                 for group in per_parent_period_group_by_stats.keys():
                     freq_min, freq_max, freq_step = \
@@ -447,7 +453,8 @@ class PeriodAnalysisCommand(Command):
 
             for group in per_parent_period_group_by_stats.keys():
                 per_period_stats_group_by_tables[group], \
-                    per_period_freq_group_by_tables[group] = \
+                    per_period_freq_group_by_tables[group], \
+                    freq_tables_group_per_period_names[group] = \
                     self._get_grouped_by_period_stats_freq(
                         begin_ns, end_ns,
                         per_period_group_by_stats[group],
@@ -552,6 +559,16 @@ class PeriodAnalysisCommand(Command):
                     self._mi_append_result_tables(
                         per_parent_stats_freq_group_by_tables[group].
                         global_pc_freq_tables)
+
+                if self._args.freq_series:
+                    per_period_tables_group_series = \
+                        self._get_per_group_freq_series_tables(
+                            begin_ns, end_ns, per_period_freq_group_by_tables,
+                            freq_tables_group_per_period_names)
+                    for period in per_period_tables_group_series.keys():
+                        self._mi_append_result_tables(
+                            [per_period_tables_group_series[period]])
+
         else:
             self._print_date(begin_ns, end_ns)
 
@@ -1300,6 +1317,7 @@ class PeriodAnalysisCommand(Command):
             self._mi_create_result_table(self._MI_TABLE_CLASS_PER_PERIOD_STATS,
                                          begin_ns, end_ns)
         freq_tables = []
+        freq_tables_by_period_name = {}
 
         for period in per_period_group_stats.keys():
             table = per_period_group_stats[period]
@@ -1324,10 +1342,12 @@ class PeriodAnalysisCommand(Command):
             )
 
             subtitle = '{}Duration of period: {}'.format(group_prefix, period)
-            freq_tables.append(self._get_one_freq_result_table(
+            tmp_table = self._get_one_freq_result_table(
                 self._MI_TABLE_CLASS_FREQ_DURATION, begin_ns, end_ns,
-                freq_min, freq_max, freq_step, total_list, subtitle, 1000))
-        return stats_table, freq_tables
+                freq_min, freq_max, freq_step, total_list, subtitle, 1000)
+            freq_tables.append(tmp_table)
+            freq_tables_by_period_name[period] = tmp_table
+        return stats_table, freq_tables, freq_tables_by_period_name
 
     def _get_per_period_stats_result_table(self, begin_ns, end_ns,
                                            period_tree):
@@ -1610,6 +1630,46 @@ class PeriodAnalysisCommand(Command):
             freq_tables.append(freq_table)
 
         return freq_tables
+
+    def _get_per_group_freq_series_tables(self, begin_ns, end_ns,
+                                          per_period_freq_group_by_tables,
+                                          freq_tables_group_per_period_names):
+        column_infos = [
+            ('duration_lower', 'Duration (lower bound)', mi.Duration),
+            ('duration_upper', 'Duration (upper bound)', mi.Duration),
+        ]
+        unique_group_names = {}
+        per_period_tables = {}
+
+        for group in freq_tables_group_per_period_names.keys():
+            unique_group_names[group] = None
+            column_infos.append((
+                # urgh, need to sanitize for the namedtuple, only alnum
+                '{}'.format(re.sub(r'\W+', '', group)),
+                # subtitle:
+                '{}'.format(group),
+                mi.Number, 'count'))
+            for period in freq_tables_group_per_period_names[group]:
+                title = 'Period \'%s\' duration frequency distribution ' \
+                        'per group' % (period)
+                table_class = mi.TableClass(None, title, column_infos)
+                result_table = mi.ResultTable(table_class, begin_ns, end_ns)
+                per_period_tables[period] = result_table
+
+        for period in per_period_tables.keys():
+            for i in range(self._args.freq_resolution):
+                first_group = next(iter(unique_group_names))
+                row_tuple = [
+                    freq_tables_group_per_period_names[first_group][period].
+                    rows[i].lower,
+                    freq_tables_group_per_period_names[first_group][period].
+                    rows[i].upper]
+                for group in freq_tables_group_per_period_names.keys():
+                    group_table = freq_tables_group_per_period_names[group]
+                    freq_row = group_table[period].rows[i]
+                    row_tuple.append(freq_row.count)
+                per_period_tables[period].append_row_tuple(tuple(row_tuple))
+        return per_period_tables
 
     def _get_period_lists_stats(self):
         period_lists = {}
