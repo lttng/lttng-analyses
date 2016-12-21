@@ -1168,6 +1168,9 @@ class PeriodAnalysisCommand(Command):
         ret.global_pc_table = global_pc_table
 
         for period in per_period_stats.keys():
+            if self._analysis_conf._aggregate_by is not None and \
+                    period not in self._analysis_conf._aggregate_by:
+                continue
             ret.duration_values[period] = {}
             ret.count_values[period] = {}
             ret.pc_values[period] = {}
@@ -1175,6 +1178,9 @@ class PeriodAnalysisCommand(Command):
             ret.global_count_values[period] = {}
             ret.global_pc_values[period] = {}
             for child in per_period_stats[period]._children.keys():
+                if self._args.select is not None and \
+                        child not in self._args.select:
+                    continue
                 c = per_period_stats[period]._children[child]
                 if period not in c.parent_count.keys():
                     continue
@@ -1325,6 +1331,9 @@ class PeriodAnalysisCommand(Command):
         freq_tables_by_period_name = {}
 
         for period in per_period_group_stats.keys():
+            if self._args.select is not None and \
+                    period not in self._args.select:
+                continue
             table = per_period_group_stats[period]
             min, max, count, avg, total, total_list = \
                 self._get_filtered_min_max_count_avg_total_values(
@@ -1367,6 +1376,10 @@ class PeriodAnalysisCommand(Command):
 
         for period_stats in period_stats_list:
             if not period_stats.period_list:
+                continue
+
+            if self._args.select is not None and \
+                    period_stats.name not in self._args.select:
                 continue
 
             if self._args.min_duration is None and \
@@ -1782,7 +1795,13 @@ class PeriodAnalysisCommand(Command):
 
         # sorted to get the same output order between runs
         for period in sorted(tables.duration_values.keys()):
+            if self._analysis_conf._aggregate_by is not None and \
+                    period not in self._analysis_conf._aggregate_by:
+                continue
             for child in tables.duration_values[period].keys():
+                if self._args.select is not None and \
+                        child not in self._args.select:
+                    continue
                 subtitle = "%sDuration of %s per %s" % (
                     group_prefix,
                     self._get_full_period_path(child),
@@ -1874,6 +1893,9 @@ class PeriodAnalysisCommand(Command):
                 self._find_uniform_freq_values(durations)
 
         for period in sorted(period_stats.keys()):
+            if self._args.select is not None and \
+                    period not in self._args.select:
+                continue
             period_list = period_lists[period]
             stats = period_stats[period]
             subtitle = 'Duration of period: {}'.format(period)
