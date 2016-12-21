@@ -301,7 +301,8 @@ class PeriodCapturesDefArgResults:
 
 def parse_period_def_arg(arg):
     try:
-        period_def_res = _period_def.parseString(arg, parseAll=True)
+        period_def_res = _period_def.parseString(arg.split('/')[-1],
+                                                 parseAll=True)
     except Exception:
         raise MalformedExpression(arg)
 
@@ -328,7 +329,8 @@ def parse_period_def_arg(arg):
 
 def parse_period_captures_arg(arg):
     try:
-        period_captures_res = _captures_def.parseString(arg, parseAll=True)
+        period_captures_res = _captures_def.parseString(arg.split('/')[-1],
+                                                        parseAll=True)
     except MalformedExpression:
         raise
     except Exception:

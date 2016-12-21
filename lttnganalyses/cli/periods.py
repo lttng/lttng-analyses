@@ -2273,6 +2273,13 @@ class PeriodAnalysisCommand(Command):
         for freq_table in freq_tables:
             self._print_frequency_distribution(freq_table, unit)
 
+    def _cleanup_period_name(self, name):
+        # If a period name is given with its hierarchy, only keep the last
+        # member, period names must be unique, so we don't need to scope them,
+        # but since we output the periods with their full hierarchy, we have
+        # to support it in entry as well.
+        return name.split('/')[-1]
+
     def _validate_transform_args(self):
         args = self._args
         self._analysis_conf._group_by = {}
@@ -2285,7 +2292,7 @@ class PeriodAnalysisCommand(Command):
                 g = group.strip()
                 if len(g) == 0:
                     continue
-                _period_name = g.split('.')[0]
+                _period_name = self._cleanup_period_name(g.split('.')[0])
                 _period_field = g.split('.')[1]
                 if _period_name not in \
                         self._analysis_conf._group_by.keys():
@@ -2301,8 +2308,10 @@ class PeriodAnalysisCommand(Command):
         # TODO: check aggregation and group-by attributes are valid
         if args.select:
             for ag in args.select.split(','):
-                self._analysis_conf._select.append(ag.strip())
-        self._analysis_conf._aggregate_by = args.aggregate_by
+                self._analysis_conf._select.append(
+                    self._cleanup_period_name(ag).strip())
+        self._analysis_conf._aggregate_by = self._cleanup_period_name(
+            args.aggregate_by)
 
     def _add_arguments(self, ap):
         Command._add_min_max_args(ap)
