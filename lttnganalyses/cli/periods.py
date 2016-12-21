@@ -781,6 +781,9 @@ class PeriodAnalysisCommand(Command):
                     group_key = '%s, %s = %s' % (group_key, group[0],
                                                  group[1])
 
+            if len(group_key) == 0:
+                continue
+
             if group_key not in per_group_active_periods.keys():
                 per_group_active_periods[group_key] = OrderedDict()
 
