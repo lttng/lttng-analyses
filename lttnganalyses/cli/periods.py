@@ -843,27 +843,26 @@ class PeriodAnalysisCommand(Command):
 
         # Recursively iterate over all the children of this period
         for child in event.children:
+            if not self._filter_event_duration(child):
+                continue
             if child.name not in per_period_stats.keys():
                 per_period_stats[child.name] = _AggregatedPeriodStats(
                     self._analysis_conf.period_def_registry,
                     child.name)
             active_periods[event].add_child(child.name, child.duration)
             active_periods[child] = _TmpAggregation(active_periods[event])
-#            print('passing', ancestors_captures + event_captures)
             child_captures = self._hierarchical_sub(
                 tmp_hierarchical_list, child, per_period_stats,
                 per_parent_period_group_by_stats, active_periods,
                 ancestors_captures + event_captures,
                 per_group_active_periods, per_period_group_by_stats)
             del(active_periods[child])
-#            print('returned', child_captures)
             for c in child_captures:
                 local_captures.append(event_captures + c)
                 global_captures.append(event_captures.copy() + c)
         if len(local_captures) == 0:
             local_captures = [event_captures]
             global_captures = [event_captures.copy()]
-#        print('in', event.name, 'local + children', local_captures)
         full_captures = []
         for c in global_captures:
             tmp_c = c.copy()
@@ -872,7 +871,6 @@ class PeriodAnalysisCommand(Command):
             # dedup
             if tmp_c not in full_captures:
                 full_captures.append(tmp_c)
-#        print('in2', event.name, full_captures)
         active_periods[event].capture_groups = full_captures
 
         self._account_parents_in_group(event, full_captures,
@@ -905,6 +903,8 @@ class PeriodAnalysisCommand(Command):
         active_periods = {}
         per_group_active_periods = {}
         for period_event in self._analysis.all_period_list:
+            if not self._filter_event_duration(period_event):
+                continue
             if self._analysis_conf._order_by == "hierarchy" or \
                     self._args.stats or self._args.freq:
                 # Only top-level events to start the recursive iteration
@@ -929,14 +929,14 @@ class PeriodAnalysisCommand(Command):
 
             if period_event.name != self._analysis_conf._aggregate_by:
                 continue
-            if not self._filter_event_duration(period_event):
-                continue
             if period_event not in parent_aggregated_dict.keys():
                 parent_aggregated_dict[period_event] = {}
             # Associate the periods with their full capture list (each period
             # sees its own capture and the capture of all its children)
             tmp_list = []
             for child in period_event.children:
+                if not self._filter_event_duration(child.duration):
+                    continue
                 self._find_aggregated_subperiods(
                     period_event,
                     child, tmp_list,
@@ -1398,6 +1398,8 @@ class PeriodAnalysisCommand(Command):
                 min, max, count, avg, total, period_list = \
                     self._get_filtered_min_max_count_avg_total_flist(
                         period_stats.period_list)
+                if count == 0:
+                    continue
                 stdev = self._compute_period_duration_stdev(period_list)
 
             if math.isnan(stdev):
