@@ -886,6 +886,85 @@ Log of all the ``open`` system call periods aggregated by the ``sched_switch`` i
                                        [10:58:27.225474282, 10:58:27.229160014]           3685.732 switch          | switch/open                      22 |      5.797        6.767        9.308        0.972       148.881 | switch.cpu = 1, switch.tid = 12421, switch.comm = bash
 
 
+Statistics about the memory allocation performed within an ``open`` system call
+within a single ``sched_switch`` (no blocking or preemption):
+
+.. code-block:: bash
+
+    lttng-periodstats /path/to/trace \
+        --period 'switch : $evt.$name == "sched_switch" : $evt.$name == "sched_switch" && $begin.$evt.next_tid == $evt.prev_tid && $begin.$evt.cpu_id == $evt.cpu_id' \
+        --period 'open(switch) : $evt.$name == "syscall_entry_open" && $parent.$begin.$evt.cpu_id == $evt.cpu_id : $evt.$name == "syscall_exit_open" && $begin.$evt.cpu_id == $evt.cpu_id' \
+        --period 'alloc(open) : $evt.$name == "kmem_cache_alloc" && $parent.$begin.$evt.cpu_id == $evt.cpu_id : $evt.$name == "kmem_cache_free" && $evt.ptr == $begin.$evt.ptr' \
+        --period-captures 'switch : comm = $evt.next_comm, cpu = $evt.cpu_id, tid = $evt.next_tid' \
+        --period-captures 'open : filename = $evt.filename : fd = $evt.ret' \
+        --period-captures 'alloc : ptr = $evt.ptr'
+
+::
+
+   Timerange: [2015-01-06 10:58:26.140545481, 2015-01-06 10:58:27.229358936]
+   Period tree:
+   switch
+   |-- open
+       |-- alloc
+
+   Period statistics (us)
+   Period                       Count           Min           Avg           Max         Stdev      Runtime
+   switch                         831         2.824      5233.363    172056.802     16197.531  4348924.614
+   switch/open                     41         5.797        12.123        77.620        12.076      497.039
+   switch/open/alloc               44         1.152        10.277        74.476        11.582      452.175
+
+   Per-parent period duration statistics (us)
+   With active children
+   Period                    Parent                              Min           Avg           Max         Stdev
+   switch/open               switch                           28.644       124.260       241.894        92.667
+   switch/open/alloc         switch                           24.036       113.044       229.713        87.827
+   switch/open/alloc         switch/open                       4.550        11.029        74.476        11.768
+
+   Per-parent duration ratio (%)
+   With active children
+   Period                    Parent                              Min           Avg           Max         Stdev
+   switch/open               switch                                2        13.723            27        12.421
+   switch/open/alloc         switch                                1        12.901            25        12.041
+   switch/open/alloc         switch/open                          76        88.146           115         7.529
+
+   Per-parent period count statistics
+   With active children
+   Period                    Parent                              Min           Avg           Max         Stdev
+   switch/open               switch                                1        10.250            22         9.979
+   switch/open/alloc         switch                                1        11.000            22        10.551
+   switch/open/alloc         switch/open                           1         1.073             2         0.264
+
+   Per-parent period duration statistics (us)
+   Globally
+   Period                    Parent                              Min           Avg           Max         Stdev
+   switch/open               switch                            0.000         0.598       241.894        10.251
+   switch/open/alloc         switch                            0.000         0.544       229.713         9.443
+   switch/open/alloc         switch/open                       4.550        11.029        74.476        11.768
+
+   Per-parent duration ratio (%)
+   Globally
+   Period                    Parent                              Min           Avg           Max         Stdev
+   switch/open               switch                                0         0.066            27         1.209
+   switch/open/alloc         switch                                0         0.062            25         1.150
+   switch/open/alloc         switch/open                          76        88.146           115         7.529
+
+   Per-parent period count statistics
+   Globally
+   Period                    Parent                              Min           Avg           Max         Stdev
+   switch/open               switch                                0         0.049            22         0.929
+   switch/open/alloc         switch                                0         0.053            22         0.991
+   switch/open/alloc         switch/open                           1         1.073             2         0.264
+
+
+These statistics can also be scoped by value of the FD returned by the ``open``
+system, by appending ``--group-by "open.fd"`` to the previous command line.
+That way previous tables will be output for each value of FD returned, so it
+is possible to observe the behaviour based on the parameters of a system call.
+
+Using the ``lttng-periodfreq`` or the ``--freq`` parameter, these tables can
+also be presented as frequency distributions.
+
+
 Progress options
 ----------------
 
