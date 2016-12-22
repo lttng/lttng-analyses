@@ -935,7 +935,7 @@ class PeriodAnalysisCommand(Command):
             # sees its own capture and the capture of all its children)
             tmp_list = []
             for child in period_event.children:
-                if not self._filter_event_duration(child.duration):
+                if not self._filter_event_duration(child):
                     continue
                 self._find_aggregated_subperiods(
                     period_event,

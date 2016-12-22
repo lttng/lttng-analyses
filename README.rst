@@ -760,6 +760,37 @@ or::
   See `Matching expression`_.
 
 
+Period select and aggregate parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With ``lttng-periodlog``, it is possible to see the list of periods in the
+context of their parent. By specifying the ``--aggregate-by``, the lines in
+the log present on the same line the timerange of the period specified by
+the ``--select`` argument at the timerange of the parent period that contains
+it. In ``lttng-periodstats`` and ``lttng-periodfreq``, these two flags are
+used as filter to limit the output to only the relevant periods. If omitted,
+all existing combinations of parent/child statistics and frequency
+distributions are output.
+
+
+Grouping
+~~~~~~~~
+
+When fields are captured during the period analyses, it is possible to compute
+the statistics and frequency distribution grouped by values of the these
+fields, instead of globally for the trace. The format is::
+
+    --group-by "PERIODNAME.CAPTURENAME[, PERIODNAME.CAPTURENAME]"
+
+If multiple values are passed, the analysis outputs one list of tables
+(statistics and/or frequency distribution) for each unique combination of the
+field's values.
+
+For example, if we track the ``open`` system call and we are interested in the
+average duration of this call by filename, we only have to capture the filename
+field and group the results by ``open.filename``.
+
+
 Examples
 ........
 
@@ -829,6 +860,30 @@ Log of all the IRQ handled while a user-space process was running, capture the p
                                                                              irq = 41
                                                                              current = lttng-consumerd
     [10:58:26.169236842, 10:58:26.170105711]         868.869 switch
+
+
+Log of all the ``open`` system call periods aggregated by the ``sched_switch`` in which they occurred:
+
+.. code-block:: bash
+
+    lttng-periodlog /path/to/trace \
+        --period 'switch : $evt.$name == "sched_switch" : $evt.$name == "sched_switch" && $begin.$evt.next_tid == $evt.prev_tid && $begin.$evt.cpu_id == $evt.cpu_id' \
+        --period 'open(switch) : $evt.$name == "syscall_entry_open" && $parent.$begin.$evt.cpu_id == $evt.cpu_id : $evt.$name == "syscall_exit_open" && $begin.$evt.cpu_id == $evt.cpu_id' \
+        --period-captures 'switch : comm = $evt.next_comm, cpu = $evt.cpu_id, tid = $evt.next_tid' \
+        --period-captures 'open : filename = $evt.filename : fd = $evt.ret' \
+        --select open
+        --aggregate-by switch
+
+::
+
+   Aggregated log
+   Aggregation of (open) by switch
+                                       Parent                                  |                                     |                           Durations (us)                        |
+                                       Begin                End                      Duration (us) Name            | Child name                    Count |        Min          Avg          Max         Stdev      Runtime | Parent captures
+                                       [10:58:26.222823677, 10:58:26.224039381]           1215.704 switch          | switch/open                       3 |      7.517        9.548       11.248        1.887        28.644 | switch.cpu = 3, switch.tid = 12420, switch.comm = bash
+                                       [10:58:26.856224058, 10:58:26.856589867]            365.809 switch          | switch/open                       1 |     77.620       77.620       77.620            ?        77.620 | switch.cpu = 0, switch.tid = 11132, switch.comm = ntpd
+                                       [10:58:27.000068031, 10:58:27.000954859]            886.828 switch          | switch/open                      15 |      9.224       16.126       37.190        6.681       241.894 | switch.cpu = 0, switch.tid = 1656, switch.comm = irqbalance
+                                       [10:58:27.225474282, 10:58:27.229160014]           3685.732 switch          | switch/open                      22 |      5.797        6.767        9.308        0.972       148.881 | switch.cpu = 1, switch.tid = 12421, switch.comm = bash
 
 
 Progress options
