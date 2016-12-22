@@ -876,14 +876,14 @@ Log of all the ``open`` system call periods aggregated by the ``sched_switch`` i
 
 ::
 
-   Aggregated log
-   Aggregation of (open) by switch
-                                       Parent                                  |                                     |                           Durations (us)                        |
-                                       Begin                End                      Duration (us) Name            | Child name                    Count |        Min          Avg          Max         Stdev      Runtime | Parent captures
-                                       [10:58:26.222823677, 10:58:26.224039381]           1215.704 switch          | switch/open                       3 |      7.517        9.548       11.248        1.887        28.644 | switch.cpu = 3, switch.tid = 12420, switch.comm = bash
-                                       [10:58:26.856224058, 10:58:26.856589867]            365.809 switch          | switch/open                       1 |     77.620       77.620       77.620            ?        77.620 | switch.cpu = 0, switch.tid = 11132, switch.comm = ntpd
-                                       [10:58:27.000068031, 10:58:27.000954859]            886.828 switch          | switch/open                      15 |      9.224       16.126       37.190        6.681       241.894 | switch.cpu = 0, switch.tid = 1656, switch.comm = irqbalance
-                                       [10:58:27.225474282, 10:58:27.229160014]           3685.732 switch          | switch/open                      22 |      5.797        6.767        9.308        0.972       148.881 | switch.cpu = 1, switch.tid = 12421, switch.comm = bash
+    Aggregated log
+    Aggregation of (open) by switch
+                                        Parent                                  |                                     |                           Durations (us)                        |
+    Begin                End                      Duration (us) Name            | Child name                    Count |        Min          Avg          Max         Stdev      Runtime | Parent captures
+    [10:58:26.222823677, 10:58:26.224039381]           1215.704 switch          | switch/open                       3 |      7.517        9.548       11.248        1.887        28.644 | switch.comm = bash, switch.cpu = 3, switch.tid = 12420
+    [10:58:26.856224058, 10:58:26.856589867]            365.809 switch          | switch/open                       1 |     77.620       77.620       77.620            ?        77.620 | switch.comm = ntpd, switch.cpu = 0, switch.tid = 11132
+    [10:58:27.000068031, 10:58:27.000954859]            886.828 switch          | switch/open                      15 |      9.224       16.126       37.190        6.681       241.894 | switch.comm = irqbalance, switch.cpu = 0, switch.tid = 1656
+    [10:58:27.225474282, 10:58:27.229160014]           3685.732 switch          | switch/open                      22 |      5.797        6.767        9.308        0.972       148.881 | switch.comm = bash, switch.cpu = 1, switch.tid = 12421
 
 
 Statistics about the memory allocation performed within an ``open`` system call
