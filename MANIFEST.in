@@ -3,6 +3,9 @@ recursive-include tests *
 include ChangeLog
 include LICENSE
 include mit-license.txt
+include requirements.txt
+include test-requirements.txt
+include tox.ini
 include lttng-cputop
 include lttng-iolatencyfreq
 include lttng-iolatencystats
