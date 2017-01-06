@@ -24,6 +24,7 @@
 import os
 import subprocess
 import unittest
+import locale
 from .trace_writer import TraceWriter
 
 
@@ -60,14 +61,31 @@ class AnalysisTest(unittest.TestCase):
         with open(expected_path, 'r', encoding='utf-8') as expected_file:
             return expected_file.read()
 
+    def _test_locale(self, locale_name):
+        try:
+            locale.setlocale(locale.LC_ALL, locale_name)
+            return True
+        except locale.Error:
+            return False
+
+    def _get_utf8_locale(self):
+        # Test the two most common UTF-8 locales
+        if self._test_locale('C.UTF-8'):
+            return 'C.UTF-8'
+        if self._test_locale('en_US.UTF-8'):
+            return 'en_US.UTF-8'
+        print('No supported UTF-8 locale detected')
+        raise NameError
+
     def get_cmd_output(self, exec_name, options=''):
         cmd_fmt = './{} {} {} {}'
         cmd = cmd_fmt.format(exec_name, self.COMMON_OPTIONS,
                              options, self.trace_writer.trace_root)
 
         # Create an utf-8 test env
+        test_locale = self._get_utf8_locale()
         test_env = os.environ.copy()
-        test_env['LC_ALL'] = 'en_US.UTF-8'
+        test_env['LC_ALL'] = test_locale
 
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, env=test_env)
