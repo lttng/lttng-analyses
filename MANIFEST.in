@@ -16,6 +16,10 @@ include lttng-irqfreq
 include lttng-irqlog
 include lttng-irqstats
 include lttng-memtop
+include lttng-periodfreq
+include lttng-periodlog
+include lttng-periodstats
+include lttng-periodtop
 include lttng-schedfreq
 include lttng-schedlog
 include lttng-schedstats
