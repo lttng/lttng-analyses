@@ -986,7 +986,8 @@ with the ``-mi`` suffix. For example, the LAMI version of
 This version of LTTng analyses conforms to
 `LAMI 1.0 <http://lttng.org/files/lami/lami-1.0.1.html>`_.
 
-
+The LAMI output can be used in TraceCompass (>=2.1) to create graphs based
+on the output of the scripts.
 
 
 
