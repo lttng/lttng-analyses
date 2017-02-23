@@ -48,20 +48,6 @@ to "dig" until the root cause is found.
 Install LTTng analyses
 ======================
 
-.. NOTE::
-
-   The version 2.0 of `Trace Compass <http://tracecompass.org/>`_
-   requires LTTng analyses 0.4: Trace Compass 2.0 is not compatible
-   with LTTng analyses 0.5 and after.
-
-   In this case, we suggest that you install LTTng analyses from the
-   ``stable-0.4`` branch of the project's Git repository (see
-   `Install from the Git repository`_). You can also
-   `download <https://github.com/lttng/lttng-analyses/releases>`_ the
-   latest 0.4 release tarball and follow the
-   `Install from a release tarball`_ procedure.
-
-
 Required dependencies
 ---------------------
 
