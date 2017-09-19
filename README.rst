@@ -225,6 +225,18 @@ To install LTTng analyses on Debian "sid":
       sudo apt-get install -y python3-lttnganalyses
 
 
+Sample traces
+=============
+
+If you just want to try the tools, a sample trace is available
+`here <http://www.lttng.org/files/analysis-20150115-120942.tar.gz>`_.
+
+If you want to see a step-by-step usage of these tools to identify a single
+unusual request latency, you can check this
+`blog post <https://lttng.org/blog/2015/02/04/web-request-latency-root-cause/>`_,
+it shows how to navigate in the sample trace and accurately find the culprit.
+
+
 Record a trace
 ==============
 
