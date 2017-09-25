@@ -25,7 +25,7 @@ import os
 import socket
 from babeltrace import CTFScope
 from . import sp, sv
-from ..common import format_utils, trace_utils
+from ..common import constant_utils, format_utils, trace_utils
 
 
 class IoStateProvider(sp.StateProvider):
@@ -210,7 +210,7 @@ class IoStateProvider(sp.StateProvider):
             event, proc.tid, old_file)
 
         if name == 'dup3':
-            cloexec = event['flags'] & os.O_CLOEXEC == os.O_CLOEXEC
+            cloexec = event['flags'] & constant_utils.O_CLOEXEC == constant_utils.O_CLOEXEC
             current_syscall.io_rq.cloexec = cloexec
 
     def _track_close(self, event, name, proc):

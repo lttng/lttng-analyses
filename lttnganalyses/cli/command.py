@@ -29,6 +29,7 @@ import re
 import sys
 import subprocess
 import traceback
+import shlex
 from babeltrace import TraceCollection
 from . import mi, progressbar, period_parsing
 from .. import __version__
@@ -231,7 +232,7 @@ class Command:
         # globally. Waiting for bug #1085 to be fixed in Babeltrace.
         kernel_path = None
         # remove the trailing /
-        while self._args.path.endswith('/'):
+        while self._args.path.endswith(os.sep):
             self._args.path = self._args.path[:-1]
         for root, _, _ in os.walk(self._args.path):
             if root.endswith('kernel'):
@@ -245,7 +246,7 @@ class Command:
 
         try:
             ret, metadata = subprocess.getstatusoutput(
-                'babeltrace -o ctf-metadata "%s"' % kernel_path)
+                'babeltrace -o ctf-metadata {}'.format(shlex.quote(kernel_path)))
         except subprocess.CalledProcessError:
             self._gen_error('Cannot run babeltrace on the trace, cannot read'
                             ' tracer version')
@@ -253,10 +254,12 @@ class Command:
         # fallback to reading the text metadata if babeltrace failed to
         # output the CTF metadata
         if ret != 0:
+            #print("Fallback to metadata parsing.\n")
             try:
-                metadata = subprocess.getoutput(
-                    'cat "%s"' % os.path.join(kernel_path, 'metadata'))
-            except subprocess.CalledProcessError:
+                metadata_f = open(os.path.join(kernel_path, 'metadata'),'r')
+                metadata = metadata_f.read()
+                metadata_f.close()
+            except OSError:
                 self._gen_error('Cannot read the metadata of the trace, cannot'
                                 'extract tracer version')
 
@@ -294,7 +297,7 @@ class Command:
             mi.print_progress(0, msg)
 
         try:
-            subprocess.check_output('babeltrace "%s"' % self._args.path,
+            subprocess.check_output('babeltrace {}'.format(shlex.quote(self._args.path)),
                                     shell=True)
         except subprocess.CalledProcessError:
             self._gen_error('Cannot run babeltrace on the trace, cannot verify'

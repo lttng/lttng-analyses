@@ -23,7 +23,7 @@
 
 import os
 import socket
-from ..common import format_utils, trace_utils
+from ..common import constant_utils, format_utils, trace_utils
 
 
 class Process():
@@ -265,7 +265,7 @@ class OpenIORequest(SyscallIORequest):
         filename = event['filename']
 
         req = cls(begin_ts, tid, name, filename, FDType.disk)
-        req.cloexec = event['flags'] & os.O_CLOEXEC == os.O_CLOEXEC
+        req.cloexec = event['flags'] & constant_utils.O_CLOEXEC == constant_utils.O_CLOEXEC
 
         return req
 
@@ -455,7 +455,7 @@ class BlockRemapRequest():
 class SyscallConsts():
     # TODO: decouple socket/family logic from this class
     INET_FAMILIES = [socket.AF_INET, socket.AF_INET6]
-    DISK_FAMILIES = [socket.AF_UNIX]
+    DISK_FAMILIES = [constant_utils.AF_UNIX]
     # list nof syscalls that open a FD on disk (in the exit_syscall event)
     DISK_OPEN_SYSCALLS = ['open', 'openat']
     # list of syscalls that open a FD on the network

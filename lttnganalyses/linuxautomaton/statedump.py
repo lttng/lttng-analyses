@@ -23,6 +23,7 @@
 
 import os
 from . import sp, sv
+from ..common import constant_utils
 
 
 class StatedumpStateProvider(sp.StateProvider):
@@ -91,7 +92,7 @@ class StatedumpStateProvider(sp.StateProvider):
         pid = event['pid']
         fd = event['fd']
         filename = event['filename']
-        cloexec = event['flags'] & os.O_CLOEXEC == os.O_CLOEXEC
+        cloexec = event['flags'] & constant_utils.O_CLOEXEC == constant_utils.O_CLOEXEC
 
         if pid not in self._state.tids:
             self._state.tids[pid] = sv.Process(tid=pid, pid=pid)
