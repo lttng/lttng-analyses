@@ -25,17 +25,13 @@
 import argparse
 import json
 import os
-import re
 import sys
-import subprocess
 import traceback
-import shlex
-from babeltrace import TraceCollection
 from . import mi, progressbar, period_parsing
 from .. import __version__
 from ..core import analysis, period as core_period
 from ..common import (
-    format_utils, parse_utils, trace_utils, version_utils
+    bt, format_utils, parse_utils, trace_utils, version_utils
 )
 from ..linuxautomaton import automaton
 
@@ -49,14 +45,12 @@ class Command:
     ]
     _MI_URL = 'https://github.com/lttng/lttng-analyses'
     _VERSION = version_utils.Version.new_from_string(__version__)
-    _BT_INTERSECT_VERSION = version_utils.Version(1, 4, 0)
     _DEBUG_ENV_VAR = 'LTTNG_ANALYSES_DEBUG'
 
     def __init__(self, mi_mode=False):
         self._analysis = None
         self._analysis_conf = None
         self._args = None
-        self._babeltrace_version = None
         self._handles = None
         self._traces = None
         self._period_ticks = 0
@@ -197,18 +191,17 @@ class Command:
         pass
 
     def _open_trace(self):
-        self._babeltrace_version = trace_utils.read_babeltrace_version()
-        if self._babeltrace_version >= self._BT_INTERSECT_VERSION:
-            traces = TraceCollection(intersect_mode=self._args.intersect_mode)
+        if bt.has_intersect():
+            traces = bt.TraceCollection(
+                intersect_mode=self._args.intersect_mode)
         else:
             if self._args.intersect_mode:
                 self._print('Warning: intersect mode not available - '
                             'disabling')
-                self._print('         Use babeltrace {} or later to '
-                            'enable'.format(
-                                trace_utils.BT_INTERSECT_VERSION))
+                self._print('         Use babeltrace 1.4.0 or later to '
+                            'enable')
                 self._args.intersect_mode = False
-            traces = TraceCollection()
+            traces = bt.TraceCollection()
         handles = traces.add_traces_recursive(self._args.path, 'ctf')
         if handles == {}:
             self._gen_error('Failed to open ' + self._args.path, -1)
@@ -245,49 +238,11 @@ class Command:
             return
 
         try:
-            ret, metadata = subprocess.getstatusoutput(
-                'babeltrace -o ctf-metadata {}'.format(shlex.quote(kernel_path)))
-        except subprocess.CalledProcessError:
-            self._gen_error('Cannot run babeltrace on the trace, cannot read'
-                            ' tracer version')
+            version = bt.get_tracer_version(kernel_path)
+        except ValueError as e:
+            self._gen_error(str(e))
 
-        # fallback to reading the text metadata if babeltrace failed to
-        # output the CTF metadata
-        if ret != 0:
-            #print("Fallback to metadata parsing.\n")
-            try:
-                metadata_f = open(os.path.join(kernel_path, 'metadata'),'r')
-                metadata = metadata_f.read()
-                metadata_f.close()
-            except OSError:
-                self._gen_error('Cannot read the metadata of the trace, cannot'
-                                'extract tracer version')
-
-        major_match = re.search(r'tracer_major = "*(\d+)"*', metadata)
-        minor_match = re.search(r'tracer_minor = "*(\d+)"*', metadata)
-        patch_match = re.search(r'tracer_patchlevel = "*(\d+)"*', metadata)
-
-        if not major_match or not minor_match or not patch_match:
-            self._gen_error('Malformed metadata, cannot read tracer version')
-
-        self.state.tracer_version = version_utils.Version(
-            int(major_match.group(1)),
-            int(minor_match.group(1)),
-            int(patch_match.group(1)),
-        )
-
-    def _read_babeltrace_version(self):
-        try:
-            output = subprocess.check_output('babeltrace')
-        except subprocess.CalledProcessError:
-            self._gen_error('Could not run babeltrace to verify version')
-
-        output = output.decode(sys.stdout.encoding)
-        first_line = output.splitlines()[0]
-        version_string = first_line.split()[-1]
-
-        self._babeltrace_version = \
-            version_utils.Version.new_from_string(version_string)
+        self.state.tracer_version = version
 
     def _check_lost_events(self):
         msg = 'Checking the trace for lost events...'
@@ -297,11 +252,9 @@ class Command:
             mi.print_progress(0, msg)
 
         try:
-            subprocess.check_output('babeltrace {}'.format(shlex.quote(self._args.path)),
-                                    shell=True)
-        except subprocess.CalledProcessError:
-            self._gen_error('Cannot run babeltrace on the trace, cannot verify'
-                            ' if events were lost during the trace recording')
+            bt.check_lost_events(self._args.path)
+        except ValueError as e:
+            self._gen_error(str(e))
 
     def _pre_analysis(self):
         pass

@@ -31,7 +31,7 @@
 import sys
 import argparse
 
-from babeltrace import TraceCollection, CTFScope, CTFTypeId
+from lttnganalyses.common import bt
 
 
 def sanitize(s):
@@ -47,17 +47,17 @@ def sanitize(s):
 def get_definition_type(field, event):
     event_name = sanitize(event.name)
 
-    if field.type == CTFTypeId.INTEGER:
+    if field.type == bt.CTF_VALUE_TYPE_INTEGER:
         signed = ''
         if field.signedness == 0:
             signed = 'u'
         length = field.length
         print('        self.%s.add_field(self.%sint%s_type, "_%s")' %
               (event_name, signed, length, field.name))
-    elif field.type == CTFTypeId.ARRAY:
+    elif field.type == bt.CTF_VALUE_TYPE_ARRAY:
         print('        self.%s.add_field(self.array%s_type, "_%s")' %
               (event_name, field.length, field.name))
-    elif field.type == CTFTypeId.STRING:
+    elif field.type == bt.CTF_VALUE_TYPE_STRING:
         print('        self.%s.add_field(self.string_type, "_%s")' %
               (event_name, field.name))
     else:
@@ -73,7 +73,7 @@ def gen_define(event):
         print('        self.%s = CTFWriter.EventClass("%s")' %
               (event_name, event.name))
         for field in event.fields:
-            if field.scope == CTFScope.EVENT_FIELDS:
+            if field.scope == bt.CTF_SCOPE_EVENT_FIELDS:
                 fname = field.name
                 fields.append(fname)
                 get_definition_type(field, event)
@@ -94,15 +94,15 @@ def gen_write(event, fields):
         print('        self.clock.time = time_ms * 1000000')
         print('        self.set_int(event.payload("_cpu_id"), cpu_id)')
         for field in event.fields:
-            if field.scope == CTFScope.EVENT_FIELDS:
+            if field.scope == bt.CTF_SCOPE_EVENT_FIELDS:
                 fname = field.name
-                if field.type == CTFTypeId.INTEGER:
+                if field.type == bt.CTF_VALUE_TYPE_INTEGER:
                     print('        self.set_int(event.payload("_%s"), %s)' %
                           (fname, fname))
-                elif field.type == CTFTypeId.ARRAY:
+                elif field.type == bt.CTF_VALUE_TYPE_ARRAY:
                     print('        self.set_char_array(event.payload("_%s"), '
                           '%s)' % (fname, fname))
-                elif field.type == CTFTypeId.STRING:
+                elif field.type == bt.CTF_VALUE_TYPE_STRING:
                     print('        self.set_string(event.payload("_%s"), %s)' %
                           (fname, fname))
                 else:
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     parser.add_argument('path', metavar="<path/to/trace>", help='Trace path')
     args = parser.parse_args()
 
-    traces = TraceCollection()
+    traces = bt.TraceCollection()
     handle = traces.add_traces_recursive(args.path, "ctf")
     if handle is None:
         sys.exit(1)

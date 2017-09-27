@@ -21,8 +21,8 @@
 # SOFTWARE.
 
 from . import event as core_event
+from ..common import bt
 from functools import partial
-import babeltrace as bt
 import enum
 
 
@@ -409,12 +409,12 @@ class _MatchContext:
 
 
 _DYN_SCOPE_TO_BT_CTF_SCOPE = {
-    DynScope.TPH: bt.CTFScope.TRACE_PACKET_HEADER,
-    DynScope.SPC: bt.CTFScope.STREAM_PACKET_CONTEXT,
-    DynScope.SEH: bt.CTFScope.STREAM_EVENT_HEADER,
-    DynScope.SEC: bt.CTFScope.STREAM_EVENT_CONTEXT,
-    DynScope.EC: bt.CTFScope.EVENT_CONTEXT,
-    DynScope.EP: bt.CTFScope.EVENT_FIELDS,
+    DynScope.TPH: bt.CTF_SCOPE_TRACE_PACKET_HEADER,
+    DynScope.SPC: bt.CTF_SCOPE_STREAM_PACKET_CONTEXT,
+    DynScope.SEH: bt.CTF_SCOPE_STREAM_EVENT_HEADER,
+    DynScope.SEC: bt.CTF_SCOPE_STREAM_EVENT_CONTEXT,
+    DynScope.EC: bt.CTF_SCOPE_EVENT_CONTEXT,
+    DynScope.EP: bt.CTF_SCOPE_EVENT_FIELDS,
 }
 
 

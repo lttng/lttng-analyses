@@ -21,11 +21,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
 import socket
-from babeltrace import CTFScope
 from . import sp, sv
 from ..common import constant_utils, format_utils, trace_utils
+from ..common import bt
 
 
 class IoStateProvider(sp.StateProvider):
@@ -210,7 +209,8 @@ class IoStateProvider(sp.StateProvider):
             event, proc.tid, old_file)
 
         if name == 'dup3':
-            cloexec = event['flags'] & constant_utils.O_CLOEXEC == constant_utils.O_CLOEXEC
+            cloexec = ((event['flags'] & constant_utils.O_CLOEXEC) ==
+                       constant_utils.O_CLOEXEC)
             current_syscall.io_rq.cloexec = cloexec
 
     def _track_close(self, event, name, proc):
@@ -332,13 +332,13 @@ class IoStateProvider(sp.StateProvider):
 
     def _fix_context_pid(self, event, proc):
         for context in event.field_list_with_scope(
-                CTFScope.STREAM_EVENT_CONTEXT):
+                bt.CTF_SCOPE_STREAM_EVENT_CONTEXT):
             if context != 'pid':
                 continue
             # make sure the 'pid' field is not also in the event
             # payload, otherwise we might clash
             for context in event.field_list_with_scope(
-                    CTFScope.EVENT_FIELDS):
+                    bt.CTF_SCOPE_EVENT_FIELDS):
                 if context == 'pid':
                     return
 

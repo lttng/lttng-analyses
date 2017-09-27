@@ -22,13 +22,7 @@
 
 import time
 import datetime
-import subprocess
-import sys
-from .version_utils import Version
 from .time_utils import NSEC_PER_SEC
-
-
-BT_INTERSECT_VERSION = Version(1, 4, 0)
 
 
 def is_multi_day_trace_collection_bt_1_3_2(collection, handles=None):
@@ -147,19 +141,6 @@ def get_syscall_name(event):
         return name[14:]
     else:
         raise ValueError('Not a syscall event')
-
-
-def read_babeltrace_version():
-    try:
-        output = subprocess.check_output('babeltrace')
-    except subprocess.CalledProcessError:
-        raise ValueError('Could not run babeltrace to verify version')
-
-    output = output.decode(sys.stdout.encoding)
-    first_line = output.splitlines()[0]
-    version_string = first_line.split()[-1]
-
-    return Version.new_from_string(version_string)
 
 
 def check_field_exists(handles, ev_name, field_name):

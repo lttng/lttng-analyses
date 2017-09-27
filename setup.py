@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2015 - Michael Jeanson <mjeanson@efficios.com>
+# Copyright (C) 2015, 2017 - Michael Jeanson <mjeanson@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -32,19 +32,24 @@ if sys.version_info[0:2] < (3, 4):
     raise RuntimeError("Python version >= 3.4 required.")
 
 if 'install' in sys.argv:
-    if shutil.which('babeltrace') is None:
-        print('lttnganalysescli needs the babeltrace executable.\n'
-              'See https://www.efficios.com/babeltrace for more info.',
-              file=sys.stderr)
-        sys.exit(1)
-
     try:
-        __import__('babeltrace')
+        __import__('bt2')
     except ImportError:
-        print('lttnganalysescli needs the babeltrace python bindings.\n'
-              'See https://www.efficios.com/babeltrace for more info.',
-              file=sys.stderr)
-        sys.exit(1)
+        try:
+            __import__('babeltrace')
+            if shutil.which('babeltrace') is None:
+                print('lttnganalyses used with the Babeltrace 1.x (babeltrace)'
+                      'python bindings requires the \'babeltrace\' executable.'
+                      '\n'
+                      'See https://www.efficios.com/babeltrace for more info.',
+                      file=sys.stderr)
+                sys.exit(1)
+        except ImportError:
+            print('lttnganalyses requires the Babeltrace 1.x (babeltrace) or'
+                  '2.x (bt2) python bindings.\n'
+                  'See https://www.efficios.com/babeltrace for more info.',
+                  file=sys.stderr)
+            sys.exit(1)
 
 
 def read_file(filename):

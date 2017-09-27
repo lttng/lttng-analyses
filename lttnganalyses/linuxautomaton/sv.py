@@ -21,7 +21,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
 import socket
 from ..common import constant_utils, format_utils, trace_utils
 
@@ -265,7 +264,8 @@ class OpenIORequest(SyscallIORequest):
         filename = event['filename']
 
         req = cls(begin_ts, tid, name, filename, FDType.disk)
-        req.cloexec = event['flags'] & constant_utils.O_CLOEXEC == constant_utils.O_CLOEXEC
+        req.cloexec = ((event['flags'] & constant_utils.O_CLOEXEC) ==
+                       constant_utils.O_CLOEXEC)
 
         return req
 

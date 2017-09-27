@@ -25,7 +25,7 @@ import sys
 import os
 import shutil
 import tempfile
-from babeltrace import CTFWriter, CTFStringEncoding
+from lttnganalyses.common import bt
 
 
 class TraceWriter():
@@ -50,9 +50,9 @@ class TraceWriter():
         self.stream.flush()
 
     def create_writer(self):
-        self.clock = CTFWriter.Clock("A_clock")
+        self.clock = bt.CTFWriter.Clock("A_clock")
         self.clock.description = "Simple clock"
-        self.writer = CTFWriter.Writer(self.trace_path)
+        self.writer = bt.CTFWriter.Writer(self.trace_path)
         self.writer.add_clock(self.clock)
         self.writer.add_environment_field("Python_version",
                                           str(sys.version_info))
@@ -61,50 +61,50 @@ class TraceWriter():
         self.writer.add_environment_field("tracer_patchlevel", 0)
 
     def create_stream_class(self):
-        self.stream_class = CTFWriter.StreamClass("test_stream")
+        self.stream_class = bt.CTFWriter.StreamClass("test_stream")
         self.stream_class.clock = self.clock
 
     def define_base_types(self):
-        self.char8_type = CTFWriter.IntegerFieldDeclaration(8)
+        self.char8_type = bt.CTFWriter.IntegerFieldDeclaration(8)
         self.char8_type.signed = True
-        self.char8_type.encoding = CTFStringEncoding.UTF8
+        self.char8_type.encoding = bt.CTF_STRING_ENCODING_UTF8
         self.char8_type.alignment = 8
 
-        self.int16_type = CTFWriter.IntegerFieldDeclaration(16)
+        self.int16_type = bt.CTFWriter.IntegerFieldDeclaration(16)
         self.int16_type.signed = True
         self.int16_type.alignment = 8
 
-        self.uint16_type = CTFWriter.IntegerFieldDeclaration(16)
+        self.uint16_type = bt.CTFWriter.IntegerFieldDeclaration(16)
         self.uint16_type.signed = False
         self.uint16_type.alignment = 8
 
-        self.int32_type = CTFWriter.IntegerFieldDeclaration(32)
+        self.int32_type = bt.CTFWriter.IntegerFieldDeclaration(32)
         self.int32_type.signed = True
         self.int32_type.alignment = 8
 
-        self.uint32_type = CTFWriter.IntegerFieldDeclaration(32)
+        self.uint32_type = bt.CTFWriter.IntegerFieldDeclaration(32)
         self.uint32_type.signed = False
         self.uint32_type.alignment = 8
 
-        self.int64_type = CTFWriter.IntegerFieldDeclaration(64)
+        self.int64_type = bt.CTFWriter.IntegerFieldDeclaration(64)
         self.int64_type.signed = True
         self.int64_type.alignment = 8
 
-        self.uint64_type = CTFWriter.IntegerFieldDeclaration(64)
+        self.uint64_type = bt.CTFWriter.IntegerFieldDeclaration(64)
         self.uint64_type.signed = False
         self.uint64_type.alignment = 8
 
-        self.array16_type = CTFWriter.ArrayFieldDeclaration(self.char8_type,
-                                                            16)
+        self.array16_type = bt.CTFWriter.ArrayFieldDeclaration(self.char8_type,
+                                                               16)
 
-        self.string_type = CTFWriter.StringFieldDeclaration()
+        self.string_type = bt.CTFWriter.StringFieldDeclaration()
 
     def add_event(self, event):
         event.add_field(self.uint32_type, "_cpu_id")
         self.stream_class.add_event_class(event)
 
     def define_sched_switch(self):
-        self.sched_switch = CTFWriter.EventClass("sched_switch")
+        self.sched_switch = bt.CTFWriter.EventClass("sched_switch")
         self.sched_switch.add_field(self.array16_type, "_prev_comm")
         self.sched_switch.add_field(self.int32_type, "_prev_tid")
         self.sched_switch.add_field(self.int32_type, "_prev_prio")
@@ -115,70 +115,71 @@ class TraceWriter():
         self.add_event(self.sched_switch)
 
     def define_softirq_raise(self):
-        self.softirq_raise = CTFWriter.EventClass("softirq_raise")
+        self.softirq_raise = bt.CTFWriter.EventClass("softirq_raise")
         self.softirq_raise.add_field(self.uint32_type, "_vec")
         self.add_event(self.softirq_raise)
 
     def define_softirq_entry(self):
-        self.softirq_entry = CTFWriter.EventClass("softirq_entry")
+        self.softirq_entry = bt.CTFWriter.EventClass("softirq_entry")
         self.softirq_entry.add_field(self.uint32_type, "_vec")
         self.add_event(self.softirq_entry)
 
     def define_softirq_exit(self):
-        self.softirq_exit = CTFWriter.EventClass("softirq_exit")
+        self.softirq_exit = bt.CTFWriter.EventClass("softirq_exit")
         self.softirq_exit.add_field(self.uint32_type, "_vec")
         self.add_event(self.softirq_exit)
 
     def define_irq_handler_entry(self):
-        self.irq_handler_entry = CTFWriter.EventClass("irq_handler_entry")
+        self.irq_handler_entry = bt.CTFWriter.EventClass("irq_handler_entry")
         self.irq_handler_entry.add_field(self.int32_type, "_irq")
         self.irq_handler_entry.add_field(self.string_type, "_name")
         self.add_event(self.irq_handler_entry)
 
     def define_irq_handler_exit(self):
-        self.irq_handler_exit = CTFWriter.EventClass("irq_handler_exit")
+        self.irq_handler_exit = bt.CTFWriter.EventClass("irq_handler_exit")
         self.irq_handler_exit.add_field(self.int32_type, "_irq")
         self.irq_handler_exit.add_field(self.int32_type, "_ret")
         self.add_event(self.irq_handler_exit)
 
     def define_syscall_entry_write(self):
-        self.syscall_entry_write = CTFWriter.EventClass("syscall_entry_write")
+        self.syscall_entry_write = bt.CTFWriter.EventClass(
+            "syscall_entry_write")
         self.syscall_entry_write.add_field(self.uint32_type, "_fd")
         self.syscall_entry_write.add_field(self.uint64_type, "_buf")
         self.syscall_entry_write.add_field(self.uint64_type, "_count")
         self.add_event(self.syscall_entry_write)
 
     def define_syscall_exit_write(self):
-        self.syscall_exit_write = CTFWriter.EventClass("syscall_exit_write")
+        self.syscall_exit_write = bt.CTFWriter.EventClass("syscall_exit_write")
         self.syscall_exit_write.add_field(self.int64_type, "_ret")
         self.add_event(self.syscall_exit_write)
 
     def define_syscall_entry_read(self):
-        self.syscall_entry_read = CTFWriter.EventClass("syscall_entry_read")
+        self.syscall_entry_read = bt.CTFWriter.EventClass("syscall_entry_read")
         self.syscall_entry_read.add_field(self.uint32_type, "_fd")
         self.syscall_entry_read.add_field(self.uint64_type, "_count")
         self.add_event(self.syscall_entry_read)
 
     def define_syscall_exit_read(self):
-        self.syscall_exit_read = CTFWriter.EventClass("syscall_exit_read")
+        self.syscall_exit_read = bt.CTFWriter.EventClass("syscall_exit_read")
         self.syscall_exit_read.add_field(self.uint64_type, "_buf")
         self.syscall_exit_read.add_field(self.int64_type, "_ret")
         self.add_event(self.syscall_exit_read)
 
     def define_syscall_entry_open(self):
-        self.syscall_entry_open = CTFWriter.EventClass("syscall_entry_open")
+        self.syscall_entry_open = bt.CTFWriter.EventClass("syscall_entry_open")
         self.syscall_entry_open.add_field(self.string_type, "_filename")
         self.syscall_entry_open.add_field(self.int32_type, "_flags")
         self.syscall_entry_open.add_field(self.uint16_type, "_mode")
         self.add_event(self.syscall_entry_open)
 
     def define_syscall_exit_open(self):
-        self.syscall_exit_open = CTFWriter.EventClass("syscall_exit_open")
+        self.syscall_exit_open = bt.CTFWriter.EventClass("syscall_exit_open")
         self.syscall_exit_open.add_field(self.int64_type, "_ret")
         self.add_event(self.syscall_exit_open)
 
     def define_lttng_statedump_process_state(self):
-        self.lttng_statedump_process_state = CTFWriter.EventClass(
+        self.lttng_statedump_process_state = bt.CTFWriter.EventClass(
             "lttng_statedump_process_state")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_tid")
         self.lttng_statedump_process_state.add_field(self.int32_type, "_vtid")
@@ -199,7 +200,7 @@ class TraceWriter():
         self.add_event(self.lttng_statedump_process_state)
 
     def define_lttng_statedump_file_descriptor(self):
-        self.lttng_statedump_file_descriptor = CTFWriter.EventClass(
+        self.lttng_statedump_file_descriptor = bt.CTFWriter.EventClass(
             "lttng_statedump_file_descriptor")
         self.lttng_statedump_file_descriptor.add_field(self.int32_type, "_pid")
         self.lttng_statedump_file_descriptor.add_field(self.int32_type, "_fd")
@@ -212,7 +213,7 @@ class TraceWriter():
         self.add_event(self.lttng_statedump_file_descriptor)
 
     def define_sched_wakeup(self):
-        self.sched_wakeup = CTFWriter.EventClass("sched_wakeup")
+        self.sched_wakeup = bt.CTFWriter.EventClass("sched_wakeup")
         self.sched_wakeup.add_field(self.array16_type, "_comm")
         self.sched_wakeup.add_field(self.int32_type, "_tid")
         self.sched_wakeup.add_field(self.int32_type, "_prio")
@@ -221,7 +222,7 @@ class TraceWriter():
         self.add_event(self.sched_wakeup)
 
     def define_sched_waking(self):
-        self.sched_waking = CTFWriter.EventClass("sched_waking")
+        self.sched_waking = bt.CTFWriter.EventClass("sched_waking")
         self.sched_waking.add_field(self.array16_type, "_comm")
         self.sched_waking.add_field(self.int32_type, "_tid")
         self.sched_waking.add_field(self.int32_type, "_prio")
@@ -229,7 +230,7 @@ class TraceWriter():
         self.add_event(self.sched_waking)
 
     def define_block_rq_complete(self):
-        self.block_rq_complete = CTFWriter.EventClass("block_rq_complete")
+        self.block_rq_complete = bt.CTFWriter.EventClass("block_rq_complete")
         self.block_rq_complete.add_field(self.uint32_type, "_dev")
         self.block_rq_complete.add_field(self.uint64_type, "_sector")
         self.block_rq_complete.add_field(self.uint32_type, "_nr_sector")
@@ -240,7 +241,7 @@ class TraceWriter():
         self.add_event(self.block_rq_complete)
 
     def define_block_rq_issue(self):
-        self.block_rq_issue = CTFWriter.EventClass("block_rq_issue")
+        self.block_rq_issue = bt.CTFWriter.EventClass("block_rq_issue")
         self.block_rq_issue.add_field(self.uint32_type, "_dev")
         self.block_rq_issue.add_field(self.uint64_type, "_sector")
         self.block_rq_issue.add_field(self.uint32_type, "_nr_sector")
@@ -253,7 +254,7 @@ class TraceWriter():
         self.add_event(self.block_rq_issue)
 
     def define_net_dev_xmit(self):
-        self.net_dev_xmit = CTFWriter.EventClass("net_dev_xmit")
+        self.net_dev_xmit = bt.CTFWriter.EventClass("net_dev_xmit")
         self.net_dev_xmit.add_field(self.uint64_type, "_skbaddr")
         self.net_dev_xmit.add_field(self.int32_type, "_rc")
         self.net_dev_xmit.add_field(self.uint32_type, "_len")
@@ -261,7 +262,7 @@ class TraceWriter():
         self.add_event(self.net_dev_xmit)
 
     def define_netif_receive_skb(self):
-        self.netif_receive_skb = CTFWriter.EventClass("netif_receive_skb")
+        self.netif_receive_skb = bt.CTFWriter.EventClass("netif_receive_skb")
         self.netif_receive_skb.add_field(self.uint64_type, "_skbaddr")
         self.netif_receive_skb.add_field(self.uint32_type, "_len")
         self.netif_receive_skb.add_field(self.string_type, "_name")
@@ -308,7 +309,7 @@ class TraceWriter():
         event.value = value
 
     def write_softirq_raise(self, time_ms, cpu_id, vec):
-        event = CTFWriter.Event(self.softirq_raise)
+        event = bt.CTFWriter.Event(self.softirq_raise)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_vec"), vec)
@@ -316,7 +317,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_softirq_entry(self, time_ms, cpu_id, vec):
-        event = CTFWriter.Event(self.softirq_entry)
+        event = bt.CTFWriter.Event(self.softirq_entry)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_vec"), vec)
@@ -324,7 +325,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_softirq_exit(self, time_ms, cpu_id, vec):
-        event = CTFWriter.Event(self.softirq_exit)
+        event = bt.CTFWriter.Event(self.softirq_exit)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_vec"), vec)
@@ -332,7 +333,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_irq_handler_entry(self, time_ms, cpu_id, irq, name):
-        event = CTFWriter.Event(self.irq_handler_entry)
+        event = bt.CTFWriter.Event(self.irq_handler_entry)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_irq"), irq)
@@ -341,7 +342,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_irq_handler_exit(self, time_ms, cpu_id, irq, ret):
-        event = CTFWriter.Event(self.irq_handler_exit)
+        event = bt.CTFWriter.Event(self.irq_handler_exit)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_irq"), irq)
@@ -350,7 +351,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_syscall_write(self, time_ms, cpu_id, delay, fd, buf, count, ret):
-        event_entry = CTFWriter.Event(self.syscall_entry_write)
+        event_entry = bt.CTFWriter.Event(self.syscall_entry_write)
         self.clock.time = time_ms * 1000000
         self.set_int(event_entry.payload("_cpu_id"), cpu_id)
         self.set_int(event_entry.payload("_fd"), fd)
@@ -358,7 +359,7 @@ class TraceWriter():
         self.set_int(event_entry.payload("_count"), count)
         self.stream.append_event(event_entry)
 
-        event_exit = CTFWriter.Event(self.syscall_exit_write)
+        event_exit = bt.CTFWriter.Event(self.syscall_exit_write)
         self.clock.time = (time_ms + delay) * 1000000
         self.set_int(event_exit.payload("_cpu_id"), cpu_id)
         self.set_int(event_exit.payload("_ret"), ret)
@@ -366,14 +367,14 @@ class TraceWriter():
         self.stream.flush()
 
     def write_syscall_read(self, time_ms, cpu_id, delay, fd, buf, count, ret):
-        event_entry = CTFWriter.Event(self.syscall_entry_read)
+        event_entry = bt.CTFWriter.Event(self.syscall_entry_read)
         self.clock.time = time_ms * 1000000
         self.set_int(event_entry.payload("_cpu_id"), cpu_id)
         self.set_int(event_entry.payload("_fd"), fd)
         self.set_int(event_entry.payload("_count"), count)
         self.stream.append_event(event_entry)
 
-        event_exit = CTFWriter.Event(self.syscall_exit_read)
+        event_exit = bt.CTFWriter.Event(self.syscall_exit_read)
         self.clock.time = (time_ms + delay) * 1000000
         self.set_int(event_exit.payload("_cpu_id"), cpu_id)
         self.set_int(event_exit.payload("_buf"), buf)
@@ -383,7 +384,7 @@ class TraceWriter():
 
     def write_syscall_open(self, time_ms, cpu_id, delay, filename, flags,
                            mode, ret):
-        event = CTFWriter.Event(self.syscall_entry_open)
+        event = bt.CTFWriter.Event(self.syscall_entry_open)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_string(event.payload("_filename"), filename)
@@ -392,7 +393,7 @@ class TraceWriter():
         self.stream.append_event(event)
         self.stream.flush()
 
-        event = CTFWriter.Event(self.syscall_exit_open)
+        event = bt.CTFWriter.Event(self.syscall_exit_open)
         self.clock.time = (time_ms + delay) * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_ret"), ret)
@@ -401,7 +402,7 @@ class TraceWriter():
 
     def write_lttng_statedump_file_descriptor(self, time_ms, cpu_id, pid, fd,
                                               flags, fmode, filename):
-        event = CTFWriter.Event(self.lttng_statedump_file_descriptor)
+        event = bt.CTFWriter.Event(self.lttng_statedump_file_descriptor)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_pid"), pid)
@@ -415,7 +416,7 @@ class TraceWriter():
     def write_lttng_statedump_process_state(self, time_ms, cpu_id, tid, vtid,
                                             pid, vpid, ppid, vppid, name, type,
                                             mode, submode, status, ns_level):
-        event = CTFWriter.Event(self.lttng_statedump_process_state)
+        event = bt.CTFWriter.Event(self.lttng_statedump_process_state)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_tid"), tid)
@@ -434,7 +435,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_sched_wakeup(self, time_ms, cpu_id, comm, tid, prio, target_cpu):
-        event = CTFWriter.Event(self.sched_wakeup)
+        event = bt.CTFWriter.Event(self.sched_wakeup)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_char_array(event.payload("_comm"), comm)
@@ -445,7 +446,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_sched_waking(self, time_ms, cpu_id, comm, tid, prio, target_cpu):
-        event = CTFWriter.Event(self.sched_waking)
+        event = bt.CTFWriter.Event(self.sched_waking)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_char_array(event.payload("_comm"), comm)
@@ -457,7 +458,7 @@ class TraceWriter():
 
     def write_block_rq_complete(self, time_ms, cpu_id, dev, sector, nr_sector,
                                 errors, rwbs, _cmd_length, cmd):
-        event = CTFWriter.Event(self.block_rq_complete)
+        event = bt.CTFWriter.Event(self.block_rq_complete)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_dev"), dev)
@@ -472,7 +473,7 @@ class TraceWriter():
 
     def write_block_rq_issue(self, time_ms, cpu_id, dev, sector, nr_sector,
                              bytes, tid, rwbs, _cmd_length, cmd, comm):
-        event = CTFWriter.Event(self.block_rq_issue)
+        event = bt.CTFWriter.Event(self.block_rq_issue)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_dev"), dev)
@@ -488,7 +489,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_net_dev_xmit(self, time_ms, cpu_id, skbaddr, rc, len, name):
-        event = CTFWriter.Event(self.net_dev_xmit)
+        event = bt.CTFWriter.Event(self.net_dev_xmit)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_skbaddr"), skbaddr)
@@ -499,7 +500,7 @@ class TraceWriter():
         self.stream.flush()
 
     def write_netif_receive_skb(self, time_ms, cpu_id, skbaddr, len, name):
-        event = CTFWriter.Event(self.netif_receive_skb)
+        event = bt.CTFWriter.Event(self.netif_receive_skb)
         self.clock.time = time_ms * 1000000
         self.set_int(event.payload("_cpu_id"), cpu_id)
         self.set_int(event.payload("_skbaddr"), skbaddr)
@@ -511,7 +512,7 @@ class TraceWriter():
     def write_sched_switch(self, time_ms, cpu_id, prev_comm, prev_tid,
                            next_comm, next_tid, prev_prio=20, prev_state=1,
                            next_prio=20):
-        event = CTFWriter.Event(self.sched_switch)
+        event = bt.CTFWriter.Event(self.sched_switch)
         self.clock.time = time_ms * 1000000
         self.set_char_array(event.payload("_prev_comm"), prev_comm)
         self.set_int(event.payload("_prev_tid"), prev_tid)
