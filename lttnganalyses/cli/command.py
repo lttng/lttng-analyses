@@ -589,7 +589,7 @@ Please consider using the --period option.''')
                 for part in parts:
                     try:
                         value_exprs.append(core_period.Number(float(part)))
-                    except:
+                    except Exception:
                         value_exprs.append(core_period.String(part))
 
                 for field_name, value_expr in zip(begin_field_names,
