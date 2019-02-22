@@ -85,8 +85,8 @@ def is_multi_day_trace_collection(collection, handles=None):
     # Circumvent a bug in Babeltrace < 1.3.3
     if collection.timestamp_begin is None or \
             collection.timestamp_end is None:
-                return is_multi_day_trace_collection_bt_1_3_2(collection,
-                                                              handles)
+        return is_multi_day_trace_collection_bt_1_3_2(collection,
+                                                      handles)
 
     date_begin = datetime.date.fromtimestamp(
         collection.timestamp_begin // NSEC_PER_SEC

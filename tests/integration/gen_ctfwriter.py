@@ -67,50 +67,50 @@ def get_definition_type(field, event):
 
 
 def gen_define(event):
-        fields = []
-        event_name = sanitize(event.name)
-        print('    def define_%s(self):' % (event_name))
-        print('        self.%s = CTFWriter.EventClass("%s")' %
-              (event_name, event.name))
-        for field in event.fields:
-            if field.scope == CTFScope.EVENT_FIELDS:
-                fname = field.name
-                fields.append(fname)
-                get_definition_type(field, event)
-        print('        self.add_event(self.%s)' % event_name)
-        print('')
-        return fields
+    fields = []
+    event_name = sanitize(event.name)
+    print('    def define_%s(self):' % (event_name))
+    print('        self.%s = CTFWriter.EventClass("%s")' %
+          (event_name, event.name))
+    for field in event.fields:
+        if field.scope == CTFScope.EVENT_FIELDS:
+            fname = field.name
+            fields.append(fname)
+            get_definition_type(field, event)
+    print('        self.add_event(self.%s)' % event_name)
+    print('')
+    return fields
 
 
 def gen_write(event, fields):
-        f_list = ''
-        for f in fields:
-            f_list += ', {}'.format(f)
+    f_list = ''
+    for f in fields:
+        f_list += ', {}'.format(f)
 
-        event_name = sanitize(event.name)
-        print('    def write_%s(self, time_ms, cpu_id%s):' % (event_name,
-                                                              f_list))
-        print('        event = CTFWriter.Event(self.%s)' % (event_name))
-        print('        self.clock.time = time_ms * 1000000')
-        print('        self.set_int(event.payload("_cpu_id"), cpu_id)')
-        for field in event.fields:
-            if field.scope == CTFScope.EVENT_FIELDS:
-                fname = field.name
-                if field.type == CTFTypeId.INTEGER:
-                    print('        self.set_int(event.payload("_%s"), %s)' %
-                          (fname, fname))
-                elif field.type == CTFTypeId.ARRAY:
-                    print('        self.set_char_array(event.payload("_%s"), '
-                          '%s)' % (fname, fname))
-                elif field.type == CTFTypeId.STRING:
-                    print('        self.set_string(event.payload("_%s"), %s)' %
-                          (fname, fname))
-                else:
-                    print('        # FIXME %s.%s: Unhandled type %d' %
-                          (event.name, field.name, field.type))
-        print('        self.stream.append_event(event)')
-        print('        self.stream.flush()')
-        print('')
+    event_name = sanitize(event.name)
+    print('    def write_%s(self, time_ms, cpu_id%s):' % (event_name,
+                                                          f_list))
+    print('        event = CTFWriter.Event(self.%s)' % (event_name))
+    print('        self.clock.time = time_ms * 1000000')
+    print('        self.set_int(event.payload("_cpu_id"), cpu_id)')
+    for field in event.fields:
+        if field.scope == CTFScope.EVENT_FIELDS:
+            fname = field.name
+            if field.type == CTFTypeId.INTEGER:
+                print('        self.set_int(event.payload("_%s"), %s)' %
+                      (fname, fname))
+            elif field.type == CTFTypeId.ARRAY:
+                print('        self.set_char_array(event.payload("_%s"), '
+                      '%s)' % (fname, fname))
+            elif field.type == CTFTypeId.STRING:
+                print('        self.set_string(event.payload("_%s"), %s)' %
+                      (fname, fname))
+            else:
+                print('        # FIXME %s.%s: Unhandled type %d' %
+                      (event.name, field.name, field.type))
+    print('        self.stream.append_event(event)')
+    print('        self.stream.flush()')
+    print('')
 
 
 def gen_parser(handle, args):

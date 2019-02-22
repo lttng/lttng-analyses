@@ -109,14 +109,14 @@ class TestAllOptions(unittest.TestCase):
             self._traces_repo_path, "picotrace",
             "1970-01-01 00:00:01.004000000",
             "1970-01-01 00:00:01.022000000",
-            period1='switch : \$evt.\$name == \\"sched_switch\\" : '
-                    '\$evt.\$name == \\"sched_switch\\" && '
-                    '\$evt.prev_tid == \$begin.\$evt.next_tid && '
-                    '\$evt.cpu_id == \$begin.\$evt.cpu_id',
-            period2=' : \$evt.\$name == \\"sched_switch\\" : '
-                    '\$evt.\$name == \\"sched_switch\\" && '
-                    '\$evt.prev_tid == \$begin.\$evt.next_tid && '
-                    '\$evt.cpu_id == \$begin.\$evt.cpu_id')
+            period1='switch : \\$evt.\\$name == \\"sched_switch\\" : '
+                    '\\$evt.\\$name == \\"sched_switch\\" && '
+                    '\\$evt.prev_tid == \\$begin.\\$evt.next_tid && '
+                    '\\$evt.cpu_id == \\$begin.\\$evt.cpu_id',
+            period2=' : \\$evt.\\$name == \\"sched_switch\\" : '
+                    '\\$evt.\\$name == \\"sched_switch\\" && '
+                    '\\$evt.prev_tid == \\$begin.\\$evt.next_tid && '
+                    '\\$evt.cpu_id == \\$begin.\\$evt.cpu_id')
 
         # Disabled for now since they take far too long to run
         # self._traces["16-cores-rt"] = _RefTrace(
