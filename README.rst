@@ -54,7 +54,7 @@ Required dependencies
 - `Python <https://www.python.org/>`_ ≥ 3.4
 - `setuptools <https://pypi.python.org/pypi/setuptools>`_
 - `pyparsing <http://pyparsing.wikispaces.com/>`_ ≥ 2.0.0
-- `Babeltrace <http://diamon.org/babeltrace/>`_ ≥ 1.2 with Python
+- `Babeltrace <http://diamon.org/babeltrace/>`_ ≥ 1.2, < 2 with Python
   bindings (``--enable-python-bindings`` when building from source)
 
 
