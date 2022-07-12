@@ -37,7 +37,7 @@ _CTF_SCOPES = (
 # This class has an interface which is compatible with the
 # babeltrace.reader.Event class. This is the result of a deep copy
 # performed by LTTng analyses.
-class Event(collections.Mapping):
+class Event(collections.abc.Mapping):
     def __init__(self, bt_ev):
         self._copy_bt_event(bt_ev)
 
