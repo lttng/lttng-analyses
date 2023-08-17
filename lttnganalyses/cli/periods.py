@@ -856,7 +856,7 @@ class PeriodAnalysisCommand(Command):
                 per_parent_period_group_by_stats, active_periods,
                 ancestors_captures + event_captures,
                 per_group_active_periods, per_period_group_by_stats)
-            del(active_periods[child])
+            del active_periods[child]
             for c in child_captures:
                 local_captures.append(event_captures + c)
                 global_captures.append(event_captures.copy() + c)
@@ -923,7 +923,7 @@ class PeriodAnalysisCommand(Command):
                         tmp_hierarchical_list, period_event, per_period_stats,
                         per_parent_period_group_by_stats, active_periods, [],
                         per_group_active_periods, per_period_group_by_stats)
-                    del(active_periods[period_event])
+                    del active_periods[period_event]
                     for item in tmp_hierarchical_list:
                         hierarchical_list.append(item)
 

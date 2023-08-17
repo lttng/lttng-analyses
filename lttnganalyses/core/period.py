@@ -451,7 +451,7 @@ def _resolve_event_expr(event, expr):
 
         return event.field_with_scope(expr.name, bt_ctf_scope)
 
-    assert(False)
+    assert False
 
 
 # This exquisite function takes an expression and resolves it to
@@ -480,7 +480,7 @@ def _resolve_expr(expr, match_context):
     if type(expr) is String:
         return expr.value
 
-    assert(False)
+    assert False
 
 
 class _Matcher:

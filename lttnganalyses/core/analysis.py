@@ -130,7 +130,7 @@ class Analysis:
         period.end_evt = evt
         period.completed = completed
         self._on_period_end(period)
-        assert(len(self._period_data) == 0)
+        assert len(self._period_data) == 0
 
     # Creates a fresh specific period data object. This must be
     # implemented by a specific analysis.

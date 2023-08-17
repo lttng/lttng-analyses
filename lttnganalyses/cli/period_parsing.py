@@ -144,7 +144,7 @@ def _res_to_scope(res):
     elif 'id' in res:
         scope = period.EventFieldName(res['id'])
     else:
-        assert(False)
+        assert False
 
     if 'dyn-scope-prefix' in res:
         dyn_scope = period.DynScope(res['dyn-scope-prefix'][0][0])
@@ -231,7 +231,7 @@ def _expr_results_to_expression(res_expr):
         return _create_binary_op(res_expr['relop'], lh_field_expr,
                                  rh_field_expr)
 
-    assert(False)
+    assert False
 
 
 def _capture_refs_results_to_captures_exprs(res_capture_refs):
