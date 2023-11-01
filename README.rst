@@ -313,6 +313,7 @@ To record an LTTng kernel trace suitable for the LTTng analyses:
       sudo lttng enable-event --kernel --channel=chan softirq_exit
       sudo lttng enable-event --kernel --channel=chan softirq_raise
       sudo lttng enable-event --kernel --channel=chan --syscall --all
+      sudo lttng add-context --kernel --type=pid
 #. Start recording:
 
    .. code-block:: bash
