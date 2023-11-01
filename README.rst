@@ -1,6 +1,17 @@
 LTTng analyses
 **************
 
+Project status
+==============
+
+This experimental project is not currently maintained, and may not work
+without modifications with recent versions of LTTng. Those interested in
+financing continued efforts on this project may contact
+`EfficiOS <mailto:sales@efficios.com>`_.
+
+About
+=====
+   
 .. image:: https://img.shields.io/pypi/v/lttnganalyses.svg?label=Latest%20version
    :target: https://pypi.python.org/pypi/lttnganalyses
    :alt: Latest version released on PyPi
@@ -313,6 +324,7 @@ To record an LTTng kernel trace suitable for the LTTng analyses:
       sudo lttng enable-event --kernel --channel=chan softirq_exit
       sudo lttng enable-event --kernel --channel=chan softirq_raise
       sudo lttng enable-event --kernel --channel=chan --syscall --all
+      sudo lttng add-context --kernel --type=pid
 #. Start recording:
 
    .. code-block:: bash
