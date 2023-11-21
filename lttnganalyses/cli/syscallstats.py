@@ -50,6 +50,7 @@ class SyscallsAnalysis(Command):
                 ('max_duration', 'Maximum call duration', mi.Duration),
                 ('stdev_duration', 'Call duration standard deviation',
                  mi.Duration),
+                ('total_duration', 'Total call duration', mi.Duration),
                 ('return_values', 'Return values count', mi.String),
             ]
         ),
@@ -172,6 +173,7 @@ class SyscallsAnalysis(Command):
                                              syscall.count),
                     max_duration=mi.Duration(syscall.max_duration),
                     stdev_duration=stdev,
+                    total_duration=mi.Duration(syscall.total_duration),
                     return_values=mi.String(str(return_count)),
                 )
 
@@ -185,39 +187,46 @@ class SyscallsAnalysis(Command):
         return total_table, per_tid_tables
 
     def _print_results(self, total_table, per_tid_tables):
-        line_format = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10}  {:<14}'
+        line_format = '{:<38} {:>14} {:>14} {:>14} {:>12} {:>10} {:>14}  {:<14}'
 
         print('Per-TID syscalls statistics (usec)')
         total_calls = 0
+        total_duration = 0
 
         for total_row, table in zip(total_table.rows, per_tid_tables):
             print(line_format.format(table.subtitle,
                                      'Count', 'Min', 'Average', 'Max',
-                                     'Stdev', 'Return values'))
+                                     'Stdev', 'Total', 'Return values'))
+            proc_total_duration = 0
             for row in table.rows:
                 syscall_name = row.syscall.name
                 syscall_count = row.count.value
                 min_duration = round(row.min_duration.to_us(), 3)
                 avg_duration = round(row.avg_duration.to_us(), 3)
                 max_duration = round(row.max_duration.to_us(), 3)
+                row_total_duration = round(row.total_duration.to_us(), 3)
+                proc_total_duration += row.total_duration.to_us()
 
                 if type(row.stdev_duration) is mi.Unknown:
                     stdev = '?'
                 else:
                     stdev = round(row.stdev_duration.to_us(), 3)
 
-                proc_total_calls = total_row.count.value
                 print(line_format.format(
                     ' - ' + syscall_name, syscall_count, min_duration,
-                    avg_duration, max_duration, stdev,
+                    avg_duration, max_duration, stdev, row_total_duration,
                     row.return_values.value))
 
+            proc_total_calls = total_row.count.value
+            total_duration += proc_total_duration
+            proc_total_duration = round(proc_total_duration, 3)
             print(line_format.format('Total:', proc_total_calls,
-                                     '', '', '', '', ''))
+                                     '', '', '', '', proc_total_duration, ''))
             print('-' * 113)
             total_calls += proc_total_calls
 
         print('\nTotal syscalls: %d' % (total_calls))
+        print('\nTotal duration: %f' % (total_duration))
 
     def _add_arguments(self, ap):
         Command._add_proc_filter_args(ap)
